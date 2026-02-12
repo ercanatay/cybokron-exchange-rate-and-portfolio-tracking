@@ -3,6 +3,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![PHP Version](https://img.shields.io/badge/PHP-8.0%2B-blue.svg)](https://php.net)
 [![MySQL Version](https://img.shields.io/badge/MySQL-5.7%2B-orange.svg)](https://mysql.com)
+[![Powered by Netlify](https://www.netlify.com/v3/img/components/netlify-color-bg.svg)](https://www.netlify.com/)
 
 PHP/MySQL exchange rate tracker and portfolio manager. Scrapes live currency rates from Turkish banks, auto-updates when source tables change, and supports portfolio tracking. Self-updates via GitHub releases.
 
@@ -150,6 +151,13 @@ class YeniBank extends Scraper
 ## Self-Update
 
 The app checks GitHub releases via `cron/self_update.php`. When a new version is found, it downloads the ZIP, extracts, and updates files automatically.
+
+## Open Source Policy Notes
+
+- License: MIT (OSI-approved)
+- Code of Conduct: [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)
+- Netlify link requirement: This site is powered by [Netlify](https://www.netlify.com/)
+- Non-commercial scope: This repository is maintained as a non-commercial open-source project. It does not provide paid support or commercial hosting services.
 
 ## License
 

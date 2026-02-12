@@ -89,8 +89,12 @@ foreach ($rates as $rate) {
 
     <footer class="footer">
         <div class="container">
-            <p>Cybokron v<?= htmlspecialchars($version) ?> &mdash;
-            <a href="https://github.com/ercanatay/cybokron-exchange-rate-and-portfolio-tracking" target="_blank">GitHub</a></p>
+            <p class="footer-links">
+                Cybokron v<?= htmlspecialchars($version) ?> |
+                <a href="https://github.com/ercanatay/cybokron-exchange-rate-and-portfolio-tracking" target="_blank" rel="noopener noreferrer">GitHub</a> |
+                <a href="https://github.com/ercanatay/cybokron-exchange-rate-and-portfolio-tracking/blob/main/CODE_OF_CONDUCT.md" target="_blank" rel="noopener noreferrer">Code of Conduct</a> |
+                <a href="https://www.netlify.com/" target="_blank" rel="noopener noreferrer">This site is powered by Netlify</a>
+            </p>
         </div>
     </footer>
 
