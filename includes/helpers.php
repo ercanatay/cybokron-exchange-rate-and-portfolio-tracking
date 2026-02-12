@@ -77,7 +77,7 @@ function applySecurityHeaders(string $context = 'html'): void
 
     $cspPolicy = defined('CSP_POLICY')
         ? trim((string) CSP_POLICY)
-        : "default-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'; object-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:";
+        : "default-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'; object-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:";
     if ($cspPolicy !== '') {
         header('Content-Security-Policy: ' . $cspPolicy);
     }

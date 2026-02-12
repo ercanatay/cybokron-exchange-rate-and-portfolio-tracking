@@ -92,6 +92,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'notes' => trim((string) ($_POST['notes'] ?? '')),
         ];
 
+        // Debug: Log the received date
+        cybokron_log("DEBUG: Received buy_date = '{$formValues['buy_date']}'", 'INFO');
+
         if ($formValues['buy_date'] === '') {
             $formValues['buy_date'] = $defaultBuyDate;
         }

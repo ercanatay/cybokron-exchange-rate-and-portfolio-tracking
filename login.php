@@ -50,7 +50,7 @@ $currentLocale = getAppLocale();
     <link rel="stylesheet" href="assets/css/style.css">
 </head>
 <body>
-    <main class="container" style="max-width: 400px; margin: 80px auto;">
+    <main class="container login-container">
         <h1><?= t('auth.login_title') ?></h1>
         <?php if ($error): ?>
             <div class="alert alert-error"><?= htmlspecialchars($error) ?></div>
@@ -66,7 +66,7 @@ $currentLocale = getAppLocale();
             </div>
             <button type="submit" class="btn btn-primary"><?= t('auth.login') ?></button>
         </form>
-        <p style="margin-top: 16px;"><a href="index.php"><?= t('auth.back') ?></a></p>
+        <p class="login-back-link"><a href="index.php"><?= t('auth.back') ?></a></p>
     </main>
 </body>
 </html>

@@ -258,6 +258,9 @@ class Portfolio
         $parsed = DateTime::createFromFormat('Y-m-d', $date);
         $errors = DateTime::getLastErrors();
 
+        // Debug logging
+        cybokron_log("DEBUG normalizeDate: date='$date', parsed=" . ($parsed ? $parsed->format('Y-m-d') : 'NULL') . ", errors=" . json_encode($errors), 'INFO');
+
         if (!$parsed || !is_array($errors) || $errors['warning_count'] > 0 || $errors['error_count'] > 0 || $parsed->format('Y-m-d') !== $date) {
             throw new InvalidArgumentException('buy_date must be in Y-m-d format');
         }
