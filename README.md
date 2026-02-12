@@ -16,6 +16,7 @@ PHP/MySQL exchange rate tracker and portfolio manager. Scrapes live currency rat
 - 🔁 **Self-Update** — Automatically pull new versions from GitHub releases
 - 🏗️ **Schema Auto-Detect** — If the bank website table structure changes, the scraper adapts automatically
 - 🌐 **Web Dashboard** — Clean, responsive UI to view rates and manage portfolios
+- 🌍 **Multilingual UI** — Built-in Turkish (`tr`) and English (`en`) support, with Turkish as the default install language
 
 ## Supported Banks
 
@@ -71,6 +72,14 @@ cp config.sample.php config.php
 nano config.php
 ```
 
+Language defaults in `config.php`:
+
+```php
+define('DEFAULT_LOCALE', 'tr');
+define('FALLBACK_LOCALE', 'en');
+define('AVAILABLE_LOCALES', ['tr', 'en']);
+```
+
 ### 4. Set Up Cron Jobs
 
 ```cron
@@ -97,6 +106,9 @@ Open `http://your-domain.com/cybokron/` in your browser.
 ├── index.php
 ├── portfolio.php
 ├── api.php
+├── locales/
+│   ├── tr.php
+│   └── en.php
 ├── includes/
 │   ├── Database.php
 │   ├── Scraper.php
@@ -119,14 +131,14 @@ Create a new file in `banks/` extending the `Scraper` base class:
 
 ```php
 <?php
-// banks/YeniBank.php
+// banks/SampleBank.php
 require_once __DIR__ . '/../includes/Scraper.php';
 
-class YeniBank extends Scraper
+class SampleBank extends Scraper
 {
-    protected string $bankName = 'Yeni Bank';
-    protected string $bankSlug = 'yeni-bank';
-    protected string $url = 'https://yenibank.com.tr/kurlar';
+    protected string $bankName = 'Sample Bank';
+    protected string $bankSlug = 'sample-bank';
+    protected string $url = 'https://samplebank.com/exchange-rates';
 
     public function scrape(): array
     {
@@ -135,6 +147,20 @@ class YeniBank extends Scraper
     }
 }
 ```
+
+## Localization
+
+The UI is localized with flat key/value dictionaries in `locales/*.php`.
+
+- Default install locale is Turkish (`tr`)
+- English (`en`) is included as a fallback
+- Language can be switched from the top navigation
+
+To add a new language:
+
+1. Create a new file, for example `locales/de.php`
+2. Copy keys from `locales/en.php` and translate values
+3. Add the locale code in `AVAILABLE_LOCALES` in `config.php`
 
 ## API Endpoints
 

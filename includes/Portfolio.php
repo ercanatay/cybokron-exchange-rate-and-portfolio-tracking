@@ -19,6 +19,8 @@ class Portfolio
                 p.buy_date,
                 p.notes,
                 c.code AS currency_code,
+                c.name_tr AS currency_name_tr,
+                c.name_en AS currency_name_en,
                 c.name_tr AS currency_name,
                 c.symbol AS currency_symbol,
                 c.type AS currency_type,

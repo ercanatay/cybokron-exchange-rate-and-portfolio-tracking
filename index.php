@@ -9,6 +9,8 @@ cybokron_init();
 
 $rates = getLatestRates();
 $version = trim(file_get_contents(__DIR__ . '/VERSION'));
+$currentLocale = getAppLocale();
+$availableLocales = getAvailableLocales();
 
 // Group rates by bank
 $ratesByBank = [];
@@ -17,7 +19,7 @@ foreach ($rates as $rate) {
 }
 ?>
 <!DOCTYPE html>
-<html lang="tr">
+<html lang="<?= htmlspecialchars($currentLocale) ?>">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -28,9 +30,18 @@ foreach ($rates as $rate) {
     <header class="header">
         <div class="container">
             <h1>💱 <?= APP_NAME ?></h1>
-            <nav>
-                <a href="index.php" class="active">Kurlar</a>
-                <a href="portfolio.php">Portföy</a>
+            <nav class="header-nav">
+                <a href="index.php" class="active"><?= t('nav.rates') ?></a>
+                <a href="portfolio.php"><?= t('nav.portfolio') ?></a>
+                <span class="lang-label"><?= t('nav.language') ?>:</span>
+                <?php foreach ($availableLocales as $locale): ?>
+                    <a
+                        href="<?= htmlspecialchars(buildLocaleUrl($locale)) ?>"
+                        class="lang-link <?= $currentLocale === $locale ? 'active' : '' ?>"
+                    >
+                        <?= htmlspecialchars(strtoupper($locale)) ?>
+                    </a>
+                <?php endforeach; ?>
             </nav>
         </div>
     </header>
@@ -41,34 +52,37 @@ foreach ($rates as $rate) {
             <section class="bank-section">
                 <h2>🏦 <?= htmlspecialchars($bankName) ?></h2>
                 <?php if (!empty($bankRates[0]['scraped_at'])): ?>
-                    <p class="last-update">Son Güncelleme: <?= date('d.m.Y H:i:s', strtotime($bankRates[0]['scraped_at'])) ?></p>
+                    <p class="last-update">
+                        <?= t('index.last_update', ['datetime' => formatDateTime((string) $bankRates[0]['scraped_at'])]) ?>
+                    </p>
                 <?php endif; ?>
 
                 <div class="table-responsive">
                     <table class="rates-table">
                         <thead>
                             <tr>
-                                <th>Döviz</th>
-                                <th>Kod</th>
-                                <th class="text-right">Banka Alış</th>
-                                <th class="text-right">Banka Satış</th>
-                                <th class="text-right">Değişim</th>
+                                <th><?= t('index.table.currency') ?></th>
+                                <th><?= t('index.table.code') ?></th>
+                                <th class="text-right"><?= t('index.table.bank_buy') ?></th>
+                                <th class="text-right"><?= t('index.table.bank_sell') ?></th>
+                                <th class="text-right"><?= t('index.table.change') ?></th>
                             </tr>
                         </thead>
                         <tbody>
                             <?php foreach ($bankRates as $rate): ?>
-                                <tr>
+                                <?php $change = (float) ($rate['change_percent'] ?? 0); ?>
+                                <tr data-currency="<?= htmlspecialchars($rate['currency_code']) ?>" data-bank="<?= htmlspecialchars($rate['bank_slug']) ?>">
                                     <td>
-                                        <span class="currency-name"><?= htmlspecialchars($rate['currency_name']) ?></span>
+                                        <span class="currency-name"><?= htmlspecialchars(localizedCurrencyName($rate)) ?></span>
                                     </td>
                                     <td>
                                         <span class="currency-code"><?= htmlspecialchars($rate['currency_code']) ?></span>
                                     </td>
-                                    <td class="text-right mono"><?= formatRate((float)$rate['buy_rate']) ?></td>
-                                    <td class="text-right mono"><?= formatRate((float)$rate['sell_rate']) ?></td>
-                                    <td class="text-right <?= changeClass((float)($rate['change_percent'] ?? 0)) ?>">
-                                        <?= changeArrow((float)($rate['change_percent'] ?? 0)) ?>
-                                        % <?= number_format(abs((float)($rate['change_percent'] ?? 0)), 2, ',', '.') ?>
+                                    <td class="text-right mono rate-buy"><?= formatRate((float) $rate['buy_rate']) ?></td>
+                                    <td class="text-right mono rate-sell"><?= formatRate((float) $rate['sell_rate']) ?></td>
+                                    <td class="text-right rate-change <?= changeClass($change) ?>">
+                                        <?= changeArrow($change) ?>
+                                        % <?= formatNumberLocalized(abs($change), 2) ?>
                                     </td>
                                 </tr>
                             <?php endforeach; ?>
@@ -80,8 +94,8 @@ foreach ($rates as $rate) {
 
         <?php if (empty($ratesByBank)): ?>
             <div class="empty-state">
-                <h2>Henüz kur verisi yok</h2>
-                <p>Kurları çekmek için cron job'u çalıştırın:</p>
+                <h2><?= t('index.empty_title') ?></h2>
+                <p><?= t('index.empty_desc') ?></p>
                 <code>php cron/update_rates.php</code>
             </div>
         <?php endif; ?>
@@ -91,9 +105,9 @@ foreach ($rates as $rate) {
         <div class="container">
             <p class="footer-links">
                 Cybokron v<?= htmlspecialchars($version) ?> |
-                <a href="https://github.com/ercanatay/cybokron-exchange-rate-and-portfolio-tracking" target="_blank" rel="noopener noreferrer">GitHub</a> |
-                <a href="https://github.com/ercanatay/cybokron-exchange-rate-and-portfolio-tracking/blob/main/CODE_OF_CONDUCT.md" target="_blank" rel="noopener noreferrer">Code of Conduct</a> |
-                <a href="https://www.netlify.com/" target="_blank" rel="noopener noreferrer">This site is powered by Netlify</a>
+                <a href="https://github.com/ercanatay/cybokron-exchange-rate-and-portfolio-tracking" target="_blank" rel="noopener noreferrer"><?= t('footer.github') ?></a> |
+                <a href="https://github.com/ercanatay/cybokron-exchange-rate-and-portfolio-tracking/blob/main/CODE_OF_CONDUCT.md" target="_blank" rel="noopener noreferrer"><?= t('footer.code_of_conduct') ?></a> |
+                <a href="https://www.netlify.com/" target="_blank" rel="noopener noreferrer"><?= t('footer.powered_by_netlify') ?></a>
             </p>
         </div>
     </footer>

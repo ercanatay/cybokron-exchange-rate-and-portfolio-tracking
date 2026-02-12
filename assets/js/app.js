@@ -6,8 +6,9 @@
 (function () {
     'use strict';
 
-    // Auto-refresh rates every 5 minutes
     const REFRESH_INTERVAL = 5 * 60 * 1000;
+    const appLocale = (document.documentElement.lang || 'tr').toLowerCase();
+    const numberLocale = appLocale === 'tr' ? 'tr-TR' : 'en-US';
 
     /**
      * Fetch latest rates from API and update the table.
@@ -19,7 +20,6 @@
 
             if (json.status !== 'ok' || !json.data) return;
 
-            // Update rate cells if they exist
             json.data.forEach(rate => {
                 const row = document.querySelector(`[data-currency="${rate.currency_code}"][data-bank="${rate.bank_slug}"]`);
                 if (!row) return;
@@ -28,12 +28,12 @@
                 const sellCell = row.querySelector('.rate-sell');
                 const changeCell = row.querySelector('.rate-change');
 
-                if (buyCell) buyCell.textContent = formatNumber(rate.buy_rate);
-                if (sellCell) sellCell.textContent = formatNumber(rate.sell_rate);
+                if (buyCell) buyCell.textContent = formatNumber(rate.buy_rate, 4);
+                if (sellCell) sellCell.textContent = formatNumber(rate.sell_rate, 4);
                 if (changeCell) {
                     const change = parseFloat(rate.change_percent) || 0;
-                    changeCell.textContent = `${changeArrow(change)} % ${Math.abs(change).toFixed(2).replace('.', ',')}`;
-                    changeCell.className = `text-right ${changeClass(change)}`;
+                    changeCell.textContent = `${changeArrow(change)} % ${formatNumber(Math.abs(change), 2)}`;
+                    changeCell.className = `text-right rate-change ${changeClass(change)}`;
                 }
             });
 
@@ -45,10 +45,13 @@
     }
 
     /**
-     * Format a number with Turkish locale.
+     * Format number for the active UI locale.
      */
     function formatNumber(value, decimals = 4) {
-        return parseFloat(value).toLocaleString('tr-TR', {
+        const numeric = parseFloat(value);
+        if (Number.isNaN(numeric)) return '0';
+
+        return numeric.toLocaleString(numberLocale, {
             minimumFractionDigits: decimals,
             maximumFractionDigits: decimals,
         });
@@ -72,10 +75,9 @@
         return 'text-muted';
     }
 
-    // Start auto-refresh if on the rates page
     if (document.querySelector('.rates-table')) {
         setInterval(refreshRates, REFRESH_INTERVAL);
     }
 
-    console.log('[Cybokron] Dashboard loaded.');
+    console.log(`[Cybokron] Dashboard loaded (locale: ${appLocale}).`);
 })();
