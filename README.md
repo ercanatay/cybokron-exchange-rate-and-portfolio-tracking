@@ -231,6 +231,21 @@ To add a new bank source later:
 
 ## Changelog
 
+### v1.3.1 (2026)
+
+Patch release focused on localization completeness and stability fixes.
+
+**Localization & UX**
+- Localized API error/success payloads and endpoint descriptions through i18n keys
+- Expanded translation coverage across Turkish, English, Arabic, German, and French
+- Localized chart dataset labels, theme toggle accessibility labels, and CSV export headers
+- Locale-aware number formatting improvements in portfolio analytics widgets
+
+**Fixes**
+- Hardened login redirect validation against unsafe redirect targets
+- Improved portfolio form error mapping with field-level localized validation messages
+- Fixed dashboard mini-portfolio summary metrics (`total_value`, `profit_percent`)
+
 ### v1.3.0 (2026)
 
 Feature release focused on multi-bank coverage, portfolio depth, observability, and production hardening.
