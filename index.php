@@ -295,13 +295,9 @@ if (Auth::check()) {
         </div>
     </footer>
 
-    <script>
-        window.cybokronRates = <?= json_encode($converterRates ?? []) ?>;
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('sw.js').catch(function () {});
-        }
-    </script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" crossorigin="anonymous"></script>
+    <script id="cybokron-rates-data" type="application/json"><?= json_encode($converterRates ?? []) ?></script>
+    <script src="assets/js/bootstrap.js"></script>
+    <script src="assets/js/lib/chart.umd.min.js"></script>
     <script src="assets/js/theme.js"></script>
     <script src="assets/js/app.js"></script>
     <?php if (!empty($converterRates)): ?>

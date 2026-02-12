@@ -13,8 +13,9 @@ require_once __DIR__ . '/../includes/WebhookDispatcher.php';
 cybokron_init();
 ensureCliExecution();
 
-// Load active banks from config
-global $ACTIVE_BANKS;
+// Load active banks from database
+$activeBanks = Database::query('SELECT scraper_class FROM banks WHERE is_active = 1');
+$ACTIVE_BANKS = array_column($activeBanks, 'scraper_class');
 
 if (empty($ACTIVE_BANKS)) {
     cybokron_log('No active banks configured.', 'WARNING');

@@ -26,3 +26,11 @@ cache/
 # Backups
 backups/
 *.bak
+
+# Playwright
+test-results/
+playwright-report/
+package.json
+package-lock.json
+tests/
+playwright*

@@ -84,7 +84,7 @@ return [
     'portfolio.form.error.bank_slug' => 'Lütfen geçerli bir banka seçin.',
     'portfolio.form.error.amount' => '0\'dan büyük geçerli bir miktar girin.',
     'portfolio.form.error.buy_rate' => '0\'dan büyük geçerli bir alış kuru girin.',
-    'portfolio.form.error.buy_date' => 'YYYY-AA-GG formatında geçerli bir tarih girin.',
+    'portfolio.form.error.buy_date' => 'YYYY-MM-DD formatında geçerli bir tarih girin (örn: 2026-02-12).',
     'portfolio.form.error.notes' => 'Notlar en fazla 500 karakter olabilir.',
 
     'portfolio.table.title' => 'Portföy ({{count}} kalem)',
