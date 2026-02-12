@@ -9,6 +9,7 @@
  */
 
 require_once __DIR__ . '/../includes/helpers.php';
+require_once __DIR__ . '/../includes/WebhookDispatcher.php';
 cybokron_init();
 ensureCliExecution();
 
@@ -56,6 +57,21 @@ Database::update(
     '`key` = ?',
     ['last_rate_update']
 );
+
+// Dispatch webhook notification on successful update
+if ($totalRates > 0) {
+    $webhookResult = WebhookDispatcher::dispatchRateUpdate([
+        'total_rates' => $totalRates,
+        'banks' => array_column(array_filter($results, fn($r) => ($r['status'] ?? '') === 'success'), 'bank'),
+        'bank_results' => $results,
+    ]);
+    if ($webhookResult['success'] > 0) {
+        cybokron_log("Webhook dispatched to {$webhookResult['success']} URL(s)");
+    }
+    if (!empty($webhookResult['failed'])) {
+        cybokron_log('Webhook failed for: ' . implode(', ', $webhookResult['failed']), 'WARNING');
+    }
+}
 
 echo "\nDone. Total rates updated: {$totalRates}\n";
 cybokron_log("Rate update completed. Total: {$totalRates} rates.");

@@ -257,6 +257,8 @@ class OpenRouterRateRepair
         if ($scheme !== 'https') {
             throw new RuntimeException('OPENROUTER_API_URL must use HTTPS');
         }
+        $allowedHosts = $this->getAllowedOpenRouterHosts();
+        $this->assertAllowedOpenRouterHost($apiUrl, $allowedHosts, 'OpenRouter API URL');
 
         $allowedCodes = implode(', ', array_keys($this->allowedCodeSet));
 
@@ -320,8 +322,13 @@ class OpenRouterRateRepair
 
         $raw = curl_exec($ch);
         $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $effectiveUrl = (string) curl_getinfo($ch, CURLINFO_EFFECTIVE_URL);
         $curlError = curl_error($ch);
         curl_close($ch);
+
+        if ($effectiveUrl !== '') {
+            $this->assertAllowedOpenRouterHost($effectiveUrl, $allowedHosts, 'OpenRouter redirect target');
+        }
 
         if ($raw === false || $raw === '') {
             throw new RuntimeException('OpenRouter request failed: ' . $curlError);
@@ -416,6 +423,54 @@ class OpenRouterRateRepair
         }
 
         return 'z-ai/glm-5';
+    }
+
+    /**
+     * @return string[]
+     */
+    private function getAllowedOpenRouterHosts(): array
+    {
+        $configured = (defined('OPENROUTER_ALLOWED_HOSTS') && is_array(OPENROUTER_ALLOWED_HOSTS))
+            ? OPENROUTER_ALLOWED_HOSTS
+            : ['openrouter.ai'];
+
+        $normalized = [];
+        foreach ($configured as $host) {
+            $candidate = strtolower(trim((string) $host));
+            $candidate = rtrim($candidate, '.');
+            if ($candidate !== '') {
+                $normalized[] = $candidate;
+            }
+        }
+
+        return array_values(array_unique($normalized));
+    }
+
+    /**
+     * @param string[] $allowedHosts
+     */
+    private function assertAllowedOpenRouterHost(string $url, array $allowedHosts, string $context): void
+    {
+        $host = strtolower(trim((string) (parse_url($url, PHP_URL_HOST) ?? '')));
+        $host = rtrim($host, '.');
+
+        if ($host === '') {
+            throw new RuntimeException("Missing host for {$context}");
+        }
+
+        if (empty($allowedHosts)) {
+            return;
+        }
+
+        foreach ($allowedHosts as $allowedHost) {
+            $candidate = strtolower(trim((string) $allowedHost));
+            $candidate = rtrim($candidate, '.');
+            if ($candidate !== '' && ($host === $candidate || str_ends_with($host, '.' . $candidate))) {
+                return;
+            }
+        }
+
+        throw new RuntimeException("Blocked outbound host '{$host}' for {$context}");
     }
 
     /**

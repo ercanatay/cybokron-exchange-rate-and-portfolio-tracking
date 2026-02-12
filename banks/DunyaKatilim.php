@@ -15,6 +15,10 @@ class DunyaKatilim extends Scraper
     protected string $bankName = 'Dünya Katılım';
     protected string $bankSlug = 'dunya-katilim';
     protected string $url = 'https://dunyakatilim.com.tr/gunluk-kurlar';
+    /** @var array<string, string>|null */
+    private ?array $normalizedCurrencyMap = null;
+    /** @var array<string, true>|null */
+    private ?array $currencyCodeSet = null;
 
     /**
      * Currency code mapping from Turkish names to ISO codes.
@@ -60,14 +64,8 @@ class DunyaKatilim extends Scraper
     /**
      * Scrape the exchange rate table.
      */
-    public function scrape(): array
+    public function scrape(string $html, DOMXPath $xpath, string $tableHash): array
     {
-        $html = $this->fetchPage($this->url);
-
-        $dom = new DOMDocument();
-        @$dom->loadHTML(mb_convert_encoding($html, 'HTML-ENTITIES', 'UTF-8'));
-        $xpath = new DOMXPath($dom);
-
         $rates = [];
 
         // Find all table rows (skip header)
@@ -125,7 +123,7 @@ class DunyaKatilim extends Scraper
             : 8;
 
         if (count($rates) < $minimumRates) {
-            $aiRates = $this->attemptOpenRouterRateRecovery($html, $minimumRates);
+            $aiRates = $this->attemptOpenRouterRateRecovery($html, $minimumRates, $tableHash);
             if (!empty($aiRates)) {
                 $rates = $this->mergeRatesByCode($rates, $aiRates);
                 cybokron_log(
@@ -152,25 +150,37 @@ class DunyaKatilim extends Scraper
      */
     private function detectCurrencyCode(string $text): ?string
     {
+        $currencyCodeSet = $this->getCurrencyCodeSet();
+        $normalizedMap = $this->getNormalizedCurrencyMap();
+
         // Try to extract code from parentheses: (USD), (EUR), etc.
-        if (preg_match('/\(([A-Z]{3})\)/', $text, $m)) {
+        if (preg_match('/\(([A-Z]{3})\)/u', $text, $m)) {
             $code = strtoupper($m[1]);
-            // Verify it's a known code
-            if (in_array($code, $this->currencyMap)) {
-                return $code;
-            }
-            // Check values in the map
-            if (in_array($code, array_values($this->currencyMap))) {
+            if (isset($currencyCodeSet[$code])) {
                 return $code;
             }
         }
 
-        // Try matching against the Turkish name map
-        $lower = mb_strtolower(trim($text), 'UTF-8');
+        $normalizedText = $this->normalizeLookupKey($text);
+        if ($normalizedText === '') {
+            return null;
+        }
 
-        // Try exact match
-        foreach ($this->currencyMap as $name => $code) {
-            if (mb_strpos($lower, mb_strtolower($name, 'UTF-8')) !== false) {
+        // O(1) exact map lookups for the most common row formats.
+        if (isset($normalizedMap[$normalizedText])) {
+            return $normalizedMap[$normalizedText];
+        }
+
+        if (preg_match('/\b([A-Z]{3})\b/u', strtoupper($normalizedText), $m)) {
+            $code = strtoupper($m[1]);
+            if (isset($currencyCodeSet[$code])) {
+                return $code;
+            }
+        }
+
+        // Fallback for noisy rows where labels include extra repeated words.
+        foreach ($normalizedMap as $name => $code) {
+            if ($name !== '' && mb_strpos($normalizedText, $name, 0, 'UTF-8') !== false) {
                 return $code;
             }
         }
@@ -237,5 +247,59 @@ class DunyaKatilim extends Scraper
     {
         $text = preg_replace('/\s+/', ' ', $text);
         return trim($text);
+    }
+
+    /**
+     * Normalize lookup keys for currency matching.
+     */
+    private function normalizeLookupKey(string $value): string
+    {
+        $normalized = mb_strtolower(trim($value), 'UTF-8');
+        $normalized = preg_replace('/\s+/', ' ', $normalized);
+        return is_string($normalized) ? $normalized : '';
+    }
+
+    /**
+     * Build normalized map once for O(1) exact lookup.
+     *
+     * @return array<string, string>
+     */
+    private function getNormalizedCurrencyMap(): array
+    {
+        if ($this->normalizedCurrencyMap !== null) {
+            return $this->normalizedCurrencyMap;
+        }
+
+        $this->normalizedCurrencyMap = [];
+        foreach ($this->currencyMap as $name => $code) {
+            $normalizedName = $this->normalizeLookupKey($name);
+            if ($normalizedName !== '') {
+                $this->normalizedCurrencyMap[$normalizedName] = $code;
+            }
+        }
+
+        return $this->normalizedCurrencyMap;
+    }
+
+    /**
+     * Build known ISO code set once for O(1) membership checks.
+     *
+     * @return array<string, true>
+     */
+    private function getCurrencyCodeSet(): array
+    {
+        if ($this->currencyCodeSet !== null) {
+            return $this->currencyCodeSet;
+        }
+
+        $this->currencyCodeSet = [];
+        foreach ($this->currencyMap as $code) {
+            $normalizedCode = strtoupper(trim((string) $code));
+            if ($normalizedCode !== '') {
+                $this->currencyCodeSet[$normalizedCode] = true;
+            }
+        }
+
+        return $this->currencyCodeSet;
     }
 }

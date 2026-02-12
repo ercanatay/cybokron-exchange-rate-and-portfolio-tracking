@@ -11,16 +11,25 @@ Cybokron is an open-source PHP/MySQL application for tracking Turkish bank excha
 - Standard open-source deployment model
 - Self-hosted PHP + MySQL/MariaDB
 - No platform lock-in
+- Docker support (optional)
 
 ## Features
 
-- Multi-bank architecture (initial bank: Dünya Katılım)
-- Exchange rate scraping with table-structure change detection
-- OpenRouter AI fallback for automatic table-change recovery (cost-guarded)
-- Portfolio tracking with profit/loss calculation
-- Historical rate storage
-- GitHub release-based self-update
-- Built-in localization (`tr` default, `en` fallback)
+- **Multi-bank architecture** — Dünya Katılım, TCMB (Central Bank of Turkey)
+- **Exchange rate scraping** with table-structure change detection
+- **OpenRouter AI fallback** for automatic table-change recovery (cost-guarded)
+- **Portfolio tracking** with profit/loss, soft delete, user-scoped RBAC
+- **Session-based authentication** (login, logout, admin/user roles)
+- **Alert system** — email, Telegram, webhook notifications on rate thresholds
+- **Rate history** with retention policy and cleanup cron
+- **Chart.js dashboard** — rate trends, portfolio distribution pie chart
+- **Currency converter** — bidirectional conversion, cross-rates
+- **PWA support** — manifest, service worker, offline cache
+- **Webhook dispatch** on rate updates (Zapier, IFTTT, Slack, Discord)
+- **Admin dashboard** — bank/currency toggle, user list, system health
+- **Observability panel** — scrape logs, success rates, latency
+- **GitHub release-based self-update** with optional signed verification
+- **Localization** — Turkish, English, Arabic, German, French
 
 ## Security Defaults
 
@@ -38,11 +47,12 @@ Cybokron is an open-source PHP/MySQL application for tracking Turkish bank excha
 - Additional DB indexes for frequent history and portfolio lookups
 - OpenRouter fallback uses cooldown + row/token limits to reduce API consumption
 
-## Supported Bank
+## Supported Banks
 
 | Bank | URL | Status |
 |------|-----|--------|
 | Dünya Katılım | [gunluk-kurlar](https://dunyakatilim.com.tr/gunluk-kurlar) | Active |
+| TCMB | [today.xml](https://www.tcmb.gov.tr/kurlar/today.xml) | Active |
 
 ## Requirements
 
@@ -63,6 +73,13 @@ cd cybokron-exchange-rate-and-portfolio-tracking
 ### 2. Create database
 
 ```bash
+mysql -u root -p <<'SQL'
+CREATE DATABASE IF NOT EXISTS cybokron CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE USER IF NOT EXISTS 'cybokron_app'@'localhost' IDENTIFIED BY 'change_me_strong_password';
+GRANT SELECT, INSERT, UPDATE, DELETE ON cybokron.* TO 'cybokron_app'@'localhost';
+FLUSH PRIVILEGES;
+SQL
+
 mysql -u root -p < database.sql
 ```
 
@@ -78,31 +95,61 @@ Important defaults:
 ```php
 define('DEFAULT_LOCALE', 'tr');
 define('FALLBACK_LOCALE', 'en');
-define('AVAILABLE_LOCALES', ['tr', 'en']);
+define('AVAILABLE_LOCALES', ['tr', 'en', 'ar', 'de', 'fr']);
 
 define('ENABLE_SECURITY_HEADERS', true);
 define('API_ALLOW_CORS', false);
 define('API_REQUIRE_CSRF', true);
 define('ENFORCE_CLI_CRON', true);
+define('LOGIN_RATE_LIMIT', 5);           // brute-force protection
+define('AUTO_UPDATE', false);
+define('UPDATE_REQUIRE_SIGNATURE', true);
+define('AUTH_REQUIRE_PORTFOLIO', true);
+define('AUTH_BASIC_USER', 'admin');
+define('AUTH_BASIC_PASSWORD_HASH', '');  // generate with password_hash(...)
+
+define('RATE_UPDATE_WEBHOOK_URL', '');   // optional: Slack, Zapier, etc.
+define('ALERT_EMAIL_FROM', 'noreply@localhost');
+define('ALERT_COOLDOWN_MINUTES', 60);
 
 define('OPENROUTER_AI_REPAIR_ENABLED', true);
 define('OPENROUTER_MODEL', 'z-ai/glm-5');
-define('OPENROUTER_API_KEY', ''); // set your key
+define('OPENROUTER_API_KEY', '');        // set your key
 ```
 
-### 4. Configure cron
+Generate a password hash for `AUTH_BASIC_PASSWORD_HASH`:
+
+```bash
+php -r "echo password_hash('your-strong-password', PASSWORD_DEFAULT), PHP_EOL;"
+```
+
+### 4. Run migrations (if upgrading)
+
+```bash
+php database/migrate.php
+```
+
+### 5. Configure cron
 
 ```cron
 # Update exchange rates every 15 minutes during market hours (Mon-Fri, 09:00-18:00)
 */15 9-18 * * 1-5 php /path/to/cron/update_rates.php >> /var/log/cybokron.log 2>&1
 
+# Check alerts every 15 minutes
+*/15 9-18 * * 1-5 php /path/to/cron/check_alerts.php >> /var/log/cybokron.log 2>&1
+
+# Cleanup old rate history (daily)
+0 3 * * * php /path/to/cron/cleanup_rate_history.php >> /var/log/cybokron.log 2>&1
+
 # Check for application updates daily at midnight
 0 0 * * * php /path/to/cron/self_update.php >> /var/log/cybokron-update.log 2>&1
 ```
 
-### 5. Open dashboard
+### 6. Open dashboard
 
 `http://your-domain.com/cybokron/`
+
+Default admin login: `admin` / `admin123` — change in production.
 
 ## OpenRouter AI Recovery
 
@@ -130,17 +177,31 @@ php scripts/set_openrouter_model.php z-ai/glm-5
 | GET | `/api.php?action=rates&bank=dunya-katilim` | Rates by bank |
 | GET | `/api.php?action=rates&currency=USD` | Rates by currency |
 | GET | `/api.php?action=history&currency=USD&days=30` | Rate history |
-| GET | `/api.php?action=portfolio` | Portfolio summary |
-| POST | `/api.php?action=portfolio_add` | Add portfolio entry (CSRF required by default) |
-| POST/DELETE | `/api.php?action=portfolio_delete&id=1` | Delete portfolio entry (CSRF required by default) |
+| GET | `/api.php?action=portfolio` | Portfolio summary (Auth required) |
+| POST | `/api.php?action=portfolio_add` | Add portfolio entry (Auth + CSRF) |
+| POST/PUT/PATCH | `/api.php?action=portfolio_update` | Update portfolio entry (Auth + CSRF) |
+| POST/DELETE | `/api.php?action=portfolio_delete&id=1` | Delete portfolio entry (Auth + CSRF) |
+| GET | `/api.php?action=alerts` | List alerts (Auth required) |
+| POST | `/api.php?action=alerts_add` | Create alert (Auth + CSRF) |
+| POST/DELETE | `/api.php?action=alerts_delete&id=1` | Delete alert (Auth + CSRF) |
 | GET | `/api.php?action=banks` | List banks |
 | GET | `/api.php?action=currencies` | List currencies |
 | GET | `/api.php?action=version` | App version |
 | GET | `/api.php?action=ai_model` | OpenRouter model status |
 
+API supports session login or Basic Auth. Rate limiting: 120 reads/min, 30 writes/min per IP.
+
+## Docker
+
+```bash
+docker-compose up -d
+```
+
+App: `http://localhost:8080` — MySQL: port 3306. Uses `config.docker.php` with env vars.
+
 ## Localization
 
-Translation files are in `locales/*.php`.
+Translation files are in `locales/*.php`. Supported: Turkish (tr), English (en), Arabic (ar), German (de), French (fr).
 
 To add a new language:
 
@@ -163,9 +224,57 @@ GitHub Actions workflow: `.github/workflows/quality-test-deploy.yml`
 To add a new bank source later:
 
 1. Create a new scraper class in `banks/` extending `Scraper`
-2. Implement `scrape()` and parse rules for the bank table
+2. Implement `scrape()` and parse rules for the bank table (or override `run()` for XML sources like TCMB)
 3. Add the class name to `$ACTIVE_BANKS` in `config.php`
-4. Insert bank metadata into `banks` table (`name`, `slug`, `url`, `scraper_class`)
+4. Add the bank host to `SCRAPE_ALLOWED_HOSTS`
+5. Insert bank metadata: `php database/migrate.php` or run migration SQL
+
+## Changelog
+
+### v1.2.x (2025)
+
+**Authentication & RBAC**
+- Session-based login (`login.php`, `Auth.php`)
+- User table, admin/user roles
+- Portfolio `user_id` scoping (admin sees all, users see own)
+- Login rate limiting (brute-force protection)
+
+**Multi-bank**
+- TCMB scraper (XML source: today.xml)
+- 12 additional currencies (DKK, NOK, SEK, KWD, RON, RUB, etc.)
+
+**Alerts**
+- Alerts table, cron checker (`check_alerts.php`)
+- Email, Telegram, webhook channels
+- API: `alerts`, `alerts_add`, `alerts_delete`
+
+**Portfolio**
+- Edit form, soft delete (`deleted_at`)
+- CSV export
+- Analytics: distribution pie chart, annualized return
+
+**Dashboard & UI**
+- Chart.js rate history
+- Currency converter widget
+- Top movers, mini portfolio summary
+- Dark/Light theme toggle
+
+**PWA**
+- `manifest.json`, service worker (`sw.js`)
+- Offline cache, "Add to Home Screen"
+
+**Admin & Observability**
+- Admin dashboard (`admin.php`) — bank/currency toggle, user list
+- Observability panel (`observability.php`) — scrape logs, success rates
+
+**Integrations**
+- Webhook dispatch on rate updates
+- Signed update pipeline (`docs/SIGNED-UPDATE.md`, `generate_signature.php`)
+
+**Other**
+- Docker: Dockerfile, docker-compose
+- Localization: Arabic, German, French
+- Extended test coverage
 
 ## Legal Disclaimer
 

@@ -22,7 +22,7 @@ abstract class Scraper
      * Must be implemented by each bank scraper.
      * Returns array of parsed rate data.
      */
-    abstract public function scrape(): array;
+    abstract public function scrape(string $html, DOMXPath $xpath, string $tableHash): array;
 
     /**
      * Load bank record from database and set bankId.
@@ -56,6 +56,9 @@ abstract class Scraper
         if (!in_array($scheme, ['http', 'https'], true)) {
             throw new RuntimeException("Unsupported URL scheme for scraping: {$url}");
         }
+
+        $allowedHosts = $this->getAllowedScrapeHosts();
+        $this->assertAllowedHostForScrape($url, $allowedHosts, 'scrape source URL');
 
         $ch = curl_init();
         curl_setopt_array($ch, [
@@ -92,6 +95,20 @@ abstract class Scraper
             $error = curl_error($ch);
 
             if ($html !== false && $httpCode === 200) {
+                try {
+                    $effectiveUrl = (string) curl_getinfo($ch, CURLINFO_EFFECTIVE_URL);
+                    $this->assertAllowedHostForScrape(
+                        $effectiveUrl !== '' ? $effectiveUrl : $url,
+                        $allowedHosts,
+                        'scrape redirect target'
+                    );
+                } catch (Throwable $hostError) {
+                    $html = false;
+                    $error = $hostError->getMessage();
+                }
+            }
+
+            if ($html !== false && $httpCode === 200) {
                 break;
             }
 
@@ -112,24 +129,92 @@ abstract class Scraper
     }
 
     /**
+     * Resolve allowed hosts for scraping.
+     *
+     * @return string[]
+     */
+    private function getAllowedScrapeHosts(): array
+    {
+        $configured = (defined('SCRAPE_ALLOWED_HOSTS') && is_array(SCRAPE_ALLOWED_HOSTS))
+            ? SCRAPE_ALLOWED_HOSTS
+            : ['dunyakatilim.com.tr', 'www.dunyakatilim.com.tr'];
+
+        $normalized = [];
+        foreach ($configured as $host) {
+            $candidate = strtolower(trim((string) $host));
+            $candidate = rtrim($candidate, '.');
+            if ($candidate !== '') {
+                $normalized[] = $candidate;
+            }
+        }
+
+        return array_values(array_unique($normalized));
+    }
+
+    /**
+     * Block outbound requests to non-allowlisted hosts.
+     *
+     * @param string[] $allowedHosts
+     */
+    private function assertAllowedHostForScrape(string $url, array $allowedHosts, string $context): void
+    {
+        $host = strtolower(trim((string) (parse_url($url, PHP_URL_HOST) ?? '')));
+        $host = rtrim($host, '.');
+
+        if ($host === '') {
+            throw new RuntimeException("Missing host for {$context}.");
+        }
+
+        if (empty($allowedHosts)) {
+            return;
+        }
+
+        foreach ($allowedHosts as $allowedHost) {
+            $candidate = strtolower(trim((string) $allowedHost));
+            $candidate = rtrim($candidate, '.');
+
+            if ($candidate !== '' && ($host === $candidate || str_ends_with($host, '.' . $candidate))) {
+                return;
+            }
+        }
+
+        throw new RuntimeException("Blocked outbound host '{$host}' for {$context}.");
+    }
+
+    /**
      * Compute a hash of the HTML table structure for change detection.
      */
     protected function computeTableHash(string $html): string
     {
+        return $this->computeTableHashFromXPath($this->createXPath($html));
+    }
+
+    /**
+     * Parse HTML once and expose a reusable XPath context.
+     */
+    protected function createXPath(string $html): DOMXPath
+    {
         $dom = new DOMDocument();
         @$dom->loadHTML(mb_convert_encoding($html, 'HTML-ENTITIES', 'UTF-8'));
-        $xpath = new DOMXPath($dom);
+        return new DOMXPath($dom);
+    }
 
+    /**
+     * Compute table hash using an already parsed XPath context.
+     */
+    protected function computeTableHashFromXPath(DOMXPath $xpath): string
+    {
         $headers = $xpath->query('//table//thead//th');
         $structure = '';
 
-        if ($headers->length > 0) {
+        if ($headers instanceof DOMNodeList && $headers->length > 0) {
             foreach ($headers as $th) {
                 $structure .= trim($th->textContent) . '|';
             }
         } else {
             $firstRow = $xpath->query('//table//tr[1]//td');
-            $structure = 'cols:' . $firstRow->length;
+            $columnCount = ($firstRow instanceof DOMNodeList) ? $firstRow->length : 0;
+            $structure = 'cols:' . $columnCount;
         }
 
         return hash('sha256', $structure);
@@ -140,41 +225,52 @@ abstract class Scraper
      */
     protected function saveRates(array $rates, string $scrapedAt): int
     {
-        $saved = 0;
         $currencyIdMap = $this->getCurrencyIdMap();
+        $preparedRows = [];
 
-        Database::runInTransaction(function () use ($rates, $scrapedAt, $currencyIdMap, &$saved): void {
-            foreach ($rates as $rate) {
-                $code = strtoupper((string) ($rate['code'] ?? ''));
-                if ($code === '' || !isset($currencyIdMap[$code])) {
-                    continue;
-                }
-
-                $currencyId = $currencyIdMap[$code];
-
-                Database::upsert('rates', [
-                    'bank_id'        => $this->bankId,
-                    'currency_id'    => $currencyId,
-                    'buy_rate'       => $rate['buy'],
-                    'sell_rate'      => $rate['sell'],
-                    'change_percent' => $rate['change'] ?? null,
-                    'scraped_at'     => $scrapedAt,
-                ], ['buy_rate', 'sell_rate', 'change_percent', 'scraped_at']);
-
-                Database::insert('rate_history', [
-                    'bank_id'        => $this->bankId,
-                    'currency_id'    => $currencyId,
-                    'buy_rate'       => $rate['buy'],
-                    'sell_rate'      => $rate['sell'],
-                    'change_percent' => $rate['change'] ?? null,
-                    'scraped_at'     => $scrapedAt,
-                ]);
-
-                $saved++;
+        foreach ($rates as $rate) {
+            $code = strtoupper((string) ($rate['code'] ?? ''));
+            if ($code === '' || !isset($currencyIdMap[$code])) {
+                continue;
             }
+
+            $buyRate = $rate['buy'] ?? null;
+            $sellRate = $rate['sell'] ?? null;
+            if (!is_numeric((string) $buyRate) || !is_numeric((string) $sellRate)) {
+                continue;
+            }
+
+            $changePercent = null;
+            if (
+                array_key_exists('change', $rate)
+                && $rate['change'] !== null
+                && $rate['change'] !== ''
+                && is_numeric((string) $rate['change'])
+            ) {
+                $changePercent = (float) $rate['change'];
+            }
+
+            $preparedRows[] = [
+                'bank_id' => $this->bankId,
+                'currency_id' => $currencyIdMap[$code],
+                'buy_rate' => (float) $buyRate,
+                'sell_rate' => (float) $sellRate,
+                'change_percent' => $changePercent,
+                'scraped_at' => $scrapedAt,
+            ];
+        }
+
+        if ($preparedRows === []) {
+            return 0;
+        }
+
+        Database::runInTransaction(function () use ($preparedRows): void {
+            // Batch current-rate upserts and history inserts to reduce per-rate DB round trips.
+            $this->upsertRatesBatch($preparedRows);
+            $this->insertRateHistoryBatch($preparedRows);
         });
 
-        return $saved;
+        return count($preparedRows);
     }
 
     /**
@@ -248,7 +344,11 @@ abstract class Scraper
      *
      * @return array<int, array{code:string,buy:float,sell:float,change:?float}>
      */
-    protected function attemptOpenRouterRateRecovery(string $html, int $minimumRates = 8): array
+    protected function attemptOpenRouterRateRecovery(
+        string $html,
+        int $minimumRates = 8,
+        ?string $tableHash = null
+    ): array
     {
         try {
             $repair = new OpenRouterRateRepair(
@@ -257,7 +357,9 @@ abstract class Scraper
                 $this->getKnownCurrencyCodes()
             );
 
-            return $repair->recover($html, $this->computeTableHash($html), $minimumRates);
+            $effectiveTableHash = $tableHash ?? $this->computeTableHash($html);
+
+            return $repair->recover($html, $effectiveTableHash, $minimumRates);
         } catch (Throwable $e) {
             cybokron_log(
                 "OpenRouter fallback error for {$this->bankSlug}: {$e->getMessage()}",
@@ -293,15 +395,16 @@ abstract class Scraper
 
         try {
             $html = $this->fetchPage($this->url);
+            $xpath = $this->createXPath($html);
 
-            $newHash = $this->computeTableHash($html);
+            $newHash = $this->computeTableHashFromXPath($xpath);
             $bank = Database::queryOne('SELECT table_hash FROM banks WHERE id = ?', [$this->bankId]);
             $oldHash = $bank['table_hash'] ?? '';
             $tableChanged = ($oldHash !== '' && $oldHash !== $newHash);
 
             Database::update('banks', ['table_hash' => $newHash], 'id = ?', [$this->bankId]);
 
-            $rates = $this->scrape();
+            $rates = $this->scrape($html, $xpath, $newHash);
             $scrapedAt = date('Y-m-d H:i:s');
 
             $savedCount = $this->saveRates($rates, $scrapedAt);
@@ -332,6 +435,69 @@ abstract class Scraper
                 'bank'    => $this->bankName,
                 'message' => $e->getMessage(),
             ];
+        }
+    }
+
+    /**
+     * Bulk upsert latest rates for the bank.
+     *
+     * @param array<int, array{bank_id:int,currency_id:int,buy_rate:float,sell_rate:float,change_percent:?float,scraped_at:string}> $rows
+     */
+    private function upsertRatesBatch(array $rows): void
+    {
+        foreach (array_chunk($rows, 250) as $chunk) {
+            $placeholders = implode(', ', array_fill(0, count($chunk), '(?, ?, ?, ?, ?, ?)'));
+            $params = [];
+
+            foreach ($chunk as $row) {
+                $params[] = $row['bank_id'];
+                $params[] = $row['currency_id'];
+                $params[] = $row['buy_rate'];
+                $params[] = $row['sell_rate'];
+                $params[] = $row['change_percent'];
+                $params[] = $row['scraped_at'];
+            }
+
+            $sql = "
+                INSERT INTO rates (`bank_id`, `currency_id`, `buy_rate`, `sell_rate`, `change_percent`, `scraped_at`)
+                VALUES {$placeholders}
+                ON DUPLICATE KEY UPDATE
+                    `buy_rate` = VALUES(`buy_rate`),
+                    `sell_rate` = VALUES(`sell_rate`),
+                    `change_percent` = VALUES(`change_percent`),
+                    `scraped_at` = VALUES(`scraped_at`)
+            ";
+
+            Database::execute($sql, $params);
+        }
+    }
+
+    /**
+     * Bulk insert historical rate snapshots for the bank.
+     *
+     * @param array<int, array{bank_id:int,currency_id:int,buy_rate:float,sell_rate:float,change_percent:?float,scraped_at:string}> $rows
+     */
+    private function insertRateHistoryBatch(array $rows): void
+    {
+        foreach (array_chunk($rows, 250) as $chunk) {
+            $placeholders = implode(', ', array_fill(0, count($chunk), '(?, ?, ?, ?, ?, ?)'));
+            $params = [];
+
+            foreach ($chunk as $row) {
+                $params[] = $row['bank_id'];
+                $params[] = $row['currency_id'];
+                $params[] = $row['buy_rate'];
+                $params[] = $row['sell_rate'];
+                $params[] = $row['change_percent'];
+                $params[] = $row['scraped_at'];
+            }
+
+            $sql = "
+                INSERT INTO rate_history (`bank_id`, `currency_id`, `buy_rate`, `sell_rate`, `change_percent`, `scraped_at`)
+                VALUES {$placeholders}
+            ";
+
+            Database::execute($sql, $params);
         }
     }
 }
