@@ -74,10 +74,10 @@ nano config.php
 
 ```cron
 # Update exchange rates every 15 minutes during market hours (Mon-Fri, 09:00-18:00)
-*/15 9-18 * * 1-5 php /path/to/cybokron/cron/update_rates.php >> /var/log/cybokron.log 2>&1
+*/15 9-18 * * 1-5 php /path/to/cron/update_rates.php >> /var/log/cybokron.log 2>&1
 
 # Check for application updates daily at midnight
-0 0 * * * php /path/to/cybokron/cron/self_update.php >> /var/log/cybokron-update.log 2>&1
+0 0 * * * php /path/to/cron/self_update.php >> /var/log/cybokron-update.log 2>&1
 ```
 
 ### 5. Access Dashboard
@@ -87,7 +87,6 @@ Open `http://your-domain.com/cybokron/` in your browser.
 ## Directory Structure
 
 ```
-cybokron/
 ├── README.md
 ├── LICENSE
 ├── .gitignore
@@ -109,15 +108,13 @@ cybokron/
 │   ├── update_rates.php
 │   └── self_update.php
 └── assets/
-    ├── css/
-    │   └── style.css
-    └── js/
-        └── app.js
+    ├── css/style.css
+    └── js/app.js
 ```
 
 ## Adding a New Bank
 
-Create a new file in `banks/` directory extending the `Scraper` base class:
+Create a new file in `banks/` extending the `Scraper` base class:
 
 ```php
 <?php
@@ -138,15 +135,6 @@ class YeniBank extends Scraper
 }
 ```
 
-Then register it in `config.php`:
-
-```php
-'banks' => [
-    'dunya-katilim' => 'banks/DunyaKatilim.php',
-    'yeni-bank'     => 'banks/YeniBank.php',
-],
-```
-
 ## API Endpoints
 
 | Method | Endpoint | Description |
@@ -154,27 +142,19 @@ Then register it in `config.php`:
 | GET | `/api.php?action=rates` | Get latest rates |
 | GET | `/api.php?action=rates&bank=dunya-katilim` | Rates for specific bank |
 | GET | `/api.php?action=rates&currency=USD` | Rates for specific currency |
-| GET | `/api.php?action=history&currency=USD&days=30` | Rate history |
+| GET | `/api.php?action=history&currency=USD&days=30` | 30-day rate history |
 | GET | `/api.php?action=portfolio` | Portfolio summary |
 | POST | `/api.php?action=portfolio_add` | Add portfolio entry |
 | DELETE | `/api.php?action=portfolio_delete&id=1` | Delete portfolio entry |
 
 ## Self-Update
 
-Cybokron checks GitHub releases automatically via cron. Current version is stored in `VERSION` file.
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/new-bank`)
-3. Commit your changes
-4. Push and open a Pull Request
+The app checks GitHub releases via `cron/self_update.php`. When a new version is found, it downloads the ZIP, extracts, and updates files automatically.
 
 ## License
 
 MIT License — see [LICENSE](LICENSE) file.
 
-## Credits
+## Author
 
-- **Author:** [ercanatay](https://github.com/ercanatay)
-- **Version:** 1.0.0
+[ercanatay](https://github.com/ercanatay)

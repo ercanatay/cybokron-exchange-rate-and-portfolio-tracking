@@ -1,18 +1,18 @@
 <?php
 /**
- * Portfolio management class
+ * Portfolio.php — Portfolio Management
+ * Cybokron Exchange Rate & Portfolio Tracking
  */
-require_once __DIR__ . '/Database.php';
 
 class Portfolio
 {
     /**
-     * Get all portfolio entries with current rates
+     * Get all portfolio entries with current rates and P/L.
      */
     public static function getAll(): array
     {
-        return Database::fetchAll("
-            SELECT 
+        $sql = "
+            SELECT
                 p.id,
                 p.amount,
                 p.buy_rate,
@@ -20,116 +20,120 @@ class Portfolio
                 p.notes,
                 c.code AS currency_code,
                 c.name_tr AS currency_name,
+                c.symbol AS currency_symbol,
                 c.type AS currency_type,
                 b.name AS bank_name,
                 b.slug AS bank_slug,
-                r.buy_rate AS current_buy_rate,
-                r.sell_rate AS current_sell_rate,
-                r.change_percent,
-                r.fetched_at AS rate_updated_at,
-                (p.amount * r.sell_rate) AS current_value_try,
+                r.sell_rate AS current_rate,
+                r.scraped_at AS rate_updated_at,
                 (p.amount * p.buy_rate) AS cost_try,
-                ((p.amount * r.sell_rate) - (p.amount * p.buy_rate)) AS profit_loss_try,
-                CASE 
-                    WHEN p.buy_rate > 0 
-                    THEN (((r.sell_rate - p.buy_rate) / p.buy_rate) * 100) 
-                    ELSE 0 
-                END AS profit_loss_percent
+                (p.amount * COALESCE(r.sell_rate, p.buy_rate)) AS value_try,
+                ((COALESCE(r.sell_rate, p.buy_rate) - p.buy_rate) / p.buy_rate * 100) AS profit_percent
             FROM portfolio p
-            JOIN currencies c ON p.currency_id = c.id
-            LEFT JOIN banks b ON p.bank_id = b.id
-            LEFT JOIN rates r ON r.currency_id = p.currency_id AND r.bank_id = COALESCE(p.bank_id, r.bank_id)
+            JOIN currencies c ON c.id = p.currency_id
+            LEFT JOIN banks b ON b.id = p.bank_id
+            LEFT JOIN rates r ON r.currency_id = p.currency_id AND r.bank_id = p.bank_id
             ORDER BY p.buy_date DESC
-        ");
+        ";
+
+        return Database::query($sql);
     }
 
     /**
-     * Get portfolio summary totals
+     * Get portfolio summary (totals).
      */
     public static function getSummary(): array
     {
-        $entries = self::getAll();
-        
+        $items = self::getAll();
+
         $totalCost = 0;
         $totalValue = 0;
-        
-        foreach ($entries as $entry) {
-            $totalCost += $entry['cost_try'] ?? 0;
-            $totalValue += $entry['current_value_try'] ?? 0;
+
+        foreach ($items as $item) {
+            $totalCost += (float) $item['cost_try'];
+            $totalValue += (float) $item['value_try'];
         }
 
         $profitLoss = $totalValue - $totalCost;
-        $profitLossPercent = $totalCost > 0 ? (($profitLoss / $totalCost) * 100) : 0;
+        $profitPercent = $totalCost > 0 ? ($profitLoss / $totalCost * 100) : 0;
 
         return [
-            'total_cost_try'       => round($totalCost, 2),
-            'total_value_try'      => round($totalValue, 2),
-            'profit_loss_try'      => round($profitLoss, 2),
-            'profit_loss_percent'  => round($profitLossPercent, 2),
-            'entry_count'          => count($entries),
-            'entries'              => $entries,
+            'items'          => $items,
+            'total_cost'     => round($totalCost, 2),
+            'total_value'    => round($totalValue, 2),
+            'profit_loss'    => round($profitLoss, 2),
+            'profit_percent' => round($profitPercent, 2),
+            'item_count'     => count($items),
         ];
     }
 
     /**
-     * Add a new portfolio entry
+     * Add a new portfolio entry.
      */
-    public static function add(string $currencyCode, float $amount, float $buyRate, string $buyDate, ?string $bankSlug = null, ?string $notes = null): int
+    public static function add(array $data): int
     {
-        $currency = Database::fetchOne("SELECT id FROM currencies WHERE code = ?", [$currencyCode]);
-        if (!$currency) {
-            throw new InvalidArgumentException("Currency '$currencyCode' not found");
+        $required = ['currency_code', 'amount', 'buy_rate', 'buy_date'];
+        foreach ($required as $field) {
+            if (empty($data[$field])) {
+                throw new InvalidArgumentException("Missing required field: {$field}");
+            }
         }
 
+        // Resolve currency ID
+        $currency = Database::queryOne(
+            "SELECT id FROM currencies WHERE code = ?",
+            [$data['currency_code']]
+        );
+        if (!$currency) {
+            throw new InvalidArgumentException("Unknown currency: {$data['currency_code']}");
+        }
+
+        // Resolve bank ID (optional)
         $bankId = null;
-        if ($bankSlug) {
-            $bank = Database::fetchOne("SELECT id FROM banks WHERE slug = ?", [$bankSlug]);
-            $bankId = $bank ? $bank['id'] : null;
+        if (!empty($data['bank_slug'])) {
+            $bank = Database::queryOne(
+                "SELECT id FROM banks WHERE slug = ?",
+                [$data['bank_slug']]
+            );
+            $bankId = $bank ? (int) $bank['id'] : null;
         }
 
         return Database::insert('portfolio', [
-            'currency_id' => $currency['id'],
+            'currency_id' => (int) $currency['id'],
             'bank_id'     => $bankId,
-            'amount'      => $amount,
-            'buy_rate'    => $buyRate,
-            'buy_date'    => $buyDate,
-            'notes'       => $notes,
+            'amount'      => (float) $data['amount'],
+            'buy_rate'    => (float) $data['buy_rate'],
+            'buy_date'    => $data['buy_date'],
+            'notes'       => $data['notes'] ?? null,
         ]);
     }
 
     /**
-     * Update a portfolio entry
+     * Update a portfolio entry.
      */
     public static function update(int $id, array $data): bool
     {
         $allowed = ['amount', 'buy_rate', 'buy_date', 'notes'];
-        $updateData = array_intersect_key($data, array_flip($allowed));
-        
-        if (empty($updateData)) {
+        $update = [];
+
+        foreach ($allowed as $field) {
+            if (isset($data[$field])) {
+                $update[$field] = $data[$field];
+            }
+        }
+
+        if (empty($update)) {
             return false;
         }
 
-        return Database::update('portfolio', $updateData, 'id = ?', [$id]) > 0;
+        return Database::update('portfolio', $update, 'id = ?', [$id]) > 0;
     }
 
     /**
-     * Delete a portfolio entry
+     * Delete a portfolio entry.
      */
     public static function delete(int $id): bool
     {
-        return Database::delete('portfolio', 'id = ?', [$id]) > 0;
-    }
-
-    /**
-     * Get a single portfolio entry
-     */
-    public static function getById(int $id): ?array
-    {
-        return Database::fetchOne("
-            SELECT p.*, c.code AS currency_code, c.name_tr AS currency_name
-            FROM portfolio p
-            JOIN currencies c ON p.currency_id = c.id
-            WHERE p.id = ?
-        ", [$id]);
+        return Database::execute("DELETE FROM portfolio WHERE id = ?", [$id]) > 0;
     }
 }

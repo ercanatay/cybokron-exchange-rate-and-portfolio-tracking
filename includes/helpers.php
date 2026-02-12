@@ -1,63 +1,162 @@
 <?php
 /**
- * Helper functions
+ * helpers.php — Utility Functions
+ * Cybokron Exchange Rate & Portfolio Tracking
  */
 
 /**
- * Format a number as currency (Turkish locale)
+ * Bootstrap the application: load config and includes.
  */
-function formatRate(float $value, int $decimals = 4): string
+function cybokron_init(): void
 {
-    return number_format($value, $decimals, ',', '.');
+    $configFile = __DIR__ . '/../config.php';
+    if (!file_exists($configFile)) {
+        die('Configuration file not found. Copy config.sample.php to config.php');
+    }
+
+    require_once $configFile;
+    require_once __DIR__ . '/Database.php';
+    require_once __DIR__ . '/Scraper.php';
+    require_once __DIR__ . '/Portfolio.php';
+    require_once __DIR__ . '/Updater.php';
+
+    date_default_timezone_set(defined('APP_TIMEZONE') ? APP_TIMEZONE : 'Europe/Istanbul');
 }
 
 /**
- * Format money in TRY
+ * Load a bank scraper class by name.
  */
-function formatTRY(float $value): string
+function loadBankScraper(string $className): Scraper
 {
-    return number_format($value, 2, ',', '.') . ' ₺';
+    $file = __DIR__ . '/../banks/' . $className . '.php';
+    if (!file_exists($file)) {
+        throw new RuntimeException("Bank scraper not found: {$className}");
+    }
+
+    require_once $file;
+
+    if (!class_exists($className)) {
+        throw new RuntimeException("Bank scraper class not found: {$className}");
+    }
+
+    $instance = new $className();
+
+    if (!$instance instanceof Scraper) {
+        throw new RuntimeException("{$className} must extend Scraper class.");
+    }
+
+    return $instance;
 }
 
 /**
- * Format percentage
+ * Get latest rates from database.
  */
-function formatPercent(float $value): string
+function getLatestRates(?string $bankSlug = null, ?string $currencyCode = null): array
 {
-    $prefix = $value >= 0 ? '+' : '';
-    return $prefix . number_format($value, 2, ',', '.') . '%';
+    $sql = "
+        SELECT
+            r.buy_rate,
+            r.sell_rate,
+            r.change_percent,
+            r.scraped_at,
+            c.code AS currency_code,
+            c.name_tr AS currency_name,
+            c.name_en AS currency_name_en,
+            c.symbol,
+            c.type AS currency_type,
+            b.name AS bank_name,
+            b.slug AS bank_slug
+        FROM rates r
+        JOIN currencies c ON c.id = r.currency_id
+        JOIN banks b ON b.id = r.bank_id
+        WHERE b.is_active = 1 AND c.is_active = 1
+    ";
+    $params = [];
+
+    if ($bankSlug) {
+        $sql .= " AND b.slug = ?";
+        $params[] = $bankSlug;
+    }
+
+    if ($currencyCode) {
+        $sql .= " AND c.code = ?";
+        $params[] = $currencyCode;
+    }
+
+    $sql .= " ORDER BY c.code ASC";
+
+    return Database::query($sql, $params);
 }
 
 /**
- * Get CSS class for profit/loss
+ * Get rate history for a currency.
  */
-function profitClass(float $value): string
+function getRateHistory(string $currencyCode, int $days = 30, ?string $bankSlug = null): array
 {
-    if ($value > 0) return 'text-success';
-    if ($value < 0) return 'text-danger';
+    $sql = "
+        SELECT
+            rh.buy_rate,
+            rh.sell_rate,
+            rh.change_percent,
+            rh.scraped_at,
+            b.name AS bank_name,
+            b.slug AS bank_slug
+        FROM rate_history rh
+        JOIN currencies c ON c.id = rh.currency_id
+        JOIN banks b ON b.id = rh.bank_id
+        WHERE c.code = ?
+          AND rh.scraped_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
+    ";
+    $params = [$currencyCode, $days];
+
+    if ($bankSlug) {
+        $sql .= " AND b.slug = ?";
+        $params[] = $bankSlug;
+    }
+
+    $sql .= " ORDER BY rh.scraped_at ASC";
+
+    return Database::query($sql, $params);
+}
+
+/**
+ * Format a number as Turkish Lira.
+ */
+function formatTRY(float $amount, int $decimals = 2): string
+{
+    return number_format($amount, $decimals, ',', '.') . ' ₺';
+}
+
+/**
+ * Format a rate value.
+ */
+function formatRate(float $rate, int $decimals = 4): string
+{
+    return number_format($rate, $decimals, ',', '.');
+}
+
+/**
+ * Get CSS class for change percentage.
+ */
+function changeClass(float $change): string
+{
+    if ($change > 0) return 'text-success';
+    if ($change < 0) return 'text-danger';
     return 'text-muted';
 }
 
 /**
- * Get arrow icon for change
+ * Get arrow icon for change direction.
  */
-function changeIcon(float $value): string
+function changeArrow(float $change): string
 {
-    if ($value > 0) return '▲';
-    if ($value < 0) return '▼';
-    return '—';
+    if ($change > 0) return '▲';
+    if ($change < 0) return '▼';
+    return '–';
 }
 
 /**
- * Sanitize input
- */
-function sanitize(string $input): string
-{
-    return htmlspecialchars(trim($input), ENT_QUOTES, 'UTF-8');
-}
-
-/**
- * JSON response helper
+ * Send JSON response.
  */
 function jsonResponse(array $data, int $statusCode = 200): void
 {
@@ -69,32 +168,20 @@ function jsonResponse(array $data, int $statusCode = 200): void
 }
 
 /**
- * Get time ago string
+ * Simple logging.
  */
-function timeAgo(string $datetime): string
+function cybokron_log(string $message, string $level = 'INFO'): void
 {
-    $now = new DateTime();
-    $ago = new DateTime($datetime);
-    $diff = $now->diff($ago);
+    if (!defined('LOG_ENABLED') || !LOG_ENABLED) return;
 
-    if ($diff->y > 0) return $diff->y . ' yıl önce';
-    if ($diff->m > 0) return $diff->m . ' ay önce';
-    if ($diff->d > 0) return $diff->d . ' gün önce';
-    if ($diff->h > 0) return $diff->h . ' saat önce';
-    if ($diff->i > 0) return $diff->i . ' dakika önce';
-    return 'Az önce';
-}
+    $logFile = defined('LOG_FILE') ? LOG_FILE : __DIR__ . '/../logs/cybokron.log';
+    $logDir = dirname($logFile);
 
-/**
- * Get currency flag emoji
- */
-function currencyFlag(string $code): string
-{
-    $flags = [
-        'USD' => '🇺🇸', 'EUR' => '🇪🇺', 'GBP' => '🇬🇧', 'CHF' => '🇨🇭',
-        'AUD' => '🇦🇺', 'CAD' => '🇨🇦', 'CNY' => '🇨🇳', 'JPY' => '🇯🇵',
-        'SAR' => '🇸🇦', 'AED' => '🇦🇪',
-        'XAU' => '🥇', 'XAG' => '🥈', 'XPT' => '⚪', 'XPD' => '🔘',
-    ];
-    return $flags[$code] ?? '💱';
+    if (!is_dir($logDir)) {
+        mkdir($logDir, 0755, true);
+    }
+
+    $timestamp = date('Y-m-d H:i:s');
+    $entry = "[{$timestamp}] [{$level}] {$message}" . PHP_EOL;
+    file_put_contents($logFile, $entry, FILE_APPEND | LOCK_EX);
 }

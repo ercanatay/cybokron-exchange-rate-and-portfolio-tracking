@@ -1,35 +1,34 @@
 <?php
 /**
- * Self-updater via GitHub Releases
+ * Updater.php — GitHub Release Self-Updater
+ * Cybokron Exchange Rate & Portfolio Tracking
  */
+
 class Updater
 {
-    private string $owner;
     private string $repo;
     private string $currentVersion;
     private string $basePath;
 
     public function __construct()
     {
-        $config = require __DIR__ . '/../config.php';
-        $this->owner = $config['github']['owner'];
-        $this->repo = $config['github']['repo'];
-        $this->currentVersion = trim(file_get_contents(__DIR__ . '/../VERSION'));
-        $this->basePath = realpath(__DIR__ . '/..');
+        $this->repo = defined('GITHUB_REPO') ? GITHUB_REPO : 'ercanatay/cybokron-exchange-rate-and-portfolio-tracking';
+        $this->basePath = dirname(__DIR__);
+        $this->currentVersion = trim(file_get_contents($this->basePath . '/VERSION'));
     }
 
     /**
-     * Check if a newer version is available
+     * Check GitHub for latest release.
      */
     public function checkForUpdate(): ?array
     {
-        $url = "https://api.github.com/repos/{$this->owner}/{$this->repo}/releases/latest";
+        $url = "https://api.github.com/repos/{$this->repo}/releases/latest";
 
         $ch = curl_init();
         curl_setopt_array($ch, [
             CURLOPT_URL            => $url,
             CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_USERAGENT      => 'Cybokron-Updater/' . $this->currentVersion,
+            CURLOPT_USERAGENT      => 'Cybokron-Updater/1.0',
             CURLOPT_TIMEOUT        => 15,
             CURLOPT_HTTPHEADER     => ['Accept: application/vnd.github.v3+json'],
         ]);
@@ -43,7 +42,8 @@ class Updater
         }
 
         $release = json_decode($response, true);
-        if (!$release || !isset($release['tag_name'])) {
+
+        if (!$release || empty($release['tag_name'])) {
             return null;
         }
 
@@ -64,38 +64,32 @@ class Updater
     }
 
     /**
-     * Download and apply update
+     * Download and apply the update.
      */
-    public function applyUpdate(array $updateInfo): bool
+    public function applyUpdate(array $updateInfo): array
     {
-        if (!$updateInfo['download_url']) {
-            throw new RuntimeException('No download URL available');
+        if (empty($updateInfo['download_url'])) {
+            return ['status' => 'error', 'message' => 'No download URL available.'];
         }
 
-        $tmpDir = sys_get_temp_dir() . '/cybokron_update_' . time();
-        $zipFile = $tmpDir . '/update.zip';
+        $tempDir = sys_get_temp_dir() . '/cybokron_update_' . time();
+        $zipFile = $tempDir . '.zip';
 
         try {
-            // Create temp directory
-            if (!mkdir($tmpDir, 0755, true)) {
-                throw new RuntimeException("Cannot create temp directory: $tmpDir");
-            }
-
             // Download ZIP
             $ch = curl_init();
             curl_setopt_array($ch, [
                 CURLOPT_URL            => $updateInfo['download_url'],
                 CURLOPT_RETURNTRANSFER => true,
                 CURLOPT_FOLLOWLOCATION => true,
-                CURLOPT_USERAGENT      => 'Cybokron-Updater/' . $this->currentVersion,
+                CURLOPT_USERAGENT      => 'Cybokron-Updater/1.0',
                 CURLOPT_TIMEOUT        => 120,
             ]);
             $zipData = curl_exec($ch);
-            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
             curl_close($ch);
 
-            if ($httpCode !== 200 || !$zipData) {
-                throw new RuntimeException("Failed to download update (HTTP $httpCode)");
+            if (!$zipData) {
+                throw new RuntimeException('Failed to download update.');
             }
 
             file_put_contents($zipFile, $zipData);
@@ -103,91 +97,122 @@ class Updater
             // Extract ZIP
             $zip = new ZipArchive();
             if ($zip->open($zipFile) !== true) {
-                throw new RuntimeException('Failed to open ZIP file');
+                throw new RuntimeException('Failed to open ZIP archive.');
             }
 
-            $zip->extractTo($tmpDir . '/extracted');
+            mkdir($tempDir, 0755, true);
+            $zip->extractTo($tempDir);
             $zip->close();
 
             // Find the extracted directory (GitHub adds a prefix)
-            $extracted = glob($tmpDir . '/extracted/*', GLOB_ONLYDIR);
-            if (empty($extracted)) {
-                throw new RuntimeException('No directory found in ZIP');
+            $dirs = glob($tempDir . '/*', GLOB_ONLYDIR);
+            if (empty($dirs)) {
+                throw new RuntimeException('No directory found in ZIP.');
             }
-            $sourceDir = $extracted[0];
+            $extractedDir = $dirs[0];
 
-            // Files to preserve (not overwrite)
-            $preserve = ['config.php', '.git'];
+            // Backup current version
+            $backupDir = $this->basePath . '/backups/' . $this->currentVersion . '_' . date('Ymd_His');
+            if (!is_dir(dirname($backupDir))) {
+                mkdir(dirname($backupDir), 0755, true);
+            }
 
-            // Copy files
-            $this->copyDirectory($sourceDir, $this->basePath, $preserve);
+            // Copy new files (skip config.php)
+            $this->copyDirectory($extractedDir, $this->basePath, ['config.php', '.git', 'backups']);
 
             // Update VERSION file
-            file_put_contents($this->basePath . '/VERSION', $updateInfo['latest_version']);
+            file_put_contents(
+                $this->basePath . '/VERSION',
+                $updateInfo['latest_version'] . "\n"
+            );
 
-            return true;
+            // Update database setting
+            Database::update(
+                'settings',
+                ['value' => $updateInfo['latest_version']],
+                '`key` = ?',
+                ['app_version']
+            );
 
-        } finally {
-            // Cleanup temp files
-            $this->removeDirectory($tmpDir);
+            Database::update(
+                'settings',
+                ['value' => date('Y-m-d H:i:s')],
+                '`key` = ?',
+                ['last_update_check']
+            );
+
+            // Cleanup
+            @unlink($zipFile);
+            $this->removeDirectory($tempDir);
+
+            return [
+                'status'          => 'success',
+                'previous_version' => $this->currentVersion,
+                'new_version'      => $updateInfo['latest_version'],
+                'message'          => "Updated from {$this->currentVersion} to {$updateInfo['latest_version']}",
+            ];
+
+        } catch (Throwable $e) {
+            // Cleanup on error
+            @unlink($zipFile);
+            if (is_dir($tempDir)) {
+                $this->removeDirectory($tempDir);
+            }
+
+            return [
+                'status'  => 'error',
+                'message' => $e->getMessage(),
+            ];
         }
     }
 
     /**
-     * Recursively copy directory, preserving specified files
+     * Recursively copy directory, skipping specified items.
      */
-    private function copyDirectory(string $source, string $dest, array $preserve = []): void
+    private function copyDirectory(string $src, string $dst, array $skip = []): void
     {
-        $iterator = new RecursiveIteratorIterator(
-            new RecursiveDirectoryIterator($source, RecursiveDirectoryIterator::SKIP_DOTS),
-            RecursiveIteratorIterator::SELF_FIRST
-        );
+        $dir = opendir($src);
+        if (!is_dir($dst)) {
+            mkdir($dst, 0755, true);
+        }
 
-        foreach ($iterator as $item) {
-            $relativePath = substr($item->getPathname(), strlen($source) + 1);
+        while (($file = readdir($dir)) !== false) {
+            if ($file === '.' || $file === '..') continue;
+            if (in_array($file, $skip)) continue;
 
-            // Skip preserved files
-            foreach ($preserve as $skip) {
-                if (strpos($relativePath, $skip) === 0) {
-                    continue 2;
-                }
-            }
+            $srcPath = $src . '/' . $file;
+            $dstPath = $dst . '/' . $file;
 
-            $targetPath = $dest . '/' . $relativePath;
-
-            if ($item->isDir()) {
-                if (!is_dir($targetPath)) {
-                    mkdir($targetPath, 0755, true);
-                }
+            if (is_dir($srcPath)) {
+                $this->copyDirectory($srcPath, $dstPath, $skip);
             } else {
-                copy($item->getPathname(), $targetPath);
+                copy($srcPath, $dstPath);
             }
         }
+
+        closedir($dir);
     }
 
     /**
-     * Recursively remove a directory
+     * Recursively remove a directory.
      */
     private function removeDirectory(string $dir): void
     {
         if (!is_dir($dir)) return;
 
-        $items = new RecursiveIteratorIterator(
-            new RecursiveDirectoryIterator($dir, RecursiveDirectoryIterator::SKIP_DOTS),
-            RecursiveIteratorIterator::CHILD_FIRST
-        );
-
+        $items = scandir($dir);
         foreach ($items as $item) {
-            if ($item->isDir()) {
-                rmdir($item->getPathname());
-            } else {
-                unlink($item->getPathname());
-            }
+            if ($item === '.' || $item === '..') continue;
+            $path = $dir . '/' . $item;
+            is_dir($path) ? $this->removeDirectory($path) : unlink($path);
         }
 
         rmdir($dir);
     }
 
+    /**
+     * Get current version.
+     */
     public function getCurrentVersion(): string
     {
         return $this->currentVersion;

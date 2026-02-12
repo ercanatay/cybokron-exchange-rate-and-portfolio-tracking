@@ -1,108 +1,115 @@
 <?php
 /**
- * Dünya Katılım Bankası Exchange Rate Scraper
- * 
+ * DunyaKatilim.php — Dünya Katılım Bank Scraper
+ * Cybokron Exchange Rate & Portfolio Tracking
+ *
  * Scrapes exchange rates from: https://dunyakatilim.com.tr/gunluk-kurlar
- * 
+ *
  * Table structure (as of 2025):
- *   Column 0: Currency name + code (e.g., "Amerikan doları (USD)")
- *   Column 1: Bank Buy Rate (Banka Alış)
- *   Column 2: Bank Sell Rate (Banka Satış)
- *   Column 3: Change % (Değişim)
+ * | Döviz Cinsi | Banka Alış | Banka Satış | Değişim |
+ * Currencies: USD, EUR, GBP, XAU, XAG, AUD, CAD, CNY, JPY, SAR, CHF, AED, XPT, XPD
  */
-
-require_once __DIR__ . '/../includes/Scraper.php';
 
 class DunyaKatilim extends Scraper
 {
-    protected string $bankName = 'Dünya Katılım Bankası';
+    protected string $bankName = 'Dünya Katılım';
     protected string $bankSlug = 'dunya-katilim';
     protected string $url = 'https://dunyakatilim.com.tr/gunluk-kurlar';
 
     /**
-     * Known currency code mappings (fallback if code extraction fails)
+     * Currency code mapping from Turkish names to ISO codes.
+     * Used for auto-detection when table structure changes.
      */
     private array $currencyMap = [
-        'amerikan doları'                      => 'USD',
-        'euro'                                  => 'EUR',
-        'ingiliz sterlini'                      => 'GBP',
-        'İngiliz sterlini'                      => 'GBP',
-        'altın'                                 => 'XAU',
-        'gümüş'                                 => 'XAG',
-        'avustralya doları'                     => 'AUD',
-        'kanada doları'                         => 'CAD',
-        'çin yuanı'                             => 'CNY',
-        'japon yeni'                            => 'JPY',
-        'suudi riyali'                          => 'SAR',
-        'isviçre frangı'                        => 'CHF',
-        'İsviçre frangı'                        => 'CHF',
-        'birleşik arap emirlikleri dirhemi'     => 'AED',
-        'platin'                                => 'XPT',
-        'paladyum'                              => 'XPD',
+        'amerikan doları'                     => 'USD',
+        'usd'                                 => 'USD',
+        'euro'                                => 'EUR',
+        'eur'                                 => 'EUR',
+        'ingiliz sterlini'                    => 'GBP',
+        'İngiliz sterlini'                    => 'GBP',
+        'gbp'                                 => 'GBP',
+        'altın'                               => 'XAU',
+        'altin'                               => 'XAU',
+        'xau'                                 => 'XAU',
+        'gümüş'                               => 'XAG',
+        'gumus'                               => 'XAG',
+        'xag'                                 => 'XAG',
+        'avustralya doları'                   => 'AUD',
+        'aud'                                 => 'AUD',
+        'kanada doları'                       => 'CAD',
+        'cad'                                 => 'CAD',
+        'çin yuanı'                           => 'CNY',
+        'cin yuani'                           => 'CNY',
+        'cny'                                 => 'CNY',
+        'japon yeni'                          => 'JPY',
+        'jpy'                                 => 'JPY',
+        'suudi riyali'                        => 'SAR',
+        'sar'                                 => 'SAR',
+        'isviçre frangı'                      => 'CHF',
+        'İsviçre frangı'                      => 'CHF',
+        'chf'                                 => 'CHF',
+        'birleşik arap emirlikleri dirhemi'   => 'AED',
+        'bae dirhemi'                         => 'AED',
+        'aed'                                 => 'AED',
+        'platin'                              => 'XPT',
+        'xpt'                                 => 'XPT',
+        'paladyum'                            => 'XPD',
+        'xpd'                                 => 'XPD',
     ];
 
+    /**
+     * Scrape the exchange rate table.
+     */
     public function scrape(): array
     {
         $html = $this->fetchPage($this->url);
-        $dom = $this->createDom($html);
 
-        // Check for table structure changes
-        $currentHash = $this->generateTableHash($dom);
-        $this->detectStructureChange($currentHash);
-
-        return $this->parseRates($dom);
-    }
-
-    /**
-     * Parse exchange rates from the DOM
-     */
-    private function parseRates(DOMDocument $dom): array
-    {
+        $dom = new DOMDocument();
+        @$dom->loadHTML(mb_convert_encoding($html, 'HTML-ENTITIES', 'UTF-8'));
         $xpath = new DOMXPath($dom);
+
         $rates = [];
 
         // Find all table rows (skip header)
         $rows = $xpath->query('//table//tbody//tr');
 
         if ($rows->length === 0) {
-            // Try without tbody (some pages render differently)
+            // Fallback: try all tr elements in table
             $rows = $xpath->query('//table//tr');
         }
 
         foreach ($rows as $row) {
             $cells = $xpath->query('.//td', $row);
-            
+
             if ($cells->length < 3) {
-                continue; // Skip header rows or incomplete rows
+                continue; // Skip rows without enough data
             }
 
-            // Extract currency code from cell text
-            $currencyText = trim($cells->item(0)->textContent);
-            $code = $this->extractCurrencyCode($currencyText);
+            // Auto-detect: first cell = currency name, then buy, sell, change
+            $currencyText = $this->cleanText($cells->item(0)->textContent);
+            $code = $this->detectCurrencyCode($currencyText);
 
             if (!$code) {
-                continue; // Skip if we can't identify the currency
+                continue; // Unknown currency, skip
             }
 
-            // Parse buy and sell rates
-            $buyText = trim($cells->item(1)->textContent);
-            $sellText = trim($cells->item(2)->textContent);
-
-            $buyRate = $this->parseNumber($buyText);
-            $sellRate = $this->parseNumber($sellText);
-
-            if ($buyRate <= 0 || $sellRate <= 0) {
-                continue; // Skip invalid rates
-            }
-
-            // Parse change percentage (optional, column 3)
+            // Determine column positions dynamically
+            $buyRate = null;
+            $sellRate = null;
             $changePercent = null;
+
+            // Try standard layout: col 1 = buy, col 2 = sell, col 3 = change
             if ($cells->length >= 4) {
-                $changeText = trim($cells->item(3)->textContent);
-                $changeText = str_replace(['%', ' '], '', $changeText);
-                if (is_numeric(str_replace(',', '.', $changeText))) {
-                    $changePercent = $this->parseNumber($changeText);
-                }
+                $buyRate = $this->parseNumber($cells->item(1)->textContent);
+                $sellRate = $this->parseNumber($cells->item(2)->textContent);
+                $changePercent = $this->parsePercent($cells->item(3)->textContent);
+            } elseif ($cells->length === 3) {
+                $buyRate = $this->parseNumber($cells->item(1)->textContent);
+                $sellRate = $this->parseNumber($cells->item(2)->textContent);
+            }
+
+            if ($buyRate === null || $sellRate === null) {
+                continue; // Could not parse rates
             }
 
             $rates[] = [
@@ -113,25 +120,41 @@ class DunyaKatilim extends Scraper
             ];
         }
 
+        if (empty($rates)) {
+            throw new RuntimeException("No rates found on {$this->url}. Table structure may have changed.");
+        }
+
         return $rates;
     }
 
     /**
-     * Extract currency code from cell text
-     * Handles formats like: "Amerikan doları (USD)" or just "Amerikan doları"
+     * Detect currency ISO code from text.
+     * Handles various formats:
+     *   "Amerikan doları (USD)" → USD
+     *   "Amerikan doları Amerikan doları (USD) Amerikan doları" → USD
+     *   "USD" → USD
      */
-    private function extractCurrencyCode(string $text): ?string
+    private function detectCurrencyCode(string $text): ?string
     {
-        // Try to extract code from parentheses: "... (USD)"
-        if (preg_match('/\(([A-Z]{3})\)/', $text, $matches)) {
-            return $matches[1];
+        // Try to extract code from parentheses: (USD), (EUR), etc.
+        if (preg_match('/\(([A-Z]{3})\)/', $text, $m)) {
+            $code = strtoupper($m[1]);
+            // Verify it's a known code
+            if (in_array($code, $this->currencyMap)) {
+                return $code;
+            }
+            // Check values in the map
+            if (in_array($code, array_values($this->currencyMap))) {
+                return $code;
+            }
         }
 
-        // Fallback: match against known currency names
-        $normalized = mb_strtolower(trim($text), 'UTF-8');
-        
+        // Try matching against the Turkish name map
+        $lower = mb_strtolower(trim($text), 'UTF-8');
+
+        // Try exact match
         foreach ($this->currencyMap as $name => $code) {
-            if (mb_strpos($normalized, mb_strtolower($name, 'UTF-8')) !== false) {
+            if (mb_strpos($lower, mb_strtolower($name, 'UTF-8')) !== false) {
                 return $code;
             }
         }
@@ -140,35 +163,63 @@ class DunyaKatilim extends Scraper
     }
 
     /**
-     * Detect if the table structure has changed
+     * Parse a numeric value from text.
+     * Handles Turkish format: 7.049,5249 or 43.5865
      */
-    private function detectStructureChange(string $currentHash): void
+    private function parseNumber(string $text): ?float
     {
-        if (empty($currentHash)) {
-            return;
+        $text = trim($text);
+        $text = preg_replace('/[^\d.,\-]/', '', $text);
+
+        if ($text === '') {
+            return null;
         }
 
-        require_once __DIR__ . '/../includes/Database.php';
+        // Detect Turkish format (dot as thousands, comma as decimal)
+        $lastComma = strrpos($text, ',');
+        $lastDot = strrpos($text, '.');
 
-        try {
-            $bank = Database::fetchOne(
-                "SELECT id, table_hash FROM banks WHERE slug = ?",
-                [$this->bankSlug]
-            );
-
-            if ($bank && $bank['table_hash'] && $bank['table_hash'] !== $currentHash) {
-                // Structure changed! Log it
-                $this->logScrape('structure_changed', 
-                    "Table structure changed. Old hash: {$bank['table_hash']}, New hash: {$currentHash}"
-                );
+        if ($lastComma !== false && $lastDot !== false) {
+            if ($lastComma > $lastDot) {
+                // Format: 7.049,5249 (Turkish)
+                $text = str_replace('.', '', $text);
+                $text = str_replace(',', '.', $text);
             }
-
-            // Update hash
-            if ($bank) {
-                Database::update('banks', ['table_hash' => $currentHash], 'id = ?', [$bank['id']]);
-            }
-        } catch (Exception $e) {
-            // Database might not be set up yet, skip silently
+            // else Format: 1,234.56 (English) — keep as-is
+        } elseif ($lastComma !== false && $lastDot === false) {
+            // Could be Turkish decimal: 0,2810
+            $text = str_replace(',', '.', $text);
         }
+
+        $text = str_replace(',', '', $text);
+        $value = (float) $text;
+
+        return $value > 0 ? $value : null;
+    }
+
+    /**
+     * Parse a percentage value.
+     * Handles: "% 0.02", "0.02%", "-0.42%", "% -0.42"
+     */
+    private function parsePercent(string $text): ?float
+    {
+        $text = trim($text);
+        $text = str_replace(['%', ' '], '', $text);
+        $text = str_replace(',', '.', $text);
+
+        if ($text === '' || !is_numeric($text)) {
+            return null;
+        }
+
+        return (float) $text;
+    }
+
+    /**
+     * Clean text: trim, normalize whitespace.
+     */
+    private function cleanText(string $text): string
+    {
+        $text = preg_replace('/\s+/', ' ', $text);
+        return trim($text);
     }
 }
