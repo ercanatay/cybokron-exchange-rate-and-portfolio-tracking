@@ -24,7 +24,9 @@
         const btn = document.getElementById('theme-toggle');
         if (btn) {
             btn.textContent = theme === 'dark' ? '☀️' : '🌙';
-            btn.setAttribute('aria-label', theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode');
+            const lightLabel = btn.getAttribute('data-label-light') || 'Switch to light mode';
+            const darkLabel = btn.getAttribute('data-label-dark') || 'Switch to dark mode';
+            btn.setAttribute('aria-label', theme === 'dark' ? lightLabel : darkLabel);
         }
     }
 

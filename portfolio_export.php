@@ -24,15 +24,15 @@ fwrite($out, "\xEF\xBB\xBF");
 
 // Header
 fputcsv($out, [
-    $locale === 'en' ? 'Currency' : 'Döviz',
-    $locale === 'en' ? 'Amount' : 'Miktar',
-    $locale === 'en' ? 'Buy Rate' : 'Alış Kuru',
-    $locale === 'en' ? 'Buy Date' : 'Alış Tarihi',
-    $locale === 'en' ? 'Current Rate' : 'Güncel Kur',
-    $locale === 'en' ? 'Cost (TRY)' : 'Maliyet (₺)',
-    $locale === 'en' ? 'Value (TRY)' : 'Değer (₺)',
-    $locale === 'en' ? 'P/L (%)' : 'K/Z (%)',
-    $locale === 'en' ? 'Notes' : 'Notlar',
+    t('csv.currency'),
+    t('csv.amount'),
+    t('csv.buy_rate'),
+    t('csv.buy_date'),
+    t('csv.current_rate'),
+    t('csv.cost_try'),
+    t('csv.value_try'),
+    t('csv.pl_percent'),
+    t('csv.notes'),
 ]);
 
 foreach ($items as $item) {

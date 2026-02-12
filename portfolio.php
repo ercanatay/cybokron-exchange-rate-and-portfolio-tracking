@@ -241,7 +241,7 @@ $csrfToken = getCsrfToken();
                 <?php else: ?>
                     <a href="login.php" class="lang-link"><?= t('nav.login') ?></a>
                 <?php endif; ?>
-                <button type="button" id="theme-toggle" class="btn-theme" aria-label="<?= t('nav.theme_toggle') ?>" title="<?= t('nav.theme_toggle') ?>">🌙</button>
+                <button type="button" id="theme-toggle" class="btn-theme" aria-label="<?= t('nav.theme_toggle') ?>" title="<?= t('nav.theme_toggle') ?>" data-label-light="<?= htmlspecialchars(t('theme.switch_to_light')) ?>" data-label-dark="<?= htmlspecialchars(t('theme.switch_to_dark')) ?>">🌙</button>
                 <span class="lang-label"><?= t('nav.language') ?>:</span>
                 <?php foreach ($availableLocales as $locale): ?>
                     <?php

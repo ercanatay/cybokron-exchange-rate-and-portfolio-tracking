@@ -274,7 +274,7 @@ class AlertChecker
     {
         $currencyCode = $alert['currency_code'] ?? '???';
         $sellRate = formatRate((float) ($currentRate['sell_rate'] ?? 0));
-        return "Cybokron Alert: {$currencyCode} = {$sellRate}";
+        return t('alert.subject', ['currency' => $currencyCode, 'rate' => $sellRate]);
     }
 
     private static function buildBody(array $alert, array $currentRate): string
@@ -288,21 +288,21 @@ class AlertChecker
         $scrapedAt = $currentRate['scraped_at'] ?? '';
 
         $lines = [
-            "Cybokron Rate Alert",
+            t('alert.body.title'),
             "",
-            "Currency: {$currencyCode}",
-            "Condition: {$conditionType} (threshold: {$threshold})",
-            "Sell rate: " . formatRate((float) $sellRate),
-            "Buy rate: " . formatRate((float) $buyRate),
+            t('alert.body.currency', ['currency' => $currencyCode]),
+            t('alert.body.condition', ['type' => $conditionType, 'threshold' => $threshold]),
+            t('alert.body.sell_rate', ['rate' => formatRate((float) $sellRate)]),
+            t('alert.body.buy_rate', ['rate' => formatRate((float) $buyRate)]),
         ];
 
         if ($change !== null) {
-            $lines[] = "Change: " . number_format($change, 2) . "%";
+            $lines[] = t('alert.body.change', ['change' => number_format($change, 2)]);
         }
 
-        $lines[] = "Last update: {$scrapedAt}";
+        $lines[] = t('alert.body.last_update', ['datetime' => $scrapedAt]);
         $lines[] = "";
-        $lines[] = "This is an automated alert from Cybokron.";
+        $lines[] = t('alert.body.footer');
 
         return implode("\n", $lines);
     }
