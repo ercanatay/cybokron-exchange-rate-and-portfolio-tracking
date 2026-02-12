@@ -110,6 +110,21 @@ try {
             jsonResponse(['status' => 'ok', 'version' => $version]);
             break;
 
+        case 'ai_model':
+            $configured = defined('OPENROUTER_MODEL') ? (string) OPENROUTER_MODEL : 'z-ai/glm-5';
+            $row = Database::queryOne('SELECT value FROM settings WHERE `key` = ?', ['openrouter_model']);
+            $active = (is_array($row) && isset($row['value']) && (string) $row['value'] !== '')
+                ? (string) $row['value']
+                : $configured;
+
+            jsonResponse([
+                'status' => 'ok',
+                'active_model' => $active,
+                'default_model' => $configured,
+                'openrouter_enabled' => defined('OPENROUTER_AI_REPAIR_ENABLED') ? (bool) OPENROUTER_AI_REPAIR_ENABLED : false,
+            ]);
+            break;
+
         default:
             jsonResponse([
                 'status' => 'ok',
@@ -126,6 +141,7 @@ try {
                     'GET /api.php?action=banks' => 'List banks',
                     'GET /api.php?action=currencies' => 'List currencies',
                     'GET /api.php?action=version' => 'App version',
+                    'GET /api.php?action=ai_model' => 'OpenRouter model status',
                 ],
             ]);
             break;

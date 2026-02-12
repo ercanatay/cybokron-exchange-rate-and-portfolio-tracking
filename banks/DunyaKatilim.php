@@ -120,6 +120,22 @@ class DunyaKatilim extends Scraper
             ];
         }
 
+        $minimumRates = defined('OPENROUTER_MIN_EXPECTED_RATES')
+            ? max(1, (int) OPENROUTER_MIN_EXPECTED_RATES)
+            : 8;
+
+        if (count($rates) < $minimumRates) {
+            $aiRates = $this->attemptOpenRouterRateRecovery($html, $minimumRates);
+            if (!empty($aiRates)) {
+                $rates = $this->mergeRatesByCode($rates, $aiRates);
+                cybokron_log(
+                    "OpenRouter fallback added rate rows for {$this->bankSlug}. Parsed: "
+                    . count($rates) . ", minimum expected: {$minimumRates}",
+                    'INFO'
+                );
+            }
+        }
+
         if (empty($rates)) {
             throw new RuntimeException("No rates found on {$this->url}. Table structure may have changed.");
         }

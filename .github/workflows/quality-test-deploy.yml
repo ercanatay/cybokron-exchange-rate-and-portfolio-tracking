@@ -1,0 +1,128 @@
+name: Quality Test Deploy
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: qtd-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  control:
+    name: Control (PHP ${{ matrix.php-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        php-version: ['8.3', '8.4']
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php-version }}
+          extensions: curl, dom, mbstring, json, pdo_mysql, zip
+          coverage: none
+
+      - name: PHP Syntax Check
+        run: |
+          set -euo pipefail
+          find . -name '*.php' -type f -print0 | while IFS= read -r -d '' file; do
+            php -l "$file"
+          done
+
+  test:
+    name: Test (PHP ${{ matrix.php-version }})
+    needs: control
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        php-version: ['8.3', '8.4']
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php-version }}
+          extensions: curl, dom, mbstring, json, pdo_mysql, zip
+          coverage: none
+
+      - name: Run Test Suite
+        run: |
+          set -euo pipefail
+          php tests/run.php
+
+  deploy:
+    name: Deploy
+    needs: [control, test]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Trigger deploy webhook (optional)
+        env:
+          DEPLOY_WEBHOOK_URL: ${{ secrets.DEPLOY_WEBHOOK_URL }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${DEPLOY_WEBHOOK_URL}" ]; then
+            echo "No DEPLOY_WEBHOOK_URL configured. Deploy step skipped."
+            exit 0
+          fi
+
+          payload=$(printf '{"repository":"%s","ref":"%s","sha":"%s"}' "${GITHUB_REPOSITORY}" "${GITHUB_REF}" "${GITHUB_SHA}")
+
+          curl -fsSL \
+            -X POST \
+            -H "Content-Type: application/json" \
+            -d "$payload" \
+            "$DEPLOY_WEBHOOK_URL"
+
+  auto-remediation:
+    name: Auto Remediation
+    needs: [control, test, deploy]
+    if: ${{ always() && github.event_name == 'push' && github.ref == 'refs/heads/main' && (needs.control.result == 'failure' || needs.test.result == 'failure' || needs.deploy.result == 'failure') }}
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      contents: read
+
+    steps:
+      - name: Create failure issue
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const title = `CI failure on main (${context.sha.substring(0, 7)})`;
+            const body = [
+              'Automated CI failure report.',
+              '',
+              `- Workflow: ${context.workflow}`,
+              `- Run: https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
+              `- Commit: ${context.sha}`,
+              '',
+              'Auto-remediation checklist:',
+              '1. Inspect failing job logs.',
+              '2. Reproduce locally with PHP 8.3 and 8.4.',
+              '3. Commit fix and verify green pipeline before deploy.'
+            ].join('\n');
+
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title,
+              body
+            });
