@@ -231,7 +231,9 @@ To add a new bank source later:
 
 ## Changelog
 
-### v1.2.x (2025)
+### v1.3.0 (2026)
+
+Feature release focused on multi-bank coverage, portfolio depth, observability, and production hardening.
 
 **Authentication & RBAC**
 - Session-based login (`login.php`, `Auth.php`)
@@ -275,6 +277,11 @@ To add a new bank source later:
 - Docker: Dockerfile, docker-compose
 - Localization: Arabic, German, French
 - Extended test coverage
+
+**Security & Performance**
+- Hardened API input validation and CSRF requirements for state-changing actions
+- Scraper/page-fetch caching, currency lookup caching, and transaction-wrapped rate writes
+- Accessibility and UX improvements across dashboard and portfolio screens
 
 ## Legal Disclaimer
 
