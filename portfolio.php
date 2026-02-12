@@ -6,15 +6,21 @@
 
 require_once __DIR__ . '/includes/helpers.php';
 cybokron_init();
+applySecurityHeaders();
 
 // Handle form submissions
 $message = '';
 $messageType = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (!verifyCsrfToken($_POST['csrf_token'] ?? null)) {
+        $message = t('common.invalid_request');
+        $messageType = 'error';
+    }
+
     $action = $_POST['action'] ?? '';
 
-    if ($action === 'add') {
+    if ($messageType === '' && $action === 'add') {
         try {
             Portfolio::add([
                 'currency_code' => $_POST['currency_code'] ?? '',
@@ -32,7 +38,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
-    if ($action === 'delete' && !empty($_POST['id'])) {
+    if ($messageType === '' && $action === 'delete' && !empty($_POST['id'])) {
         if (Portfolio::delete((int) $_POST['id'])) {
             $message = t('portfolio.message.deleted');
             $messageType = 'success';
@@ -50,6 +56,7 @@ $version = trim(file_get_contents(__DIR__ . '/VERSION'));
 $currentLocale = getAppLocale();
 $availableLocales = getAvailableLocales();
 $deleteConfirmText = json_encode(t('portfolio.table.delete_confirm'), JSON_UNESCAPED_UNICODE | JSON_HEX_APOS | JSON_HEX_QUOT);
+$csrfToken = getCsrfToken();
 ?>
 <!DOCTYPE html>
 <html lang="<?= htmlspecialchars($currentLocale) ?>">
@@ -106,6 +113,7 @@ $deleteConfirmText = json_encode(t('portfolio.table.delete_confirm'), JSON_UNESC
             <h2>➕ <?= t('portfolio.form.title') ?></h2>
             <form method="POST" class="portfolio-form">
                 <input type="hidden" name="action" value="add">
+                <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
 
                 <div class="form-row">
                     <div class="form-group">
@@ -199,6 +207,7 @@ $deleteConfirmText = json_encode(t('portfolio.table.delete_confirm'), JSON_UNESC
                                     <td>
                                         <form method="POST" style="display:inline" onsubmit="return confirm(<?= $deleteConfirmText ?>)">
                                             <input type="hidden" name="action" value="delete">
+                                            <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
                                             <input type="hidden" name="id" value="<?= (int) $item['id'] ?>">
                                             <button type="submit" class="btn btn-sm btn-danger">🗑</button>
                                         </form>
@@ -223,7 +232,7 @@ $deleteConfirmText = json_encode(t('portfolio.table.delete_confirm'), JSON_UNESC
                 Cybokron v<?= htmlspecialchars($version) ?> |
                 <a href="https://github.com/ercanatay/cybokron-exchange-rate-and-portfolio-tracking" target="_blank" rel="noopener noreferrer"><?= t('footer.github') ?></a> |
                 <a href="https://github.com/ercanatay/cybokron-exchange-rate-and-portfolio-tracking/blob/main/CODE_OF_CONDUCT.md" target="_blank" rel="noopener noreferrer"><?= t('footer.code_of_conduct') ?></a> |
-                <a href="https://www.netlify.com/" target="_blank" rel="noopener noreferrer"><?= t('footer.powered_by_netlify') ?></a>
+                <a href="LICENSE" target="_blank" rel="noopener noreferrer"><?= t('footer.license') ?></a>
             </p>
         </div>
     </footer>

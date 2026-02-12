@@ -4,11 +4,13 @@
  * Cybokron Exchange Rate & Portfolio Tracking
  *
  * Usage: php cron/update_rates.php
- * Cron:  */15 9-18 * * 1-5 php /path/to/cron/update_rates.php
+ * Cron example: every 15 minutes during weekdays, 09:00-18:00
+ *             php /path/to/cron/update_rates.php
  */
 
 require_once __DIR__ . '/../includes/helpers.php';
 cybokron_init();
+ensureCliExecution();
 
 // Load active banks from config
 global $ACTIVE_BANKS;
