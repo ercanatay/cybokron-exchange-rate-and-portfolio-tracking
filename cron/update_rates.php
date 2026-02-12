@@ -1,84 +1,59 @@
 <?php
 /**
- * Cron: Update exchange rates from all active banks
- * 
+ * update_rates.php — Cron: Fetch latest exchange rates
+ * Cybokron Exchange Rate & Portfolio Tracking
+ *
  * Usage: php cron/update_rates.php
- * Recommended: Run every 15 minutes during market hours
+ * Cron:  */15 9-18 * * 1-5 php /path/to/cron/update_rates.php
  */
 
-define('CYBOKRON_ROOT', dirname(__DIR__));
+require_once __DIR__ . '/../includes/helpers.php';
+cybokron_init();
 
-// Load config
-$config = require CYBOKRON_ROOT . '/config.php';
+// Load active banks from config
+global $ACTIVE_BANKS;
 
-// Set timezone
-date_default_timezone_set($config['app']['timezone']);
+if (empty($ACTIVE_BANKS)) {
+    cybokron_log('No active banks configured.', 'WARNING');
+    echo "No active banks configured.\n";
+    exit(1);
+}
 
-require_once CYBOKRON_ROOT . '/includes/Database.php';
+$results = [];
+$totalRates = 0;
 
-echo "[" . date('Y-m-d H:i:s') . "] Starting rate update...\n";
-
-$totalSaved = 0;
-$errors = [];
-
-foreach ($config['banks'] as $slug => $bankConfig) {
-    $startTime = microtime(true);
-    
+foreach ($ACTIVE_BANKS as $bankClass) {
     try {
-        $bankFile = CYBOKRON_ROOT . '/' . $bankConfig['file'];
-        
-        if (!file_exists($bankFile)) {
-            throw new RuntimeException("Bank file not found: {$bankConfig['file']}");
+        $scraper = loadBankScraper($bankClass);
+        $result = $scraper->run();
+        $results[] = $result;
+
+        if ($result['status'] === 'success') {
+            $totalRates += $result['rates_count'];
+            $changed = $result['table_changed'] ? ' [TABLE CHANGED!]' : '';
+            $msg = "{$result['bank']}: {$result['rates_count']} rates in {$result['duration_ms']}ms{$changed}";
+            cybokron_log($msg);
+            echo $msg . "\n";
+        } else {
+            $msg = "{$result['bank']}: ERROR - {$result['message']}";
+            cybokron_log($msg, 'ERROR');
+            echo $msg . "\n";
         }
 
-        require_once $bankFile;
-        
-        $className = $bankConfig['class'];
-        $scraper = new $className();
-
-        echo "  Scraping: {$scraper->getBankName()}... ";
-
-        // Scrape rates
-        $rates = $scraper->scrape();
-        
-        if (empty($rates)) {
-            throw new RuntimeException("No rates returned");
-        }
-
-        // Save to database
-        $saved = $scraper->saveRates($rates);
-
-        $durationMs = (int) ((microtime(true) - $startTime) * 1000);
-
-        // Log success
-        $scraper->logScrape('success', "Fetched {$saved} rates", $saved, $durationMs);
-
-        echo "OK ({$saved} rates, {$durationMs}ms)\n";
-        $totalSaved += $saved;
-
-    } catch (Exception $e) {
-        $durationMs = (int) ((microtime(true) - $startTime) * 1000);
-        $errorMsg = $e->getMessage();
-        
-        echo "ERROR: {$errorMsg}\n";
-        $errors[] = "{$slug}: {$errorMsg}";
-
-        // Log error
-        try {
-            if (isset($scraper)) {
-                $scraper->logScrape('error', $errorMsg, null, $durationMs);
-            }
-        } catch (Exception $logError) {
-            echo "  (Could not log error: {$logError->getMessage()})\n";
-        }
+    } catch (Throwable $e) {
+        $msg = "{$bankClass}: EXCEPTION - {$e->getMessage()}";
+        cybokron_log($msg, 'ERROR');
+        echo $msg . "\n";
     }
 }
 
-echo "[" . date('Y-m-d H:i:s') . "] Done. Total rates saved: {$totalSaved}";
-if (!empty($errors)) {
-    echo ", Errors: " . count($errors);
-}
-echo "\n";
+// Update last_rate_update setting
+Database::update(
+    'settings',
+    ['value' => date('Y-m-d H:i:s')],
+    '`key` = ?',
+    ['last_rate_update']
+);
 
-// Exit with error code if any errors occurred
-exit(empty($errors) ? 0 : 1);
+echo "\nDone. Total rates updated: {$totalRates}\n";
+cybokron_log("Rate update completed. Total: {$totalRates} rates.");

@@ -1,67 +1,44 @@
 <?php
 /**
- * Cron: Check for application updates from GitHub releases
- * 
+ * self_update.php — Cron: Check GitHub for app updates
+ * Cybokron Exchange Rate & Portfolio Tracking
+ *
  * Usage: php cron/self_update.php
- * Recommended: Run daily at midnight
+ * Cron:  0 0 * * * php /path/to/cron/self_update.php
  */
 
-define('CYBOKRON_ROOT', dirname(__DIR__));
+require_once __DIR__ . '/../includes/helpers.php';
+cybokron_init();
 
-$config = require CYBOKRON_ROOT . '/config.php';
-date_default_timezone_set($config['app']['timezone']);
-
-require_once CYBOKRON_ROOT . '/includes/Updater.php';
-
-echo "[" . date('Y-m-d H:i:s') . "] Checking for updates...\n";
-
-try {
-    $updater = new Updater();
-    echo "  Current version: {$updater->getCurrentVersion()}\n";
-
-    $updateInfo = $updater->checkForUpdate();
-
-    if ($updateInfo === null) {
-        echo "  Already up to date.\n";
-        exit(0);
-    }
-
-    echo "  New version available: {$updateInfo['latest_version']}\n";
-    echo "  Published: {$updateInfo['published_at']}\n";
-
-    if (!empty($updateInfo['release_notes'])) {
-        echo "  Release notes: " . substr($updateInfo['release_notes'], 0, 200) . "\n";
-    }
-
-    // Apply update
-    echo "  Downloading and applying update...\n";
-    $success = $updater->applyUpdate($updateInfo);
-
-    if ($success) {
-        echo "  ✅ Update successful! Now running version {$updateInfo['latest_version']}\n";
-
-        // Update version in database settings
-        try {
-            require_once CYBOKRON_ROOT . '/includes/Database.php';
-            Database::execute(
-                "UPDATE settings SET value = ? WHERE `key` = 'app_version'",
-                [$updateInfo['latest_version']]
-            );
-            Database::execute(
-                "UPDATE settings SET value = ? WHERE `key` = 'last_update_check'",
-                [date('Y-m-d H:i:s')]
-            );
-        } catch (Exception $e) {
-            // Non-critical
-        }
-    } else {
-        echo "  ❌ Update failed.\n";
-    }
-
-} catch (Exception $e) {
-    echo "  ERROR: {$e->getMessage()}\n";
-    exit(1);
+if (!defined('AUTO_UPDATE') || !AUTO_UPDATE) {
+    echo "Auto-update is disabled in config.\n";
+    exit(0);
 }
 
-echo "[" . date('Y-m-d H:i:s') . "] Done.\n";
-exit(0);
+$updater = new Updater();
+echo "Current version: {$updater->getCurrentVersion()}\n";
+cybokron_log("Checking for updates. Current: {$updater->getCurrentVersion()}");
+
+$update = $updater->checkForUpdate();
+
+if (!$update) {
+    echo "Already up to date.\n";
+    cybokron_log("No updates available.");
+
+    Database::update('settings', ['value' => date('Y-m-d H:i:s')], '`key` = ?', ['last_update_check']);
+    exit(0);
+}
+
+echo "New version available: {$update['latest_version']}\n";
+echo "Downloading and applying update...\n";
+cybokron_log("Update available: {$update['current_version']} → {$update['latest_version']}");
+
+$result = $updater->applyUpdate($update);
+
+if ($result['status'] === 'success') {
+    echo "Updated successfully: {$result['message']}\n";
+    cybokron_log("Update applied: {$result['message']}");
+} else {
+    echo "Update failed: {$result['message']}\n";
+    cybokron_log("Update failed: {$result['message']}", 'ERROR');
+}

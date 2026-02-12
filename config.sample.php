@@ -1,57 +1,56 @@
 <?php
 /**
  * Cybokron Exchange Rate & Portfolio Tracking
- * Configuration File
- * 
- * Copy this file to config.php and update with your settings.
+ * Configuration File Template
+ *
+ * Copy this file to config.php and update values.
+ * cp config.sample.php config.php
  */
 
-return [
-    // Database Configuration
-    'db' => [
-        'host'     => 'localhost',
-        'port'     => 3306,
-        'name'     => 'cybokron',
-        'user'     => 'root',
-        'password' => '',
-        'charset'  => 'utf8mb4',
-    ],
+// ─── Database ────────────────────────────────────────────────────────────────
+define('DB_HOST', 'localhost');
+define('DB_NAME', 'cybokron');
+define('DB_USER', 'root');
+define('DB_PASS', '');
+define('DB_CHARSET', 'utf8mb4');
 
-    // Application Settings
-    'app' => [
-        'name'     => 'Cybokron Exchange Rate Tracker',
-        'url'      => 'http://localhost/cybokron',
-        'timezone' => 'Europe/Istanbul',
-        'version'  => trim(file_get_contents(__DIR__ . '/VERSION')),
-    ],
+// ─── Application ─────────────────────────────────────────────────────────────
+define('APP_NAME', 'Cybokron Exchange Rate & Portfolio Tracking');
+define('APP_URL', 'http://localhost/cybokron');
+define('APP_TIMEZONE', 'Europe/Istanbul');
+define('APP_DEBUG', false);
 
-    // GitHub Settings (for self-update)
-    'github' => [
-        'owner' => 'ercanatay',
-        'repo'  => 'cybokron-exchange-rate-and-portfolio-tracking',
-    ],
+// ─── GitHub Self-Update ──────────────────────────────────────────────────────
+define('GITHUB_REPO', 'ercanatay/cybokron-exchange-rate-and-portfolio-tracking');
+define('GITHUB_BRANCH', 'main');
+define('AUTO_UPDATE', true);
 
-    // Registered Banks
-    'banks' => [
-        'dunya-katilim' => [
-            'file'  => 'banks/DunyaKatilim.php',
-            'class' => 'DunyaKatilim',
-        ],
-    ],
+// ─── Scraping ────────────────────────────────────────────────────────────────
+define('SCRAPE_TIMEOUT', 30);         // HTTP request timeout in seconds
+define('SCRAPE_USER_AGENT', 'Cybokron/1.0');
+define('SCRAPE_RETRY_COUNT', 3);      // Retry failed requests
+define('SCRAPE_RETRY_DELAY', 5);      // Seconds between retries
 
-    // Scraper Settings
-    'scraper' => [
-        'user_agent' => 'Cybokron/1.0 Exchange Rate Tracker',
-        'timeout'    => 30,
-        'retry'      => 3,
-        'retry_delay' => 2, // seconds
-    ],
-
-    // Rate Update Settings
-    'update' => [
-        'interval_minutes' => 15,
-        'market_open'      => '09:00',
-        'market_close'     => '18:00',
-        'market_days'      => [1, 2, 3, 4, 5], // Mon-Fri
-    ],
+// ─── Active Banks ────────────────────────────────────────────────────────────
+// Add bank class names to activate scraping
+$ACTIVE_BANKS = [
+    'DunyaKatilim',
+    // 'GarantiBBVA',
+    // 'Ziraat',
 ];
+
+// ─── Rate Update Schedule ────────────────────────────────────────────────────
+define('UPDATE_INTERVAL_MINUTES', 15);
+define('MARKET_OPEN_HOUR', 9);
+define('MARKET_CLOSE_HOUR', 18);
+define('MARKET_DAYS', [1, 2, 3, 4, 5]); // Mon-Fri
+
+// ─── Currency Display ────────────────────────────────────────────────────────
+// Default currencies to show on dashboard (empty = show all)
+$DISPLAY_CURRENCIES = [
+    'USD', 'EUR', 'GBP', 'XAU',
+];
+
+// ─── Logging ─────────────────────────────────────────────────────────────────
+define('LOG_ENABLED', true);
+define('LOG_FILE', __DIR__ . '/logs/cybokron.log');

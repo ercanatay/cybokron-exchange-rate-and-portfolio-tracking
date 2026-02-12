@@ -1,233 +1,106 @@
 <?php
 /**
- * Cybokron API Endpoint
- * 
- * Provides JSON API for rates, history, and portfolio management.
+ * api.php — JSON API Endpoint
+ * Cybokron Exchange Rate & Portfolio Tracking
  */
 
-define('CYBOKRON_ROOT', __DIR__);
+require_once __DIR__ . '/includes/helpers.php';
+cybokron_init();
 
-$config = require CYBOKRON_ROOT . '/config.php';
-date_default_timezone_set($config['app']['timezone']);
-
-require_once CYBOKRON_ROOT . '/includes/Database.php';
-require_once CYBOKRON_ROOT . '/includes/helpers.php';
-
-// CORS headers
+header('Content-Type: application/json; charset=utf-8');
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: GET, POST, DELETE');
-header('Access-Control-Allow-Headers: Content-Type');
-
-if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-    exit(0);
-}
 
 $action = $_GET['action'] ?? '';
 
 try {
     switch ($action) {
+
         case 'rates':
-            handleGetRates();
+            $bankSlug = $_GET['bank'] ?? null;
+            $currencyCode = $_GET['currency'] ?? null;
+            $rates = getLatestRates($bankSlug, $currencyCode);
+            jsonResponse(['status' => 'ok', 'data' => $rates, 'count' => count($rates)]);
             break;
 
         case 'history':
-            handleGetHistory();
+            $currency = $_GET['currency'] ?? '';
+            $days = (int) ($_GET['days'] ?? 30);
+            $bank = $_GET['bank'] ?? null;
+
+            if (empty($currency)) {
+                jsonResponse(['status' => 'error', 'message' => 'currency parameter required'], 400);
+            }
+
+            $history = getRateHistory($currency, $days, $bank);
+            jsonResponse(['status' => 'ok', 'data' => $history, 'count' => count($history)]);
             break;
 
         case 'portfolio':
-            handleGetPortfolio();
+            $summary = Portfolio::getSummary();
+            jsonResponse(['status' => 'ok', 'data' => $summary]);
             break;
 
         case 'portfolio_add':
-            handleAddPortfolio();
+            if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+                jsonResponse(['status' => 'error', 'message' => 'POST method required'], 405);
+            }
+
+            $input = json_decode(file_get_contents('php://input'), true) ?: $_POST;
+            $id = Portfolio::add($input);
+            jsonResponse(['status' => 'ok', 'id' => $id, 'message' => 'Added to portfolio']);
             break;
 
         case 'portfolio_delete':
-            handleDeletePortfolio();
+            $id = (int) ($_GET['id'] ?? $_POST['id'] ?? 0);
+            if ($id <= 0) {
+                jsonResponse(['status' => 'error', 'message' => 'Valid id parameter required'], 400);
+            }
+
+            $deleted = Portfolio::delete($id);
+            jsonResponse([
+                'status' => $deleted ? 'ok' : 'error',
+                'message' => $deleted ? 'Deleted' : 'Not found',
+            ], $deleted ? 200 : 404);
             break;
 
         case 'banks':
-            handleGetBanks();
+            $banks = Database::query("SELECT name, slug, url, last_scraped_at, is_active FROM banks ORDER BY name");
+            jsonResponse(['status' => 'ok', 'data' => $banks]);
             break;
 
         case 'currencies':
-            handleGetCurrencies();
+            $currencies = Database::query("SELECT code, name_tr, name_en, symbol, type FROM currencies WHERE is_active = 1 ORDER BY code");
+            jsonResponse(['status' => 'ok', 'data' => $currencies]);
             break;
 
         case 'version':
-            handleGetVersion();
+            $version = trim(file_get_contents(__DIR__ . '/VERSION'));
+            jsonResponse(['status' => 'ok', 'version' => $version]);
             break;
 
         default:
             jsonResponse([
-                'error' => 'Unknown action',
-                'available_actions' => [
-                    'rates', 'history', 'portfolio', 'portfolio_add',
-                    'portfolio_delete', 'banks', 'currencies', 'version'
+                'status' => 'ok',
+                'app' => APP_NAME,
+                'version' => trim(file_get_contents(__DIR__ . '/VERSION')),
+                'endpoints' => [
+                    'GET /api.php?action=rates' => 'Latest exchange rates',
+                    'GET /api.php?action=rates&bank=dunya-katilim' => 'Rates for specific bank',
+                    'GET /api.php?action=rates&currency=USD' => 'Rates for specific currency',
+                    'GET /api.php?action=history&currency=USD&days=30' => 'Rate history',
+                    'GET /api.php?action=portfolio' => 'Portfolio summary',
+                    'POST /api.php?action=portfolio_add' => 'Add to portfolio',
+                    'DELETE /api.php?action=portfolio_delete&id=1' => 'Delete from portfolio',
+                    'GET /api.php?action=banks' => 'List banks',
+                    'GET /api.php?action=currencies' => 'List currencies',
+                    'GET /api.php?action=version' => 'App version',
                 ],
-            ], 400);
-    }
-} catch (Exception $e) {
-    jsonResponse(['error' => $e->getMessage()], 500);
-}
-
-// ---- Handler Functions ----
-
-function handleGetRates(): void
-{
-    $bank = $_GET['bank'] ?? null;
-    $currency = $_GET['currency'] ?? null;
-
-    $sql = "
-        SELECT 
-            r.buy_rate, r.sell_rate, r.change_percent, r.fetched_at,
-            c.code AS currency_code, c.name_tr AS currency_name, c.type AS currency_type,
-            b.slug AS bank_slug, b.name AS bank_name
-        FROM rates r
-        JOIN currencies c ON r.currency_id = c.id
-        JOIN banks b ON r.bank_id = b.id
-        WHERE b.is_active = 1
-    ";
-    $params = [];
-
-    if ($bank) {
-        $sql .= " AND b.slug = ?";
-        $params[] = $bank;
-    }
-    if ($currency) {
-        $sql .= " AND c.code = ?";
-        $params[] = strtoupper($currency);
+            ]);
+            break;
     }
 
-    $sql .= " ORDER BY c.code ASC";
-
-    $rates = Database::fetchAll($sql, $params);
-
-    jsonResponse([
-        'success' => true,
-        'count'   => count($rates),
-        'data'    => $rates,
-    ]);
-}
-
-function handleGetHistory(): void
-{
-    $currency = strtoupper($_GET['currency'] ?? 'USD');
-    $days = (int) ($_GET['days'] ?? 30);
-    $bank = $_GET['bank'] ?? 'dunya-katilim';
-
-    $days = max(1, min($days, 365));
-
-    $history = Database::fetchAll("
-        SELECT 
-            rh.buy_rate, rh.sell_rate, rh.change_percent, rh.fetched_at,
-            c.code AS currency_code
-        FROM rate_history rh
-        JOIN currencies c ON rh.currency_id = c.id
-        JOIN banks b ON rh.bank_id = b.id
-        WHERE c.code = ? AND b.slug = ? AND rh.fetched_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
-        ORDER BY rh.fetched_at ASC
-    ", [$currency, $bank, $days]);
-
-    jsonResponse([
-        'success'  => true,
-        'currency' => $currency,
-        'bank'     => $bank,
-        'days'     => $days,
-        'count'    => count($history),
-        'data'     => $history,
-    ]);
-}
-
-function handleGetPortfolio(): void
-{
-    require_once CYBOKRON_ROOT . '/includes/Portfolio.php';
-    $summary = Portfolio::getSummary();
-
-    jsonResponse([
-        'success' => true,
-        'data'    => $summary,
-    ]);
-}
-
-function handleAddPortfolio(): void
-{
-    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-        jsonResponse(['error' => 'POST method required'], 405);
-    }
-
-    require_once CYBOKRON_ROOT . '/includes/Portfolio.php';
-
-    $input = json_decode(file_get_contents('php://input'), true) ?: $_POST;
-
-    $required = ['currency', 'amount', 'buy_rate', 'buy_date'];
-    foreach ($required as $field) {
-        if (empty($input[$field])) {
-            jsonResponse(['error' => "Missing required field: $field"], 400);
-        }
-    }
-
-    $id = Portfolio::add(
-        $input['currency'],
-        (float) $input['amount'],
-        (float) $input['buy_rate'],
-        $input['buy_date'],
-        $input['bank'] ?? null,
-        $input['notes'] ?? null
-    );
-
-    jsonResponse([
-        'success' => true,
-        'id'      => $id,
-        'message' => 'Portfolio entry added',
-    ], 201);
-}
-
-function handleDeletePortfolio(): void
-{
-    if ($_SERVER['REQUEST_METHOD'] !== 'DELETE' && $_SERVER['REQUEST_METHOD'] !== 'POST') {
-        jsonResponse(['error' => 'DELETE or POST method required'], 405);
-    }
-
-    require_once CYBOKRON_ROOT . '/includes/Portfolio.php';
-
-    $id = (int) ($_GET['id'] ?? 0);
-    if ($id <= 0) {
-        jsonResponse(['error' => 'Invalid portfolio ID'], 400);
-    }
-
-    $deleted = Portfolio::delete($id);
-
-    jsonResponse([
-        'success' => $deleted,
-        'message' => $deleted ? 'Entry deleted' : 'Entry not found',
-    ]);
-}
-
-function handleGetBanks(): void
-{
-    $banks = Database::fetchAll("
-        SELECT slug, name, url, is_active, last_scraped_at 
-        FROM banks ORDER BY name
-    ");
-    jsonResponse(['success' => true, 'data' => $banks]);
-}
-
-function handleGetCurrencies(): void
-{
-    $currencies = Database::fetchAll("
-        SELECT code, name_tr, name_en, type, is_active 
-        FROM currencies ORDER BY code
-    ");
-    jsonResponse(['success' => true, 'data' => $currencies]);
-}
-
-function handleGetVersion(): void
-{
-    $version = trim(file_get_contents(CYBOKRON_ROOT . '/VERSION'));
-    jsonResponse([
-        'success' => true,
-        'version' => $version,
-        'app'     => 'Cybokron Exchange Rate & Portfolio Tracking',
-    ]);
+} catch (Throwable $e) {
+    $code = ($e instanceof InvalidArgumentException) ? 400 : 500;
+    jsonResponse(['status' => 'error', 'message' => $e->getMessage()], $code);
 }
