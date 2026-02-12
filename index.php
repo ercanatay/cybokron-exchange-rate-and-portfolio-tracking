@@ -32,13 +32,14 @@ foreach ($rates as $rate) {
         <div class="container">
             <h1>💱 <?= APP_NAME ?></h1>
             <nav class="header-nav">
-                <a href="index.php" class="active"><?= t('nav.rates') ?></a>
+                <a href="index.php" class="active" aria-current="page"><?= t('nav.rates') ?></a>
                 <a href="portfolio.php"><?= t('nav.portfolio') ?></a>
                 <span class="lang-label"><?= t('nav.language') ?>:</span>
                 <?php foreach ($availableLocales as $locale): ?>
                     <a
                         href="<?= htmlspecialchars(buildLocaleUrl($locale)) ?>"
                         class="lang-link <?= $currentLocale === $locale ? 'active' : '' ?>"
+                        <?= $currentLocale === $locale ? 'aria-current="page"' : '' ?>
                     >
                         <?= htmlspecialchars(strtoupper($locale)) ?>
                     </a>
@@ -62,11 +63,11 @@ foreach ($rates as $rate) {
                     <table class="rates-table">
                         <thead>
                             <tr>
-                                <th><?= t('index.table.currency') ?></th>
-                                <th><?= t('index.table.code') ?></th>
-                                <th class="text-right"><?= t('index.table.bank_buy') ?></th>
-                                <th class="text-right"><?= t('index.table.bank_sell') ?></th>
-                                <th class="text-right"><?= t('index.table.change') ?></th>
+                                <th scope="col"><?= t('index.table.currency') ?></th>
+                                <th scope="col"><?= t('index.table.code') ?></th>
+                                <th scope="col" class="text-right"><?= t('index.table.bank_buy') ?></th>
+                                <th scope="col" class="text-right"><?= t('index.table.bank_sell') ?></th>
+                                <th scope="col" class="text-right"><?= t('index.table.change') ?></th>
                             </tr>
                         </thead>
                         <tbody>

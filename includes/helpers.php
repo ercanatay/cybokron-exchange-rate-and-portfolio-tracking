@@ -34,7 +34,23 @@ function ensureWebSessionStarted(): void
         return;
     }
 
-    if (session_status() !== PHP_SESSION_ACTIVE) {
+    if (session_status() === PHP_SESSION_NONE) {
+        $isSecure = !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off';
+
+        // Security: harden session behavior before creating the session cookie.
+        ini_set('session.use_strict_mode', '1');
+        ini_set('session.use_only_cookies', '1');
+        ini_set('session.cookie_httponly', '1');
+        ini_set('session.cookie_secure', $isSecure ? '1' : '0');
+        ini_set('session.cookie_samesite', 'Lax');
+
+        session_set_cookie_params([
+            'lifetime' => 0,
+            'path' => '/',
+            'secure' => $isSecure,
+            'httponly' => true,
+            'samesite' => 'Lax',
+        ]);
         session_start();
     }
 }
@@ -618,7 +634,19 @@ function cybokron_log(string $message, string $level = 'INFO'): void
         mkdir($logDir, 0755, true);
     }
 
+    // Security: neutralize line breaks/control chars to prevent log forging.
+    $safeMessage = str_replace(["\r", "\n"], ['\\r', '\\n'], $message);
+    $safeMessage = preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/', '', $safeMessage);
+    if (!is_string($safeMessage)) {
+        $safeMessage = '[invalid log message]';
+    }
+
+    $safeLevel = preg_replace('/[^A-Z]/', '', strtoupper($level));
+    if (!is_string($safeLevel) || $safeLevel === '') {
+        $safeLevel = 'INFO';
+    }
+
     $timestamp = date('Y-m-d H:i:s');
-    $entry = "[{$timestamp}] [{$level}] {$message}" . PHP_EOL;
+    $entry = "[{$timestamp}] [{$safeLevel}] {$safeMessage}" . PHP_EOL;
     file_put_contents($logFile, $entry, FILE_APPEND | LOCK_EX);
 }

@@ -17,6 +17,7 @@ return [
     'portfolio.page_title' => 'Portfolio',
     'portfolio.message.added' => 'Added to portfolio.',
     'portfolio.message.error' => 'Error: {{error}}',
+    'portfolio.message.error_generic' => 'An unexpected error occurred. Please try again.',
     'portfolio.message.deleted' => 'Deleted from portfolio.',
     'portfolio.message.not_found' => 'Record to delete was not found.',
 
@@ -46,6 +47,7 @@ return [
     'portfolio.table.pl_percent' => 'P/L (%)',
     'portfolio.table.date' => 'Date',
     'portfolio.table.delete_confirm' => 'Are you sure you want to delete this record?',
+    'portfolio.table.delete_action' => 'Delete {{currency}} from portfolio',
 
     'portfolio.empty_title' => 'Your portfolio is empty',
     'portfolio.empty_desc' => 'Use the form above to add currency or precious metals.',
