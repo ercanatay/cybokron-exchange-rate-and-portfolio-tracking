@@ -9,6 +9,7 @@
 
 require_once __DIR__ . '/../includes/helpers.php';
 cybokron_init();
+ensureCliExecution();
 
 if (!defined('AUTO_UPDATE') || !AUTO_UPDATE) {
     echo "Auto-update is disabled in config.\n";

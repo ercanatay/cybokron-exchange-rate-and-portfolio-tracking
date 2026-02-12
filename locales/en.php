@@ -52,7 +52,8 @@ return [
 
     'footer.github' => 'GitHub',
     'footer.code_of_conduct' => 'Code of Conduct',
-    'footer.powered_by_netlify' => 'This site is powered by Netlify',
+    'footer.license' => 'License',
 
     'common.not_available' => 'N/A',
+    'common.invalid_request' => 'Invalid request. Please refresh the page and try again.',
 ];

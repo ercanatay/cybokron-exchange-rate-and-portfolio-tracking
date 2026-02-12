@@ -1,6 +1,6 @@
 -- =============================================
 -- Cybokron Exchange Rate & Portfolio Tracking
--- Database Schema v1.0.2
+-- Database Schema v1.1.0
 -- =============================================
 
 CREATE DATABASE IF NOT EXISTS `cybokron`
@@ -70,6 +70,7 @@ CREATE TABLE IF NOT EXISTS `rate_history` (
   FOREIGN KEY (`bank_id`) REFERENCES `banks`(`id`) ON DELETE CASCADE,
   FOREIGN KEY (`currency_id`) REFERENCES `currencies`(`id`) ON DELETE CASCADE,
   INDEX `idx_history_lookup` (`bank_id`, `currency_id`, `scraped_at`),
+  INDEX `idx_currency_scraped` (`currency_id`, `scraped_at`),
   INDEX `idx_scraped_at` (`scraped_at`)
 ) ENGINE=InnoDB;
 
@@ -86,6 +87,7 @@ CREATE TABLE IF NOT EXISTS `portfolio` (
   `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   FOREIGN KEY (`currency_id`) REFERENCES `currencies`(`id`) ON DELETE CASCADE,
   FOREIGN KEY (`bank_id`) REFERENCES `banks`(`id`) ON DELETE SET NULL,
+  INDEX `idx_bank_currency` (`bank_id`, `currency_id`),
   INDEX `idx_currency` (`currency_id`),
   INDEX `idx_buy_date` (`buy_date`)
 ) ENGINE=InnoDB;
@@ -139,6 +141,6 @@ INSERT INTO `currencies` (`code`, `name_tr`, `name_en`, `symbol`, `type`, `decim
 
 -- Insert default settings
 INSERT INTO `settings` (`key`, `value`) VALUES
-('app_version', '1.0.2'),
+('app_version', '1.1.0'),
 ('last_update_check', NULL),
 ('last_rate_update', NULL);

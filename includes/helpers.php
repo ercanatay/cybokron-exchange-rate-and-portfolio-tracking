@@ -25,6 +25,92 @@ function cybokron_init(): void
 }
 
 /**
+ * Start session for web requests when needed.
+ */
+function ensureWebSessionStarted(): void
+{
+    if (PHP_SAPI === 'cli') {
+        return;
+    }
+
+    if (session_status() !== PHP_SESSION_ACTIVE) {
+        session_start();
+    }
+}
+
+/**
+ * Apply secure-by-default HTTP headers.
+ */
+function applySecurityHeaders(string $context = 'html'): void
+{
+    if (PHP_SAPI === 'cli' || headers_sent()) {
+        return;
+    }
+
+    if (defined('ENABLE_SECURITY_HEADERS') && ENABLE_SECURITY_HEADERS === false) {
+        return;
+    }
+
+    header('X-Content-Type-Options: nosniff');
+    header('X-Frame-Options: SAMEORIGIN');
+    header('Referrer-Policy: strict-origin-when-cross-origin');
+    header('Permissions-Policy: geolocation=(), microphone=(), camera=()');
+
+    if ($context === 'api') {
+        header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+        header('Pragma: no-cache');
+    }
+}
+
+/**
+ * Apply CORS headers if explicitly enabled and origin is allowed.
+ */
+function applyApiCorsHeaders(): bool
+{
+    if (!defined('API_ALLOW_CORS') || API_ALLOW_CORS !== true) {
+        return false;
+    }
+
+    $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
+    if ($origin === '') {
+        return false;
+    }
+
+    $allowedOrigins = (defined('API_ALLOWED_ORIGINS') && is_array(API_ALLOWED_ORIGINS))
+        ? API_ALLOWED_ORIGINS
+        : [];
+
+    if (!in_array($origin, $allowedOrigins, true)) {
+        return false;
+    }
+
+    header('Access-Control-Allow-Origin: ' . $origin);
+    header('Vary: Origin');
+    header('Access-Control-Allow-Methods: GET, POST, DELETE, OPTIONS');
+    header('Access-Control-Allow-Headers: Content-Type, X-CSRF-Token');
+
+    return true;
+}
+
+/**
+ * Require CLI execution for scripts like cron jobs.
+ */
+function ensureCliExecution(): void
+{
+    if (defined('ENFORCE_CLI_CRON') && ENFORCE_CLI_CRON === false) {
+        return;
+    }
+
+    if (PHP_SAPI === 'cli') {
+        return;
+    }
+
+    http_response_code(403);
+    echo 'Forbidden';
+    exit(1);
+}
+
+/**
  * Get available locales from config.
  */
 function getAvailableLocales(): array
@@ -71,6 +157,40 @@ function normalizeLocale(?string $locale): string
 }
 
 /**
+ * Normalize bank slug input.
+ */
+function normalizeBankSlug(?string $slug): ?string
+{
+    if ($slug === null) {
+        return null;
+    }
+
+    $normalized = strtolower(trim($slug));
+    if ($normalized === '') {
+        return null;
+    }
+
+    return preg_match('/^[a-z0-9-]{1,100}$/', $normalized) ? $normalized : null;
+}
+
+/**
+ * Normalize currency code input.
+ */
+function normalizeCurrencyCode(?string $code): ?string
+{
+    if ($code === null) {
+        return null;
+    }
+
+    $normalized = strtoupper(trim($code));
+    if ($normalized === '') {
+        return null;
+    }
+
+    return preg_match('/^[A-Z0-9]{3,10}$/', $normalized) ? $normalized : null;
+}
+
+/**
  * Initialize locale from query/session/cookie.
  */
 function initializeLocale(): void
@@ -78,9 +198,7 @@ function initializeLocale(): void
     $locale = normalizeLocale(null);
 
     if (PHP_SAPI !== 'cli') {
-        if (session_status() === PHP_SESSION_NONE) {
-            @session_start();
-        }
+        ensureWebSessionStarted();
 
         if (isset($_GET['lang'])) {
             $locale = normalizeLocale((string) $_GET['lang']);
@@ -223,6 +341,50 @@ function localizedCurrencyName(array $row): string
 }
 
 /**
+ * CSRF token getter/initializer.
+ */
+function getCsrfToken(): string
+{
+    ensureWebSessionStarted();
+
+    if (empty($_SESSION['cybokron_csrf']) || !is_string($_SESSION['cybokron_csrf'])) {
+        $_SESSION['cybokron_csrf'] = bin2hex(random_bytes(32));
+    }
+
+    return $_SESSION['cybokron_csrf'];
+}
+
+/**
+ * Validate CSRF token.
+ */
+function verifyCsrfToken(?string $token): bool
+{
+    ensureWebSessionStarted();
+
+    if (!is_string($token) || $token === '') {
+        return false;
+    }
+
+    $stored = $_SESSION['cybokron_csrf'] ?? '';
+
+    return is_string($stored) && $stored !== '' && hash_equals($stored, $token);
+}
+
+/**
+ * Read CSRF token from header or form body.
+ */
+function getRequestCsrfToken(): ?string
+{
+    $headerToken = $_SERVER['HTTP_X_CSRF_TOKEN'] ?? null;
+    if (is_string($headerToken) && $headerToken !== '') {
+        return $headerToken;
+    }
+
+    $postToken = $_POST['csrf_token'] ?? null;
+    return is_string($postToken) ? $postToken : null;
+}
+
+/**
  * Load a bank scraper class by name.
  */
 function loadBankScraper(string $className): Scraper
@@ -252,6 +414,17 @@ function loadBankScraper(string $className): Scraper
  */
 function getLatestRates(?string $bankSlug = null, ?string $currencyCode = null): array
 {
+    $normalizedBankSlug = normalizeBankSlug($bankSlug);
+    $normalizedCurrencyCode = normalizeCurrencyCode($currencyCode);
+
+    if ($bankSlug !== null && $bankSlug !== '' && $normalizedBankSlug === null) {
+        return [];
+    }
+
+    if ($currencyCode !== null && $currencyCode !== '' && $normalizedCurrencyCode === null) {
+        return [];
+    }
+
     $sql = "
         SELECT
             r.buy_rate,
@@ -273,17 +446,17 @@ function getLatestRates(?string $bankSlug = null, ?string $currencyCode = null):
     ";
     $params = [];
 
-    if ($bankSlug) {
-        $sql .= " AND b.slug = ?";
-        $params[] = $bankSlug;
+    if ($normalizedBankSlug !== null) {
+        $sql .= ' AND b.slug = ?';
+        $params[] = $normalizedBankSlug;
     }
 
-    if ($currencyCode) {
-        $sql .= " AND c.code = ?";
-        $params[] = $currencyCode;
+    if ($normalizedCurrencyCode !== null) {
+        $sql .= ' AND c.code = ?';
+        $params[] = $normalizedCurrencyCode;
     }
 
-    $sql .= " ORDER BY c.code ASC";
+    $sql .= ' ORDER BY c.code ASC';
 
     return Database::query($sql, $params);
 }
@@ -293,6 +466,18 @@ function getLatestRates(?string $bankSlug = null, ?string $currencyCode = null):
  */
 function getRateHistory(string $currencyCode, int $days = 30, ?string $bankSlug = null): array
 {
+    $normalizedCurrencyCode = normalizeCurrencyCode($currencyCode);
+    if ($normalizedCurrencyCode === null) {
+        throw new InvalidArgumentException('currency parameter required');
+    }
+
+    $days = max(1, min($days, 3650));
+
+    $normalizedBankSlug = normalizeBankSlug($bankSlug);
+    if ($bankSlug !== null && $bankSlug !== '' && $normalizedBankSlug === null) {
+        return [];
+    }
+
     $sql = "
         SELECT
             rh.buy_rate,
@@ -307,14 +492,14 @@ function getRateHistory(string $currencyCode, int $days = 30, ?string $bankSlug 
         WHERE c.code = ?
           AND rh.scraped_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
     ";
-    $params = [$currencyCode, $days];
+    $params = [$normalizedCurrencyCode, $days];
 
-    if ($bankSlug) {
-        $sql .= " AND b.slug = ?";
-        $params[] = $bankSlug;
+    if ($normalizedBankSlug !== null) {
+        $sql .= ' AND b.slug = ?';
+        $params[] = $normalizedBankSlug;
     }
 
-    $sql .= " ORDER BY rh.scraped_at ASC";
+    $sql .= ' ORDER BY rh.scraped_at ASC';
 
     return Database::query($sql, $params);
 }
@@ -408,8 +593,13 @@ function jsonResponse(array $data, int $statusCode = 200): void
 {
     http_response_code($statusCode);
     header('Content-Type: application/json; charset=utf-8');
-    header('Access-Control-Allow-Origin: *');
-    echo json_encode($data, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+
+    $json = json_encode($data, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+    if ($json === false) {
+        $json = '{"status":"error","message":"Failed to encode JSON response"}';
+    }
+
+    echo $json;
     exit;
 }
 

@@ -6,6 +6,7 @@
 
 require_once __DIR__ . '/includes/helpers.php';
 cybokron_init();
+applySecurityHeaders();
 
 $rates = getLatestRates();
 $version = trim(file_get_contents(__DIR__ . '/VERSION'));
@@ -107,7 +108,7 @@ foreach ($rates as $rate) {
                 Cybokron v<?= htmlspecialchars($version) ?> |
                 <a href="https://github.com/ercanatay/cybokron-exchange-rate-and-portfolio-tracking" target="_blank" rel="noopener noreferrer"><?= t('footer.github') ?></a> |
                 <a href="https://github.com/ercanatay/cybokron-exchange-rate-and-portfolio-tracking/blob/main/CODE_OF_CONDUCT.md" target="_blank" rel="noopener noreferrer"><?= t('footer.code_of_conduct') ?></a> |
-                <a href="https://www.netlify.com/" target="_blank" rel="noopener noreferrer"><?= t('footer.powered_by_netlify') ?></a>
+                <a href="LICENSE" target="_blank" rel="noopener noreferrer"><?= t('footer.license') ?></a>
             </p>
         </div>
     </footer>
