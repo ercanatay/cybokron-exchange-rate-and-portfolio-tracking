@@ -52,7 +52,8 @@ return [
 
     'footer.github' => 'GitHub',
     'footer.code_of_conduct' => 'Davranış Kuralları',
-    'footer.powered_by_netlify' => 'This site is powered by Netlify',
+    'footer.license' => 'Lisans',
 
     'common.not_available' => '—',
+    'common.invalid_request' => 'Geçersiz istek. Sayfayı yenileyip tekrar deneyin.',
 ];
