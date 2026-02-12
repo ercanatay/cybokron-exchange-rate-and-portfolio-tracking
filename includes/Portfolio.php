@@ -215,7 +215,16 @@ class Portfolio
             $updated = Database::update('portfolio', ['deleted_at' => date('Y-m-d H:i:s')], $where, $params);
             return $updated > 0;
         } catch (Throwable $e) {
-            return Database::execute('DELETE FROM portfolio WHERE id = ?', [$id]) > 0;
+            $hardWhere = 'id = ?';
+            $hardParams = [$id];
+            if (class_exists('Auth') && Auth::check() && !Auth::isAdmin()) {
+                $userId = Auth::id();
+                if ($userId !== null) {
+                    $hardWhere .= ' AND (user_id IS NULL OR user_id = ?)';
+                    $hardParams[] = $userId;
+                }
+            }
+            return Database::execute('DELETE FROM portfolio WHERE ' . $hardWhere, $hardParams) > 0;
         }
     }
 

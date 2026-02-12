@@ -30,7 +30,9 @@
                         label: (ctx) => {
                             const total = ctx.dataset.data.reduce((a, b) => a + b, 0);
                             const pct = total > 0 ? ((ctx.raw / total) * 100).toFixed(1) : 0;
-                            return ctx.label + ': ' + new Intl.NumberFormat('tr-TR', {
+                            const locale = (document.documentElement.lang || 'tr').toLowerCase();
+                            const numberLocale = locale === 'tr' ? 'tr-TR' : 'en-US';
+                            return ctx.label + ': ' + new Intl.NumberFormat(numberLocale, {
                                 style: 'currency',
                                 currency: 'TRY',
                                 minimumFractionDigits: 0,

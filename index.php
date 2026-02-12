@@ -192,10 +192,10 @@ if (Auth::check()) {
                         <?= t('portfolio.summary.total_cost') ?>: <?= formatTRY((float) ($portfolioSummary['total_cost'] ?? 0)) ?>
                     </p>
                     <p class="widget-portfolio-total">
-                        <?= t('portfolio.summary.current_value') ?>: <?= formatTRY((float) ($portfolioSummary['current_value'] ?? 0)) ?>
+                        <?= t('portfolio.summary.current_value') ?>: <?= formatTRY((float) ($portfolioSummary['total_value'] ?? 0)) ?>
                     </p>
-                    <p class="widget-portfolio-total <?= changeClass((float) ($portfolioSummary['profit_loss_percent'] ?? 0)) ?>">
-                        <?= t('portfolio.summary.profit_loss') ?>: %<?= formatNumberLocalized((float) ($portfolioSummary['profit_loss_percent'] ?? 0), 2) ?>
+                    <p class="widget-portfolio-total <?= changeClass((float) ($portfolioSummary['profit_percent'] ?? 0)) ?>">
+                        <?= t('portfolio.summary.profit_loss') ?>: %<?= formatNumberLocalized((float) ($portfolioSummary['profit_percent'] ?? 0), 2) ?>
                     </p>
                     <a href="portfolio.php" class="btn btn-sm"><?= t('nav.portfolio') ?> →</a>
                 </div>

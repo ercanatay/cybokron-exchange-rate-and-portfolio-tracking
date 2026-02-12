@@ -27,7 +27,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($username === '' || $password === '') {
             $error = t('auth.error_empty');
         } elseif (Auth::login($username, $password)) {
-            header('Location: ' . ($_GET['redirect'] ?? 'index.php'));
+            $redirect = trim((string) ($_GET['redirect'] ?? 'index.php'));
+            if ($redirect === '' || str_starts_with($redirect, '//') || str_contains($redirect, '://') || str_contains($redirect, '..')) {
+                $redirect = 'index.php';
+            }
+            header('Location: ' . $redirect);
             exit;
         } else {
             $error = t('auth.error_invalid');

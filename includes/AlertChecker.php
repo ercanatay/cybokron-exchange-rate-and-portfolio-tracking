@@ -274,7 +274,7 @@ class AlertChecker
     {
         $currencyCode = $alert['currency_code'] ?? '???';
         $sellRate = formatRate((float) ($currentRate['sell_rate'] ?? 0));
-        return "Cybokron kur alarmı: {$currencyCode} = {$sellRate} ₺";
+        return "Cybokron Alert: {$currencyCode} = {$sellRate}";
     }
 
     private static function buildBody(array $alert, array $currentRate): string
@@ -288,21 +288,21 @@ class AlertChecker
         $scrapedAt = $currentRate['scraped_at'] ?? '';
 
         $lines = [
-            "Cybokron Kur Alarmı",
+            "Cybokron Rate Alert",
             "",
-            "Para birimi: {$currencyCode}",
-            "Koşul: {$conditionType} (eşik: {$threshold})",
-            "Satış kuru: " . formatRate((float) $sellRate) . " ₺",
-            "Alış kuru: " . formatRate((float) $buyRate) . " ₺",
+            "Currency: {$currencyCode}",
+            "Condition: {$conditionType} (threshold: {$threshold})",
+            "Sell rate: " . formatRate((float) $sellRate),
+            "Buy rate: " . formatRate((float) $buyRate),
         ];
 
         if ($change !== null) {
-            $lines[] = "Değişim: % " . number_format($change, 2);
+            $lines[] = "Change: " . number_format($change, 2) . "%";
         }
 
-        $lines[] = "Son güncelleme: {$scrapedAt}";
+        $lines[] = "Last update: {$scrapedAt}";
         $lines[] = "";
-        $lines[] = "Bu e-posta otomatik olarak gönderilmiştir.";
+        $lines[] = "This is an automated alert from Cybokron.";
 
         return implode("\n", $lines);
     }

@@ -136,15 +136,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'ERROR'
             );
 
-            $message = $isClientError ? t('common.invalid_request') : t('portfolio.message.error_generic');
-            $messageType = 'error';
-
-            if ($e instanceof InvalidArgumentException) {
+            if ($isClientError) {
                 $field = portfolioFieldFromExceptionMessage($e->getMessage());
                 if ($field !== null) {
                     $fieldErrors[$field] = t('portfolio.form.error.' . $field);
+                    $message = t('portfolio.form.error.' . $field);
+                } else {
+                    $message = t('common.invalid_request');
                 }
+            } else {
+                $message = t('portfolio.message.error_generic');
             }
+            $messageType = 'error';
         }
     }
 
