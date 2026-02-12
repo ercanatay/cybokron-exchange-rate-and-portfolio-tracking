@@ -13,6 +13,11 @@ abstract class Scraper
     protected string $url = '';
     protected int $bankId = 0;
 
+    /** @var array<string, string> */
+    private array $pageCache = [];
+    /** @var array<string, int>|null */
+    private ?array $currencyIdMap = null;
+
     /**
      * Must be implemented by each bank scraper.
      * Returns array of parsed rate data.
@@ -25,15 +30,16 @@ abstract class Scraper
     public function init(): void
     {
         $bank = Database::queryOne(
-            "SELECT id FROM banks WHERE slug = ? AND is_active = 1",
+            'SELECT id FROM banks WHERE slug = ? AND is_active = 1',
             [$this->bankSlug]
         );
 
         if ($bank) {
             $this->bankId = (int) $bank['id'];
-        } else {
-            throw new RuntimeException("Bank '{$this->bankSlug}' not found or inactive.");
+            return;
         }
+
+        throw new RuntimeException("Bank '{$this->bankSlug}' not found or inactive.");
     }
 
     /**
@@ -41,14 +47,27 @@ abstract class Scraper
      */
     protected function fetchPage(string $url): string
     {
+        if (isset($this->pageCache[$url])) {
+            return $this->pageCache[$url];
+        }
+
+        $parsedUrl = parse_url($url);
+        $scheme = strtolower((string) ($parsedUrl['scheme'] ?? ''));
+        if (!in_array($scheme, ['http', 'https'], true)) {
+            throw new RuntimeException("Unsupported URL scheme for scraping: {$url}");
+        }
+
         $ch = curl_init();
         curl_setopt_array($ch, [
             CURLOPT_URL            => $url,
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_MAXREDIRS      => 5,
+            CURLOPT_CONNECTTIMEOUT => 10,
             CURLOPT_TIMEOUT        => defined('SCRAPE_TIMEOUT') ? SCRAPE_TIMEOUT : 30,
             CURLOPT_USERAGENT      => defined('SCRAPE_USER_AGENT') ? SCRAPE_USER_AGENT : 'Cybokron/1.0',
             CURLOPT_SSL_VERIFYPEER => true,
+            CURLOPT_SSL_VERIFYHOST => 2,
             CURLOPT_ENCODING       => '',
             CURLOPT_HTTPHEADER     => [
                 'Accept: text/html,application/xhtml+xml',
@@ -56,14 +75,20 @@ abstract class Scraper
             ],
         ]);
 
+        if (defined('CURLPROTO_HTTP') && defined('CURLPROTO_HTTPS')) {
+            curl_setopt($ch, CURLOPT_PROTOCOLS, CURLPROTO_HTTP | CURLPROTO_HTTPS);
+            curl_setopt($ch, CURLOPT_REDIR_PROTOCOLS, CURLPROTO_HTTP | CURLPROTO_HTTPS);
+        }
+
         $retries = defined('SCRAPE_RETRY_COUNT') ? SCRAPE_RETRY_COUNT : 3;
         $delay = defined('SCRAPE_RETRY_DELAY') ? SCRAPE_RETRY_DELAY : 5;
         $html = false;
         $error = '';
+        $httpCode = 0;
 
         for ($i = 0; $i < $retries; $i++) {
             $html = curl_exec($ch);
-            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
             $error = curl_error($ch);
 
             if ($html !== false && $httpCode === 200) {
@@ -77,23 +102,24 @@ abstract class Scraper
 
         curl_close($ch);
 
-        if ($html === false || empty($html)) {
+        if ($html === false || $html === '' || $httpCode !== 200) {
             throw new RuntimeException("Failed to fetch {$url}: {$error}");
         }
 
-        return $html;
+        $this->pageCache[$url] = (string) $html;
+
+        return $this->pageCache[$url];
     }
 
     /**
      * Compute a hash of the HTML table structure for change detection.
      */
-    protected function computeTableHash(string $html, string $tableSelector = 'table'): string
+    protected function computeTableHash(string $html): string
     {
         $dom = new DOMDocument();
         @$dom->loadHTML(mb_convert_encoding($html, 'HTML-ENTITIES', 'UTF-8'));
         $xpath = new DOMXPath($dom);
 
-        // Get all table headers to detect structure changes
         $headers = $xpath->query('//table//thead//th');
         $structure = '';
 
@@ -102,7 +128,6 @@ abstract class Scraper
                 $structure .= trim($th->textContent) . '|';
             }
         } else {
-            // Fallback: count columns from first row
             $firstRow = $xpath->query('//table//tr[1]//td');
             $structure = 'cols:' . $firstRow->length;
         }
@@ -116,44 +141,62 @@ abstract class Scraper
     protected function saveRates(array $rates, string $scrapedAt): int
     {
         $saved = 0;
+        $currencyIdMap = $this->getCurrencyIdMap();
 
-        foreach ($rates as $rate) {
-            // Find currency ID
-            $currency = Database::queryOne(
-                "SELECT id FROM currencies WHERE code = ?",
-                [$rate['code']]
-            );
+        Database::runInTransaction(function () use ($rates, $scrapedAt, $currencyIdMap, &$saved): void {
+            foreach ($rates as $rate) {
+                $code = strtoupper((string) ($rate['code'] ?? ''));
+                if ($code === '' || !isset($currencyIdMap[$code])) {
+                    continue;
+                }
 
-            if (!$currency) {
-                continue; // Skip unknown currencies
+                $currencyId = $currencyIdMap[$code];
+
+                Database::upsert('rates', [
+                    'bank_id'        => $this->bankId,
+                    'currency_id'    => $currencyId,
+                    'buy_rate'       => $rate['buy'],
+                    'sell_rate'      => $rate['sell'],
+                    'change_percent' => $rate['change'] ?? null,
+                    'scraped_at'     => $scrapedAt,
+                ], ['buy_rate', 'sell_rate', 'change_percent', 'scraped_at']);
+
+                Database::insert('rate_history', [
+                    'bank_id'        => $this->bankId,
+                    'currency_id'    => $currencyId,
+                    'buy_rate'       => $rate['buy'],
+                    'sell_rate'      => $rate['sell'],
+                    'change_percent' => $rate['change'] ?? null,
+                    'scraped_at'     => $scrapedAt,
+                ]);
+
+                $saved++;
             }
-
-            $currencyId = (int) $currency['id'];
-
-            // Upsert into rates (latest)
-            Database::upsert('rates', [
-                'bank_id'        => $this->bankId,
-                'currency_id'    => $currencyId,
-                'buy_rate'       => $rate['buy'],
-                'sell_rate'      => $rate['sell'],
-                'change_percent' => $rate['change'] ?? null,
-                'scraped_at'     => $scrapedAt,
-            ], ['buy_rate', 'sell_rate', 'change_percent', 'scraped_at']);
-
-            // Insert into history
-            Database::insert('rate_history', [
-                'bank_id'        => $this->bankId,
-                'currency_id'    => $currencyId,
-                'buy_rate'       => $rate['buy'],
-                'sell_rate'      => $rate['sell'],
-                'change_percent' => $rate['change'] ?? null,
-                'scraped_at'     => $scrapedAt,
-            ]);
-
-            $saved++;
-        }
+        });
 
         return $saved;
+    }
+
+    /**
+     * Build and cache code->currency_id map.
+     *
+     * @return array<string, int>
+     */
+    private function getCurrencyIdMap(): array
+    {
+        if ($this->currencyIdMap !== null) {
+            return $this->currencyIdMap;
+        }
+
+        $rows = Database::query('SELECT id, code FROM currencies WHERE is_active = 1');
+        $this->currencyIdMap = [];
+
+        foreach ($rows as $row) {
+            $code = strtoupper((string) $row['code']);
+            $this->currencyIdMap[$code] = (int) $row['id'];
+        }
+
+        return $this->currencyIdMap;
     }
 
     /**
@@ -182,32 +225,27 @@ abstract class Scraper
         try {
             $html = $this->fetchPage($this->url);
 
-            // Check if table structure changed
             $newHash = $this->computeTableHash($html);
-            $bank = Database::queryOne("SELECT table_hash FROM banks WHERE id = ?", [$this->bankId]);
+            $bank = Database::queryOne('SELECT table_hash FROM banks WHERE id = ?', [$this->bankId]);
             $oldHash = $bank['table_hash'] ?? '';
             $tableChanged = ($oldHash !== '' && $oldHash !== $newHash);
 
-            // Update table hash
             Database::update('banks', ['table_hash' => $newHash], 'id = ?', [$this->bankId]);
 
-            // Scrape rates
             $rates = $this->scrape();
             $scrapedAt = date('Y-m-d H:i:s');
 
-            // Save to database
             $savedCount = $this->saveRates($rates, $scrapedAt);
 
-            // Update bank last scraped
             Database::update('banks', ['last_scraped_at' => $scrapedAt], 'id = ?', [$this->bankId]);
 
             $durationMs = (int) ((microtime(true) - $startTime) * 1000);
 
-            $msg = $tableChanged
-                ? "Table structure changed! Scraped {$savedCount} rates."
+            $message = $tableChanged
+                ? "Table structure changed. Scraped {$savedCount} rates."
                 : "Scraped {$savedCount} rates successfully.";
 
-            $this->logScrape('success', $msg, $savedCount, $durationMs, $tableChanged);
+            $this->logScrape('success', $message, $savedCount, $durationMs, $tableChanged);
 
             return [
                 'status'        => 'success',
@@ -216,7 +254,6 @@ abstract class Scraper
                 'table_changed' => $tableChanged,
                 'duration_ms'   => $durationMs,
             ];
-
         } catch (Throwable $e) {
             $durationMs = (int) ((microtime(true) - $startTime) * 1000);
             $this->logScrape('error', $e->getMessage(), 0, $durationMs);

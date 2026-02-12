@@ -19,6 +19,7 @@ define('APP_NAME', 'Cybokron Exchange Rate & Portfolio Tracking');
 define('APP_URL', 'http://localhost/cybokron');
 define('APP_TIMEZONE', 'Europe/Istanbul');
 define('APP_DEBUG', false);
+define('ENABLE_SECURITY_HEADERS', true);
 define('DEFAULT_LOCALE', 'tr');                  // Default language at installation time
 define('FALLBACK_LOCALE', 'en');                 // Fallback if translation key is missing
 define('AVAILABLE_LOCALES', ['tr', 'en']);       // Extend this list as you add files in /locales
@@ -27,12 +28,18 @@ define('AVAILABLE_LOCALES', ['tr', 'en']);       // Extend this list as you add 
 define('GITHUB_REPO', 'ercanatay/cybokron-exchange-rate-and-portfolio-tracking');
 define('GITHUB_BRANCH', 'main');
 define('AUTO_UPDATE', true);
+define('ENFORCE_CLI_CRON', true);                // Block web execution for cron scripts
 
 // ─── Scraping ────────────────────────────────────────────────────────────────
 define('SCRAPE_TIMEOUT', 30);         // HTTP request timeout in seconds
 define('SCRAPE_USER_AGENT', 'Cybokron/1.0');
 define('SCRAPE_RETRY_COUNT', 3);      // Retry failed requests
 define('SCRAPE_RETRY_DELAY', 5);      // Seconds between retries
+
+// ─── API Security ────────────────────────────────────────────────────────────
+define('API_ALLOW_CORS', false);                // Keep disabled unless cross-origin API access is required
+define('API_ALLOWED_ORIGINS', []);              // Example: ['https://example.com']
+define('API_REQUIRE_CSRF', true);               // Require CSRF token for state-changing API calls
 
 // ─── Active Banks ────────────────────────────────────────────────────────────
 // Add bank class names to activate scraping
@@ -57,3 +64,6 @@ $DISPLAY_CURRENCIES = [
 // ─── Logging ─────────────────────────────────────────────────────────────────
 define('LOG_ENABLED', true);
 define('LOG_FILE', __DIR__ . '/logs/cybokron.log');
+
+// ─── Database ────────────────────────────────────────────────────────────────
+define('DB_PERSISTENT', false);                 // Enable only after validating your DB/server setup

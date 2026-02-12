@@ -7,6 +7,8 @@
 class Database
 {
     private static ?PDO $instance = null;
+    /** @var array<string, PDOStatement> */
+    private static array $statementCache = [];
 
     public static function getInstance(): PDO
     {
@@ -22,6 +24,8 @@ class Database
                 PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
                 PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
                 PDO::ATTR_EMULATE_PREPARES   => false,
+                PDO::ATTR_STRINGIFY_FETCHES  => false,
+                PDO::ATTR_PERSISTENT         => defined('DB_PERSISTENT') ? (bool) DB_PERSISTENT : false,
             ]);
         }
 
@@ -29,11 +33,36 @@ class Database
     }
 
     /**
+     * Execute callback in a transaction.
+     */
+    public static function runInTransaction(callable $callback)
+    {
+        $pdo = self::getInstance();
+
+        if ($pdo->inTransaction()) {
+            return $callback();
+        }
+
+        $pdo->beginTransaction();
+
+        try {
+            $result = $callback();
+            $pdo->commit();
+            return $result;
+        } catch (Throwable $e) {
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+            throw $e;
+        }
+    }
+
+    /**
      * Execute a query and return all results.
      */
     public static function query(string $sql, array $params = []): array
     {
-        $stmt = self::getInstance()->prepare($sql);
+        $stmt = self::prepare($sql);
         $stmt->execute($params);
         return $stmt->fetchAll();
     }
@@ -43,7 +72,7 @@ class Database
      */
     public static function queryOne(string $sql, array $params = []): ?array
     {
-        $stmt = self::getInstance()->prepare($sql);
+        $stmt = self::prepare($sql);
         $stmt->execute($params);
         $result = $stmt->fetch();
         return $result ?: null;
@@ -54,7 +83,7 @@ class Database
      */
     public static function execute(string $sql, array $params = []): int
     {
-        $stmt = self::getInstance()->prepare($sql);
+        $stmt = self::prepare($sql);
         $stmt->execute($params);
         return $stmt->rowCount();
     }
@@ -64,6 +93,9 @@ class Database
      */
     public static function insert(string $table, array $data): int
     {
+        self::assertIdentifier($table);
+        self::assertIdentifiers(array_keys($data));
+
         $columns = implode(', ', array_map(fn($col) => "`$col`", array_keys($data)));
         $placeholders = implode(', ', array_fill(0, count($data), '?'));
 
@@ -78,6 +110,9 @@ class Database
      */
     public static function update(string $table, array $data, string $where, array $whereParams = []): int
     {
+        self::assertIdentifier($table);
+        self::assertIdentifiers(array_keys($data));
+
         $set = implode(', ', array_map(fn($col) => "`$col` = ?", array_keys($data)));
         $sql = "UPDATE `$table` SET $set WHERE $where";
         $params = array_merge(array_values($data), $whereParams);
@@ -90,11 +125,47 @@ class Database
      */
     public static function upsert(string $table, array $data, array $updateColumns): int
     {
+        self::assertIdentifier($table);
+        self::assertIdentifiers(array_keys($data));
+        self::assertIdentifiers($updateColumns);
+
         $columns = implode(', ', array_map(fn($col) => "`$col`", array_keys($data)));
         $placeholders = implode(', ', array_fill(0, count($data), '?'));
         $updates = implode(', ', array_map(fn($col) => "`$col` = VALUES(`$col`)", $updateColumns));
 
         $sql = "INSERT INTO `$table` ($columns) VALUES ($placeholders) ON DUPLICATE KEY UPDATE $updates";
         return self::execute($sql, array_values($data));
+    }
+
+    /**
+     * Prepare and memoize statement for the current request.
+     */
+    private static function prepare(string $sql): PDOStatement
+    {
+        if (!isset(self::$statementCache[$sql])) {
+            self::$statementCache[$sql] = self::getInstance()->prepare($sql);
+        }
+
+        return self::$statementCache[$sql];
+    }
+
+    /**
+     * Validate SQL identifier names.
+     */
+    private static function assertIdentifier(string $identifier): void
+    {
+        if (!preg_match('/^[a-zA-Z0-9_]+$/', $identifier)) {
+            throw new InvalidArgumentException("Unsafe SQL identifier: {$identifier}");
+        }
+    }
+
+    /**
+     * Validate multiple SQL identifiers.
+     */
+    private static function assertIdentifiers(array $identifiers): void
+    {
+        foreach ($identifiers as $identifier) {
+            self::assertIdentifier((string) $identifier);
+        }
     }
 }
