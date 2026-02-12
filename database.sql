@@ -1,6 +1,6 @@
 -- =============================================
 -- Cybokron Exchange Rate & Portfolio Tracking
--- Database Schema v1.0.0
+-- Database Schema v1.0.1
 -- =============================================
 
 CREATE DATABASE IF NOT EXISTS `cybokron`
@@ -139,6 +139,6 @@ INSERT INTO `currencies` (`code`, `name_tr`, `name_en`, `symbol`, `type`, `decim
 
 -- Insert default settings
 INSERT INTO `settings` (`key`, `value`) VALUES
-('app_version', '1.0.0'),
+('app_version', '1.0.1'),
 ('last_update_check', NULL),
 ('last_rate_update', NULL);
