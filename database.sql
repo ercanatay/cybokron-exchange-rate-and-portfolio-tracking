@@ -1,6 +1,6 @@
 -- =============================================
 -- Cybokron Exchange Rate & Portfolio Tracking
--- Database Schema v1.0.1
+-- Database Schema v1.0.2
 -- =============================================
 
 CREATE DATABASE IF NOT EXISTS `cybokron`
@@ -116,7 +116,7 @@ CREATE TABLE IF NOT EXISTS `settings` (
 -- Seed Data
 -- =============================================
 
--- Insert Dünya Katılım Bank
+-- Insert Dunya Katilim bank
 INSERT INTO `banks` (`name`, `slug`, `url`, `scraper_class`) VALUES
 ('Dünya Katılım', 'dunya-katilim', 'https://dunyakatilim.com.tr/gunluk-kurlar', 'DunyaKatilim');
 
@@ -139,6 +139,6 @@ INSERT INTO `currencies` (`code`, `name_tr`, `name_en`, `symbol`, `type`, `decim
 
 -- Insert default settings
 INSERT INTO `settings` (`key`, `value`) VALUES
-('app_version', '1.0.1'),
+('app_version', '1.0.2'),
 ('last_update_check', NULL),
 ('last_rate_update', NULL);

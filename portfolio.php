@@ -24,45 +24,57 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'buy_date'      => $_POST['buy_date'] ?? date('Y-m-d'),
                 'notes'         => $_POST['notes'] ?? '',
             ]);
-            $message = 'Portföye eklendi.';
+            $message = t('portfolio.message.added');
             $messageType = 'success';
         } catch (Throwable $e) {
-            $message = 'Hata: ' . $e->getMessage();
+            $message = t('portfolio.message.error', ['error' => $e->getMessage()]);
             $messageType = 'error';
         }
     }
 
     if ($action === 'delete' && !empty($_POST['id'])) {
         if (Portfolio::delete((int) $_POST['id'])) {
-            $message = 'Portföyden silindi.';
+            $message = t('portfolio.message.deleted');
             $messageType = 'success';
         } else {
-            $message = 'Silinecek kayıt bulunamadı.';
+            $message = t('portfolio.message.not_found');
             $messageType = 'error';
         }
     }
 }
 
 $summary = Portfolio::getSummary();
-$currencies = Database::query("SELECT code, name_tr FROM currencies WHERE is_active = 1 ORDER BY code");
-$banks = Database::query("SELECT slug, name FROM banks WHERE is_active = 1 ORDER BY name");
+$currencies = Database::query('SELECT code, name_tr, name_en FROM currencies WHERE is_active = 1 ORDER BY code');
+$banks = Database::query('SELECT slug, name FROM banks WHERE is_active = 1 ORDER BY name');
 $version = trim(file_get_contents(__DIR__ . '/VERSION'));
+$currentLocale = getAppLocale();
+$availableLocales = getAvailableLocales();
+$deleteConfirmText = json_encode(t('portfolio.table.delete_confirm'), JSON_UNESCAPED_UNICODE | JSON_HEX_APOS | JSON_HEX_QUOT);
 ?>
 <!DOCTYPE html>
-<html lang="tr">
+<html lang="<?= htmlspecialchars($currentLocale) ?>">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Portföy — <?= APP_NAME ?></title>
+    <title><?= t('portfolio.page_title') ?> — <?= APP_NAME ?></title>
     <link rel="stylesheet" href="assets/css/style.css">
 </head>
 <body>
     <header class="header">
         <div class="container">
             <h1>💱 <?= APP_NAME ?></h1>
-            <nav>
-                <a href="index.php">Kurlar</a>
-                <a href="portfolio.php" class="active">Portföy</a>
+            <nav class="header-nav">
+                <a href="index.php"><?= t('nav.rates') ?></a>
+                <a href="portfolio.php" class="active"><?= t('nav.portfolio') ?></a>
+                <span class="lang-label"><?= t('nav.language') ?>:</span>
+                <?php foreach ($availableLocales as $locale): ?>
+                    <a
+                        href="<?= htmlspecialchars(buildLocaleUrl($locale)) ?>"
+                        class="lang-link <?= $currentLocale === $locale ? 'active' : '' ?>"
+                    >
+                        <?= htmlspecialchars(strtoupper($locale)) ?>
+                    </a>
+                <?php endforeach; ?>
             </nav>
         </div>
     </header>
@@ -72,51 +84,49 @@ $version = trim(file_get_contents(__DIR__ . '/VERSION'));
             <div class="alert alert-<?= $messageType ?>"><?= htmlspecialchars($message) ?></div>
         <?php endif; ?>
 
-        <!-- Portfolio Summary -->
         <section class="summary-cards">
             <div class="card">
-                <h3>Toplam Maliyet</h3>
-                <p class="card-value"><?= formatTRY($summary['total_cost']) ?></p>
+                <h3><?= t('portfolio.summary.total_cost') ?></h3>
+                <p class="card-value"><?= formatTRY((float) $summary['total_cost']) ?></p>
             </div>
             <div class="card">
-                <h3>Güncel Değer</h3>
-                <p class="card-value"><?= formatTRY($summary['total_value']) ?></p>
+                <h3><?= t('portfolio.summary.current_value') ?></h3>
+                <p class="card-value"><?= formatTRY((float) $summary['total_value']) ?></p>
             </div>
             <div class="card <?= $summary['profit_loss'] >= 0 ? 'card-profit' : 'card-loss' ?>">
-                <h3>Kâr / Zarar</h3>
+                <h3><?= t('portfolio.summary.profit_loss') ?></h3>
                 <p class="card-value">
-                    <?= formatTRY($summary['profit_loss']) ?>
-                    <small>(% <?= number_format($summary['profit_percent'], 2, ',', '.') ?>)</small>
+                    <?= formatTRY((float) $summary['profit_loss']) ?>
+                    <small>(% <?= formatNumberLocalized((float) $summary['profit_percent'], 2) ?>)</small>
                 </p>
             </div>
         </section>
 
-        <!-- Add to Portfolio Form -->
         <section class="form-section">
-            <h2>➕ Portföye Ekle</h2>
+            <h2>➕ <?= t('portfolio.form.title') ?></h2>
             <form method="POST" class="portfolio-form">
                 <input type="hidden" name="action" value="add">
 
                 <div class="form-row">
                     <div class="form-group">
-                        <label for="currency_code">Döviz</label>
+                        <label for="currency_code"><?= t('portfolio.form.currency') ?></label>
                         <select name="currency_code" id="currency_code" required>
-                            <option value="">Seçiniz</option>
-                            <?php foreach ($currencies as $c): ?>
-                                <option value="<?= htmlspecialchars($c['code']) ?>">
-                                    <?= htmlspecialchars($c['code']) ?> — <?= htmlspecialchars($c['name_tr']) ?>
+                            <option value=""><?= t('portfolio.form.select') ?></option>
+                            <?php foreach ($currencies as $currency): ?>
+                                <option value="<?= htmlspecialchars($currency['code']) ?>">
+                                    <?= htmlspecialchars($currency['code']) ?> — <?= htmlspecialchars(localizedCurrencyName($currency)) ?>
                                 </option>
                             <?php endforeach; ?>
                         </select>
                     </div>
 
                     <div class="form-group">
-                        <label for="bank_slug">Banka</label>
+                        <label for="bank_slug"><?= t('portfolio.form.bank') ?></label>
                         <select name="bank_slug" id="bank_slug">
-                            <option value="">Seçiniz (Opsiyonel)</option>
-                            <?php foreach ($banks as $b): ?>
-                                <option value="<?= htmlspecialchars($b['slug']) ?>">
-                                    <?= htmlspecialchars($b['name']) ?>
+                            <option value=""><?= t('portfolio.form.select_optional') ?></option>
+                            <?php foreach ($banks as $bank): ?>
+                                <option value="<?= htmlspecialchars($bank['slug']) ?>">
+                                    <?= htmlspecialchars($bank['name']) ?>
                                 </option>
                             <?php endforeach; ?>
                         </select>
@@ -125,46 +135,45 @@ $version = trim(file_get_contents(__DIR__ . '/VERSION'));
 
                 <div class="form-row">
                     <div class="form-group">
-                        <label for="amount">Miktar</label>
+                        <label for="amount"><?= t('portfolio.form.amount') ?></label>
                         <input type="number" name="amount" id="amount" step="0.000001" min="0" required placeholder="1000">
                     </div>
 
                     <div class="form-group">
-                        <label for="buy_rate">Alış Kuru (₺)</label>
+                        <label for="buy_rate"><?= t('portfolio.form.buy_rate') ?></label>
                         <input type="number" name="buy_rate" id="buy_rate" step="0.000001" min="0" required placeholder="43.5865">
                     </div>
 
                     <div class="form-group">
-                        <label for="buy_date">Alış Tarihi</label>
+                        <label for="buy_date"><?= t('portfolio.form.buy_date') ?></label>
                         <input type="date" name="buy_date" id="buy_date" value="<?= date('Y-m-d') ?>" required>
                     </div>
                 </div>
 
                 <div class="form-group">
-                    <label for="notes">Notlar</label>
-                    <input type="text" name="notes" id="notes" placeholder="Opsiyonel not" maxlength="500">
+                    <label for="notes"><?= t('portfolio.form.notes') ?></label>
+                    <input type="text" name="notes" id="notes" placeholder="<?= htmlspecialchars(t('portfolio.form.notes_placeholder')) ?>" maxlength="500">
                 </div>
 
-                <button type="submit" class="btn btn-primary">Ekle</button>
+                <button type="submit" class="btn btn-primary"><?= t('portfolio.form.submit') ?></button>
             </form>
         </section>
 
-        <!-- Portfolio List -->
         <?php if (!empty($summary['items'])): ?>
             <section class="portfolio-section">
-                <h2>📋 Portföy (<?= $summary['item_count'] ?> kalem)</h2>
+                <h2>📋 <?= t('portfolio.table.title', ['count' => $summary['item_count']]) ?></h2>
                 <div class="table-responsive">
                     <table class="rates-table">
                         <thead>
                             <tr>
-                                <th>Döviz</th>
-                                <th class="text-right">Miktar</th>
-                                <th class="text-right">Alış Kuru</th>
-                                <th class="text-right">Güncel Kur</th>
-                                <th class="text-right">Maliyet (₺)</th>
-                                <th class="text-right">Değer (₺)</th>
-                                <th class="text-right">K/Z (%)</th>
-                                <th>Tarih</th>
+                                <th><?= t('portfolio.table.currency') ?></th>
+                                <th class="text-right"><?= t('portfolio.table.amount') ?></th>
+                                <th class="text-right"><?= t('portfolio.table.buy_rate') ?></th>
+                                <th class="text-right"><?= t('portfolio.table.current_rate') ?></th>
+                                <th class="text-right"><?= t('portfolio.table.cost') ?></th>
+                                <th class="text-right"><?= t('portfolio.table.value') ?></th>
+                                <th class="text-right"><?= t('portfolio.table.pl_percent') ?></th>
+                                <th><?= t('portfolio.table.date') ?></th>
                                 <th></th>
                             </tr>
                         </thead>
@@ -174,23 +183,23 @@ $version = trim(file_get_contents(__DIR__ . '/VERSION'));
                                 <tr>
                                     <td>
                                         <strong><?= htmlspecialchars($item['currency_code']) ?></strong>
-                                        <small><?= htmlspecialchars($item['currency_name']) ?></small>
+                                        <small><?= htmlspecialchars(localizedCurrencyName($item)) ?></small>
                                     </td>
-                                    <td class="text-right mono"><?= formatRate((float)$item['amount']) ?></td>
-                                    <td class="text-right mono"><?= formatRate((float)$item['buy_rate']) ?></td>
+                                    <td class="text-right mono"><?= formatRate((float) $item['amount']) ?></td>
+                                    <td class="text-right mono"><?= formatRate((float) $item['buy_rate']) ?></td>
                                     <td class="text-right mono">
-                                        <?= $item['current_rate'] ? formatRate((float)$item['current_rate']) : '—' ?>
+                                        <?= $item['current_rate'] ? formatRate((float) $item['current_rate']) : t('common.not_available') ?>
                                     </td>
-                                    <td class="text-right mono"><?= formatTRY((float)$item['cost_try']) ?></td>
-                                    <td class="text-right mono"><?= formatTRY((float)$item['value_try']) ?></td>
+                                    <td class="text-right mono"><?= formatTRY((float) $item['cost_try']) ?></td>
+                                    <td class="text-right mono"><?= formatTRY((float) $item['value_try']) ?></td>
                                     <td class="text-right <?= changeClass($pl) ?>">
-                                        <?= changeArrow($pl) ?> % <?= number_format(abs($pl), 2, ',', '.') ?>
+                                        <?= changeArrow($pl) ?> % <?= formatNumberLocalized(abs($pl), 2) ?>
                                     </td>
-                                    <td><?= date('d.m.Y', strtotime($item['buy_date'])) ?></td>
+                                    <td><?= formatDate((string) $item['buy_date']) ?></td>
                                     <td>
-                                        <form method="POST" style="display:inline" onsubmit="return confirm('Silmek istediğinize emin misiniz?')">
+                                        <form method="POST" style="display:inline" onsubmit="return confirm(<?= $deleteConfirmText ?>)">
                                             <input type="hidden" name="action" value="delete">
-                                            <input type="hidden" name="id" value="<?= $item['id'] ?>">
+                                            <input type="hidden" name="id" value="<?= (int) $item['id'] ?>">
                                             <button type="submit" class="btn btn-sm btn-danger">🗑</button>
                                         </form>
                                     </td>
@@ -202,8 +211,8 @@ $version = trim(file_get_contents(__DIR__ . '/VERSION'));
             </section>
         <?php else: ?>
             <div class="empty-state">
-                <h2>Portföyünüz boş</h2>
-                <p>Yukarıdaki formu kullanarak döviz/altın ekleyebilirsiniz.</p>
+                <h2><?= t('portfolio.empty_title') ?></h2>
+                <p><?= t('portfolio.empty_desc') ?></p>
             </div>
         <?php endif; ?>
     </main>
@@ -212,9 +221,9 @@ $version = trim(file_get_contents(__DIR__ . '/VERSION'));
         <div class="container">
             <p class="footer-links">
                 Cybokron v<?= htmlspecialchars($version) ?> |
-                <a href="https://github.com/ercanatay/cybokron-exchange-rate-and-portfolio-tracking" target="_blank" rel="noopener noreferrer">GitHub</a> |
-                <a href="https://github.com/ercanatay/cybokron-exchange-rate-and-portfolio-tracking/blob/main/CODE_OF_CONDUCT.md" target="_blank" rel="noopener noreferrer">Code of Conduct</a> |
-                <a href="https://www.netlify.com/" target="_blank" rel="noopener noreferrer">This site is powered by Netlify</a>
+                <a href="https://github.com/ercanatay/cybokron-exchange-rate-and-portfolio-tracking" target="_blank" rel="noopener noreferrer"><?= t('footer.github') ?></a> |
+                <a href="https://github.com/ercanatay/cybokron-exchange-rate-and-portfolio-tracking/blob/main/CODE_OF_CONDUCT.md" target="_blank" rel="noopener noreferrer"><?= t('footer.code_of_conduct') ?></a> |
+                <a href="https://www.netlify.com/" target="_blank" rel="noopener noreferrer"><?= t('footer.powered_by_netlify') ?></a>
             </p>
         </div>
     </footer>

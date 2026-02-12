@@ -1,12 +1,12 @@
 <?php
 /**
- * DunyaKatilim.php — Dünya Katılım Bank Scraper
+ * DunyaKatilim.php — Dunya Katilim Bank Scraper
  * Cybokron Exchange Rate & Portfolio Tracking
  *
  * Scrapes exchange rates from: https://dunyakatilim.com.tr/gunluk-kurlar
  *
  * Table structure (as of 2025):
- * | Döviz Cinsi | Banka Alış | Banka Satış | Değişim |
+ * | Currency | Bank Buy | Bank Sell | Change |
  * Currencies: USD, EUR, GBP, XAU, XAG, AUD, CAD, CNY, JPY, SAR, CHF, AED, XPT, XPD
  */
 
@@ -130,9 +130,9 @@ class DunyaKatilim extends Scraper
     /**
      * Detect currency ISO code from text.
      * Handles various formats:
-     *   "Amerikan doları (USD)" → USD
-     *   "Amerikan doları Amerikan doları (USD) Amerikan doları" → USD
-     *   "USD" → USD
+     *   "Amerikan dolari (USD)" -> USD
+     *   "Amerikan dolari Amerikan dolari (USD) Amerikan dolari" -> USD
+     *   "USD" -> USD
      */
     private function detectCurrencyCode(string $text): ?string
     {

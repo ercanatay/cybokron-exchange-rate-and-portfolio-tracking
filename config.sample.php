@@ -19,6 +19,9 @@ define('APP_NAME', 'Cybokron Exchange Rate & Portfolio Tracking');
 define('APP_URL', 'http://localhost/cybokron');
 define('APP_TIMEZONE', 'Europe/Istanbul');
 define('APP_DEBUG', false);
+define('DEFAULT_LOCALE', 'tr');                  // Default language at installation time
+define('FALLBACK_LOCALE', 'en');                 // Fallback if translation key is missing
+define('AVAILABLE_LOCALES', ['tr', 'en']);       // Extend this list as you add files in /locales
 
 // ─── GitHub Self-Update ──────────────────────────────────────────────────────
 define('GITHUB_REPO', 'ercanatay/cybokron-exchange-rate-and-portfolio-tracking');

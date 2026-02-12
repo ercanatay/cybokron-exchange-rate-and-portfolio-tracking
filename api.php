@@ -12,6 +12,7 @@ header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: GET, POST, DELETE');
 
 $action = $_GET['action'] ?? '';
+$locale = getAppLocale();
 
 try {
     switch ($action) {
@@ -20,7 +21,7 @@ try {
             $bankSlug = $_GET['bank'] ?? null;
             $currencyCode = $_GET['currency'] ?? null;
             $rates = getLatestRates($bankSlug, $currencyCode);
-            jsonResponse(['status' => 'ok', 'data' => $rates, 'count' => count($rates)]);
+            jsonResponse(['status' => 'ok', 'locale' => $locale, 'data' => $rates, 'count' => count($rates)]);
             break;
 
         case 'history':
@@ -70,8 +71,20 @@ try {
             break;
 
         case 'currencies':
-            $currencies = Database::query("SELECT code, name_tr, name_en, symbol, type FROM currencies WHERE is_active = 1 ORDER BY code");
-            jsonResponse(['status' => 'ok', 'data' => $currencies]);
+            $nameField = $locale === 'en' ? 'name_en' : 'name_tr';
+            $currencies = Database::query("
+                SELECT
+                    code,
+                    name_tr,
+                    name_en,
+                    {$nameField} AS name,
+                    symbol,
+                    type
+                FROM currencies
+                WHERE is_active = 1
+                ORDER BY code
+            ");
+            jsonResponse(['status' => 'ok', 'locale' => $locale, 'data' => $currencies]);
             break;
 
         case 'version':
