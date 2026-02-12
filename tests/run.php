@@ -59,4 +59,28 @@ assertSameStrict($parsed[1]['code'], 'USD', 'USD row missing after parse');
 assertTrueStrict(abs($parsed[1]['buy'] - 43.5865) < 0.000001, 'Turkish decimal parsing failed for buy value');
 assertTrueStrict(abs(($parsed[1]['change'] ?? 0.0) - (-0.42)) < 0.000001, 'Percent parsing failed');
 
+// PortfolioAnalytics
+require_once __DIR__ . '/../includes/PortfolioAnalytics.php';
+$items = [
+    ['currency_code' => 'USD', 'value_try' => 1000, 'cost_try' => 800],
+    ['currency_code' => 'EUR', 'value_try' => 500, 'cost_try' => 400],
+    ['currency_code' => 'USD', 'value_try' => 500, 'cost_try' => 400],
+];
+$dist = PortfolioAnalytics::getDistribution($items);
+assertTrueStrict(count($dist) === 2, 'Distribution should merge same currency');
+assertSameStrict($dist[0]['currency_code'], 'USD', 'USD should be first (larger value)');
+assertTrueStrict(abs($dist[0]['value'] - 1500) < 0.01, 'USD total should be 1500');
+assertTrueStrict(abs($dist[0]['percent'] - 75) < 0.1, 'USD percent should be 75');
+
+$xirr = PortfolioAnalytics::annualizedReturn(1000, 1100, date('Y-m-d', strtotime('-1 year')));
+assertTrueStrict($xirr !== null && $xirr > 0.09 && $xirr < 0.12, 'Annualized return ~10% for 1y');
+
+$oldest = PortfolioAnalytics::getOldestDate([['buy_date' => '2024-01-01'], ['buy_date' => '2023-06-15']]);
+assertSameStrict($oldest, '2023-06-15', 'Oldest date should be 2023-06-15');
+
+// normalizeLocale
+assertSameStrict(normalizeLocale('tr'), 'tr', 'normalizeLocale tr');
+assertSameStrict(normalizeLocale('en'), 'en', 'normalizeLocale en');
+assertSameStrict(normalizeLocale('xx'), 'tr', 'normalizeLocale invalid falls back to default');
+
 fwrite(STDOUT, "All tests passed.\n");

@@ -8,9 +8,21 @@ class Portfolio
 {
     /**
      * Get all portfolio entries with current rates and P/L.
+     * When Auth is active and user is not admin, filters by user_id.
      */
     public static function getAll(): array
     {
+        $where = 'p.deleted_at IS NULL';
+        $params = [];
+
+        if (class_exists('Auth') && Auth::check() && !Auth::isAdmin()) {
+            $userId = Auth::id();
+            if ($userId !== null) {
+                $where .= ' AND (p.user_id IS NULL OR p.user_id = ?)';
+                $params[] = $userId;
+            }
+        }
+
         $sql = "
             SELECT
                 p.id,
@@ -35,10 +47,10 @@ class Portfolio
             JOIN currencies c ON c.id = p.currency_id
             LEFT JOIN banks b ON b.id = p.bank_id
             LEFT JOIN rates r ON r.currency_id = p.currency_id AND r.bank_id = p.bank_id
+            WHERE {$where}
             ORDER BY p.buy_date DESC
         ";
-
-        return Database::query($sql);
+        return Database::query($sql, $params);
     }
 
     /**
@@ -116,7 +128,13 @@ class Portfolio
             $bankId = (int) $bank['id'];
         }
 
+        $userId = null;
+        if (class_exists('Auth') && Auth::check()) {
+            $userId = Auth::id();
+        }
+
         return Database::insert('portfolio', [
+            'user_id'     => $userId,
             'currency_id' => (int) $currency['id'],
             'bank_id'     => $bankId,
             'amount'      => $amount,
@@ -161,11 +179,21 @@ class Portfolio
             return false;
         }
 
-        return Database::update('portfolio', $update, 'id = ?', [$id]) > 0;
+        $where = 'id = ?';
+        $params = [$id];
+        if (class_exists('Auth') && Auth::check() && !Auth::isAdmin()) {
+            $userId = Auth::id();
+            if ($userId !== null) {
+                $where .= ' AND (user_id IS NULL OR user_id = ?)';
+                $params[] = $userId;
+            }
+        }
+
+        return Database::update('portfolio', $update, $where, $params) > 0;
     }
 
     /**
-     * Delete a portfolio entry.
+     * Delete a portfolio entry (soft delete when deleted_at column exists).
      */
     public static function delete(int $id): bool
     {
@@ -173,7 +201,22 @@ class Portfolio
             return false;
         }
 
-        return Database::execute('DELETE FROM portfolio WHERE id = ?', [$id]) > 0;
+        $where = 'id = ?';
+        $params = [$id];
+        if (class_exists('Auth') && Auth::check() && !Auth::isAdmin()) {
+            $userId = Auth::id();
+            if ($userId !== null) {
+                $where .= ' AND (user_id IS NULL OR user_id = ?)';
+                $params[] = $userId;
+            }
+        }
+
+        try {
+            $updated = Database::update('portfolio', ['deleted_at' => date('Y-m-d H:i:s')], $where, $params);
+            return $updated > 0;
+        } catch (Throwable $e) {
+            return Database::execute('DELETE FROM portfolio WHERE id = ?', [$id]) > 0;
+        }
     }
 
     /**

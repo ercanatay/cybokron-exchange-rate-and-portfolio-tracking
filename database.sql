@@ -74,20 +74,37 @@ CREATE TABLE IF NOT EXISTS `rate_history` (
   INDEX `idx_scraped_at` (`scraped_at`)
 ) ENGINE=InnoDB;
 
+-- ─── Users ────────────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS `users` (
+  `id` INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `username` VARCHAR(64) NOT NULL UNIQUE,
+  `password_hash` VARCHAR(255) NOT NULL,
+  `role` ENUM('admin', 'user') DEFAULT 'user',
+  `is_active` TINYINT(1) DEFAULT 1,
+  `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  INDEX `idx_username` (`username`),
+  INDEX `idx_active` (`is_active`)
+) ENGINE=InnoDB;
+
 -- ─── Portfolio ───────────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS `portfolio` (
   `id` INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `user_id` INT UNSIGNED NULL,
   `currency_id` INT UNSIGNED NOT NULL,
   `bank_id` INT UNSIGNED NULL,
   `amount` DECIMAL(18,6) NOT NULL,
   `buy_rate` DECIMAL(18,6) NOT NULL COMMENT 'Rate at which the currency was purchased',
   `buy_date` DATE NOT NULL,
   `notes` VARCHAR(500) NULL,
+  `deleted_at` DATETIME NULL,
   `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
   `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE SET NULL,
   FOREIGN KEY (`currency_id`) REFERENCES `currencies`(`id`) ON DELETE CASCADE,
   FOREIGN KEY (`bank_id`) REFERENCES `banks`(`id`) ON DELETE SET NULL,
   INDEX `idx_bank_currency` (`bank_id`, `currency_id`),
+  INDEX `idx_user_id` (`user_id`),
   INDEX `idx_currency` (`currency_id`),
   INDEX `idx_buy_date` (`buy_date`)
 ) ENGINE=InnoDB;
@@ -107,6 +124,22 @@ CREATE TABLE IF NOT EXISTS `scrape_logs` (
   INDEX `idx_created` (`created_at`)
 ) ENGINE=InnoDB;
 
+-- ─── Alerts ──────────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS `alerts` (
+  `id` INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `user_id` INT UNSIGNED NULL,
+  `currency_code` VARCHAR(10) NOT NULL,
+  `condition_type` ENUM('above', 'below', 'change_pct') NOT NULL,
+  `threshold` DECIMAL(18,6) NOT NULL,
+  `channel` ENUM('email', 'telegram', 'webhook') DEFAULT 'email',
+  `channel_config` TEXT NULL,
+  `is_active` TINYINT(1) DEFAULT 1,
+  `last_triggered_at` DATETIME NULL,
+  `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  INDEX `idx_currency_active` (`currency_code`, `is_active`)
+) ENGINE=InnoDB;
+
 -- ─── App Settings ────────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS `settings` (
   `key` VARCHAR(100) PRIMARY KEY,
@@ -118,9 +151,10 @@ CREATE TABLE IF NOT EXISTS `settings` (
 -- Seed Data
 -- =============================================
 
--- Insert Dunya Katilim bank
+-- Insert banks
 INSERT INTO `banks` (`name`, `slug`, `url`, `scraper_class`) VALUES
-('Dünya Katılım', 'dunya-katilim', 'https://dunyakatilim.com.tr/gunluk-kurlar', 'DunyaKatilim');
+('Dünya Katılım', 'dunya-katilim', 'https://dunyakatilim.com.tr/gunluk-kurlar', 'DunyaKatilim'),
+('TCMB', 'tcmb', 'https://www.tcmb.gov.tr/kurlar/today.xml', 'TCMB');
 
 -- Insert Currencies
 INSERT INTO `currencies` (`code`, `name_tr`, `name_en`, `symbol`, `type`, `decimal_places`) VALUES
@@ -137,7 +171,23 @@ INSERT INTO `currencies` (`code`, `name_tr`, `name_en`, `symbol`, `type`, `decim
 ('XAU', 'Altın', 'Gold', 'XAU', 'precious_metal', 4),
 ('XAG', 'Gümüş', 'Silver', 'XAG', 'precious_metal', 4),
 ('XPT', 'Platin', 'Platinum', 'XPT', 'precious_metal', 4),
-('XPD', 'Paladyum', 'Palladium', 'XPD', 'precious_metal', 4);
+('XPD', 'Paladyum', 'Palladium', 'XPD', 'precious_metal', 4),
+('DKK', 'Danimarka Kronu', 'Danish Krone', 'kr', 'fiat', 4),
+('NOK', 'Norveç Kronu', 'Norwegian Krone', 'kr', 'fiat', 4),
+('SEK', 'İsveç Kronu', 'Swedish Krona', 'kr', 'fiat', 4),
+('KWD', 'Kuveyt Dinarı', 'Kuwaiti Dinar', 'KD', 'fiat', 4),
+('RON', 'Rumen Leyi', 'Romanian Leu', 'lei', 'fiat', 4),
+('RUB', 'Rus Rublesi', 'Russian Rouble', '₽', 'fiat', 4),
+('PKR', 'Pakistan Rupisi', 'Pakistani Rupee', '₨', 'fiat', 4),
+('QAR', 'Katar Riyali', 'Qatari Rial', 'QR', 'fiat', 4),
+('KRW', 'Güney Kore Wonu', 'South Korean Won', '₩', 'fiat', 4),
+('AZN', 'Azerbaycan Manatı', 'Azerbaijani Manat', '₼', 'fiat', 4),
+('KZT', 'Kazakistan Tengesi', 'Kazakhstan Tenge', '₸', 'fiat', 4),
+('XDR', 'Özel Çekme Hakkı (SDR)', 'Special Drawing Right', 'XDR', 'fiat', 4);
+
+-- Insert default admin user (password: admin123 - change in production)
+INSERT INTO `users` (`username`, `password_hash`, `role`) VALUES
+('admin', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'admin');
 
 -- Insert default settings
 INSERT INTO `settings` (`key`, `value`) VALUES

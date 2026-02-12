@@ -16,6 +16,7 @@ function cybokron_init(): void
 
     require_once $configFile;
     require_once __DIR__ . '/Database.php';
+    require_once __DIR__ . '/Auth.php';
     require_once __DIR__ . '/Scraper.php';
     require_once __DIR__ . '/OpenRouterRateRepair.php';
     require_once __DIR__ . '/Portfolio.php';
@@ -72,6 +73,22 @@ function applySecurityHeaders(string $context = 'html'): void
     header('X-Frame-Options: SAMEORIGIN');
     header('Referrer-Policy: strict-origin-when-cross-origin');
     header('Permissions-Policy: geolocation=(), microphone=(), camera=()');
+    header('X-Permitted-Cross-Domain-Policies: none');
+
+    $cspPolicy = defined('CSP_POLICY')
+        ? trim((string) CSP_POLICY)
+        : "default-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'; object-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:";
+    if ($cspPolicy !== '') {
+        header('Content-Security-Policy: ' . $cspPolicy);
+    }
+
+    $isSecure = !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off';
+    if ($isSecure) {
+        $hstsMaxAge = defined('HSTS_MAX_AGE_SECONDS') ? max(0, (int) HSTS_MAX_AGE_SECONDS) : 31536000;
+        if ($hstsMaxAge > 0) {
+            header('Strict-Transport-Security: max-age=' . $hstsMaxAge . '; includeSubDomains');
+        }
+    }
 
     if ($context === 'api') {
         header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
@@ -125,6 +142,250 @@ function ensureCliExecution(): void
     http_response_code(403);
     echo 'Forbidden';
     exit(1);
+}
+
+/**
+ * Check whether portfolio endpoints/pages must be authenticated.
+ */
+function isPortfolioAuthRequired(): bool
+{
+    return !defined('AUTH_REQUIRE_PORTFOLIO') || AUTH_REQUIRE_PORTFOLIO === true;
+}
+
+/**
+ * Get configured Basic Auth username.
+ */
+function getConfiguredAuthBasicUser(): string
+{
+    return defined('AUTH_BASIC_USER') ? trim((string) AUTH_BASIC_USER) : '';
+}
+
+/**
+ * Get configured Basic Auth password hash.
+ */
+function getConfiguredAuthBasicPasswordHash(): string
+{
+    return defined('AUTH_BASIC_PASSWORD_HASH') ? trim((string) AUTH_BASIC_PASSWORD_HASH) : '';
+}
+
+/**
+ * Return true when Basic Auth credentials are configured.
+ */
+function isPortfolioAuthConfigured(): bool
+{
+    return getConfiguredAuthBasicUser() !== '' && getConfiguredAuthBasicPasswordHash() !== '';
+}
+
+/**
+ * Read Basic Auth credentials from server vars.
+ *
+ * @return array{user:string,pass:string}|null
+ */
+function getBasicAuthCredentials(): ?array
+{
+    $user = $_SERVER['PHP_AUTH_USER'] ?? null;
+    $pass = $_SERVER['PHP_AUTH_PW'] ?? null;
+    if (is_string($user) && is_string($pass)) {
+        return ['user' => $user, 'pass' => $pass];
+    }
+
+    $authHeader = $_SERVER['HTTP_AUTHORIZATION'] ?? ($_SERVER['REDIRECT_HTTP_AUTHORIZATION'] ?? '');
+    if (!is_string($authHeader) || $authHeader === '' || stripos($authHeader, 'Basic ') !== 0) {
+        return null;
+    }
+
+    $encoded = trim(substr($authHeader, 6));
+    $decoded = base64_decode($encoded, true);
+    if (!is_string($decoded) || !str_contains($decoded, ':')) {
+        return null;
+    }
+
+    [$decodedUser, $decodedPass] = explode(':', $decoded, 2);
+
+    return ['user' => $decodedUser, 'pass' => $decodedPass];
+}
+
+/**
+ * Validate provided Basic Auth credentials against config.
+ *
+ * @param array{user:string,pass:string}|null $credentials
+ */
+function verifyPortfolioAuthCredentials(?array $credentials): bool
+{
+    if ($credentials === null || !isPortfolioAuthConfigured()) {
+        return false;
+    }
+
+    $expectedUser = getConfiguredAuthBasicUser();
+    $expectedHash = getConfiguredAuthBasicPasswordHash();
+
+    if (!hash_equals($expectedUser, (string) $credentials['user'])) {
+        return false;
+    }
+
+    return password_verify((string) $credentials['pass'], $expectedHash);
+}
+
+/**
+ * Send a standard HTTP Basic Auth challenge header.
+ */
+function sendBasicAuthChallenge(string $realm): void
+{
+    if (!headers_sent()) {
+        header('WWW-Authenticate: Basic realm="' . addslashes($realm) . '", charset="UTF-8"');
+    }
+}
+
+/**
+ * Require auth for portfolio UI.
+ * Supports: session login, then Basic Auth fallback.
+ */
+function requirePortfolioAccessForWeb(): void
+{
+    if (!isPortfolioAuthRequired()) {
+        return;
+    }
+
+    ensureWebSessionStarted();
+    Auth::init();
+    if (Auth::check()) {
+        return;
+    }
+
+    if (verifyPortfolioAuthCredentials(getBasicAuthCredentials())) {
+        return;
+    }
+
+    header('Location: login.php?redirect=' . urlencode($_SERVER['REQUEST_URI'] ?? 'portfolio.php'));
+    exit;
+}
+
+/**
+ * Require auth for portfolio API actions.
+ */
+function requirePortfolioAccessForApi(): void
+{
+    if (!isPortfolioAuthRequired()) {
+        return;
+    }
+
+    if (verifyPortfolioAuthCredentials(getBasicAuthCredentials())) {
+        return;
+    }
+
+    sendBasicAuthChallenge('Cybokron API');
+    $message = isPortfolioAuthConfigured()
+        ? 'Authentication required'
+        : 'Authentication is required but not configured';
+    jsonResponse(['status' => 'error', 'message' => $message], 401);
+}
+
+/**
+ * Get request content length in bytes, normalized.
+ */
+function getRequestContentLength(): int
+{
+    $raw = $_SERVER['CONTENT_LENGTH'] ?? 0;
+    if (is_string($raw) && ctype_digit($raw)) {
+        return (int) $raw;
+    }
+
+    if (is_int($raw) && $raw > 0) {
+        return $raw;
+    }
+
+    return 0;
+}
+
+/**
+ * Check whether request body exceeds max allowed bytes.
+ */
+function requestBodyExceedsLimit(int $maxBytes): bool
+{
+    if ($maxBytes <= 0) {
+        return false;
+    }
+
+    return getRequestContentLength() > $maxBytes;
+}
+
+/**
+ * Resolve remote address for coarse rate limiting.
+ */
+function getRateLimitClientKey(): string
+{
+    $remote = $_SERVER['REMOTE_ADDR'] ?? '';
+    if (!is_string($remote) || $remote === '') {
+        return 'unknown';
+    }
+
+    return substr($remote, 0, 64);
+}
+
+/**
+ * Enforce login rate limit (brute-force protection).
+ */
+function enforceLoginRateLimit(): bool
+{
+    $maxAttempts = defined('LOGIN_RATE_LIMIT') ? max(1, (int) LOGIN_RATE_LIMIT) : 5;
+    $windowSeconds = defined('LOGIN_RATE_WINDOW_SECONDS') ? max(60, (int) LOGIN_RATE_WINDOW_SECONDS) : 300;
+
+    return enforceIpRateLimit('login', $maxAttempts, $windowSeconds);
+}
+
+/**
+ * Enforce simple fixed-window IP rate limit.
+ */
+function enforceIpRateLimit(string $scope, int $maxRequests, int $windowSeconds): bool
+{
+    if ($maxRequests <= 0 || $windowSeconds <= 0) {
+        return true;
+    }
+
+    $baseDir = sys_get_temp_dir() . '/cybokron_rate_limits';
+    if (!is_dir($baseDir) && !mkdir($baseDir, 0750, true) && !is_dir($baseDir)) {
+        return true;
+    }
+
+    $key = hash('sha256', $scope . '|' . getRateLimitClientKey());
+    $file = $baseDir . '/' . $key . '.json';
+    $fp = fopen($file, 'c+');
+    if ($fp === false) {
+        return true;
+    }
+
+    if (!flock($fp, LOCK_EX)) {
+        fclose($fp);
+        return true;
+    }
+
+    $now = time();
+    $state = ['window_start' => $now, 'count' => 0];
+    $raw = stream_get_contents($fp);
+    if (is_string($raw) && $raw !== '') {
+        $decoded = json_decode($raw, true);
+        if (is_array($decoded)) {
+            $windowStart = (int) ($decoded['window_start'] ?? $now);
+            $count = (int) ($decoded['count'] ?? 0);
+            $state = ['window_start' => $windowStart, 'count' => $count];
+        }
+    }
+
+    if (($now - (int) $state['window_start']) >= $windowSeconds) {
+        $state = ['window_start' => $now, 'count' => 0];
+    }
+
+    $state['count'] = (int) $state['count'] + 1;
+    $allowed = (int) $state['count'] <= $maxRequests;
+
+    rewind($fp);
+    ftruncate($fp, 0);
+    fwrite($fp, json_encode($state));
+    fflush($fp);
+    flock($fp, LOCK_UN);
+    fclose($fp);
+
+    return $allowed;
 }
 
 /**
@@ -429,7 +690,7 @@ function loadBankScraper(string $className): Scraper
 /**
  * Get latest rates from database.
  */
-function getLatestRates(?string $bankSlug = null, ?string $currencyCode = null): array
+function getLatestRates(?string $bankSlug = null, ?string $currencyCode = null, bool $compact = false): array
 {
     $normalizedBankSlug = normalizeBankSlug($bankSlug);
     $normalizedCurrencyCode = normalizeCurrencyCode($currencyCode);
@@ -442,25 +703,40 @@ function getLatestRates(?string $bankSlug = null, ?string $currencyCode = null):
         return [];
     }
 
-    $sql = "
-        SELECT
-            r.buy_rate,
-            r.sell_rate,
-            r.change_percent,
-            r.scraped_at,
-            c.code AS currency_code,
-            c.name_tr AS currency_name_tr,
-            c.name_en AS currency_name_en,
-            c.name_tr AS currency_name,
-            c.symbol,
-            c.type AS currency_type,
-            b.name AS bank_name,
-            b.slug AS bank_slug
-        FROM rates r
-        JOIN currencies c ON c.id = r.currency_id
-        JOIN banks b ON b.id = r.bank_id
-        WHERE b.is_active = 1 AND c.is_active = 1
-    ";
+    if ($compact) {
+        $sql = "
+            SELECT
+                r.buy_rate,
+                r.sell_rate,
+                r.change_percent,
+                c.code AS currency_code,
+                b.slug AS bank_slug
+            FROM rates r
+            JOIN currencies c ON c.id = r.currency_id
+            JOIN banks b ON b.id = r.bank_id
+            WHERE b.is_active = 1 AND c.is_active = 1
+        ";
+    } else {
+        $sql = "
+            SELECT
+                r.buy_rate,
+                r.sell_rate,
+                r.change_percent,
+                r.scraped_at,
+                c.code AS currency_code,
+                c.name_tr AS currency_name_tr,
+                c.name_en AS currency_name_en,
+                c.name_tr AS currency_name,
+                c.symbol,
+                c.type AS currency_type,
+                b.name AS bank_name,
+                b.slug AS bank_slug
+            FROM rates r
+            JOIN currencies c ON c.id = r.currency_id
+            JOIN banks b ON b.id = r.bank_id
+            WHERE b.is_active = 1 AND c.is_active = 1
+        ";
+    }
     $params = [];
 
     if ($normalizedBankSlug !== null) {
@@ -481,7 +757,13 @@ function getLatestRates(?string $bankSlug = null, ?string $currencyCode = null):
 /**
  * Get rate history for a currency.
  */
-function getRateHistory(string $currencyCode, int $days = 30, ?string $bankSlug = null): array
+function getRateHistory(
+    string $currencyCode,
+    int $days = 30,
+    ?string $bankSlug = null,
+    int $limit = 1000,
+    ?string $before = null
+): array
 {
     $normalizedCurrencyCode = normalizeCurrencyCode($currencyCode);
     if ($normalizedCurrencyCode === null) {
@@ -489,10 +771,25 @@ function getRateHistory(string $currencyCode, int $days = 30, ?string $bankSlug 
     }
 
     $days = max(1, min($days, 3650));
+    $limit = max(1, min($limit, 5000));
 
     $normalizedBankSlug = normalizeBankSlug($bankSlug);
     if ($bankSlug !== null && $bankSlug !== '' && $normalizedBankSlug === null) {
         return [];
+    }
+
+    $normalizedBefore = null;
+    if (is_string($before) && trim($before) !== '') {
+        $normalizedBefore = trim($before);
+        $parsed = DateTime::createFromFormat('Y-m-d H:i:s', $normalizedBefore);
+        $errors = DateTime::getLastErrors();
+
+        $hasDateErrors = is_array($errors)
+            && (($errors['warning_count'] ?? 0) > 0 || ($errors['error_count'] ?? 0) > 0);
+
+        if (!$parsed || $hasDateErrors || $parsed->format('Y-m-d H:i:s') !== $normalizedBefore) {
+            throw new InvalidArgumentException('before must be in Y-m-d H:i:s format');
+        }
     }
 
     $sql = "
@@ -516,9 +813,16 @@ function getRateHistory(string $currencyCode, int $days = 30, ?string $bankSlug 
         $params[] = $normalizedBankSlug;
     }
 
-    $sql .= ' ORDER BY rh.scraped_at ASC';
+    if ($normalizedBefore !== null) {
+        $sql .= ' AND rh.scraped_at < ?';
+        $params[] = $normalizedBefore;
+    }
 
-    return Database::query($sql, $params);
+    // Fetch newest first for efficient pagination, then restore ascending order for compatibility.
+    $sql .= ' ORDER BY rh.scraped_at DESC LIMIT ' . $limit;
+    $rows = Database::query($sql, $params);
+
+    return array_reverse($rows);
 }
 
 /**
@@ -611,7 +915,13 @@ function jsonResponse(array $data, int $statusCode = 200): void
     http_response_code($statusCode);
     header('Content-Type: application/json; charset=utf-8');
 
-    $json = json_encode($data, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+    $options = JSON_UNESCAPED_UNICODE;
+    if (defined('API_JSON_PRETTY_PRINT') && API_JSON_PRETTY_PRINT === true) {
+        // Pretty JSON is useful for debugging but increases API payload size.
+        $options |= JSON_PRETTY_PRINT;
+    }
+
+    $json = json_encode($data, $options);
     if ($json === false) {
         $json = '{"status":"error","message":"Failed to encode JSON response"}';
     }
@@ -627,7 +937,9 @@ function cybokron_log(string $message, string $level = 'INFO'): void
 {
     if (!defined('LOG_ENABLED') || !LOG_ENABLED) return;
 
-    $logFile = defined('LOG_FILE') ? LOG_FILE : __DIR__ . '/../logs/cybokron.log';
+    $logFile = defined('LOG_FILE')
+        ? LOG_FILE
+        : dirname(__DIR__, 2) . '/cybokron-logs/cybokron.log';
     $logDir = dirname($logFile);
 
     if (!is_dir($logDir)) {

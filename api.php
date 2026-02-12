@@ -20,12 +20,47 @@ $action = trim((string) ($_GET['action'] ?? ''));
 $locale = getAppLocale();
 $method = strtoupper((string) ($_SERVER['REQUEST_METHOD'] ?? 'GET'));
 
+$portfolioActions = ['portfolio', 'portfolio_add', 'portfolio_update', 'portfolio_delete', 'alerts', 'alerts_add', 'alerts_delete'];
+$writeActions = ['portfolio_add', 'portfolio_update', 'portfolio_delete', 'alerts_add', 'alerts_delete'];
+$readActions = ['rates', 'history', 'banks', 'currencies', 'version', 'ai_model', 'alerts'];
+
+if (in_array($action, $portfolioActions, true)) {
+    requirePortfolioAccessForApi();
+}
+
+// Read rate limiting (higher limit than write)
+if (in_array($action, $readActions, true) || $action === '') {
+    $readLimit = defined('API_READ_RATE_LIMIT') ? max(1, (int) API_READ_RATE_LIMIT) : 120;
+    $readWindow = defined('API_READ_RATE_WINDOW_SECONDS') ? max(1, (int) API_READ_RATE_WINDOW_SECONDS) : 60;
+    if (!enforceIpRateLimit('api_read:' . ($action ?: 'default'), $readLimit, $readWindow)) {
+        jsonResponse(['status' => 'error', 'message' => 'Too many requests'], 429);
+    }
+}
+
+if (in_array($action, $writeActions, true)) {
+    $maxBodyBytes = defined('API_MAX_BODY_BYTES') ? max(1024, (int) API_MAX_BODY_BYTES) : 32768;
+    if (requestBodyExceedsLimit($maxBodyBytes)) {
+        jsonResponse(['status' => 'error', 'message' => 'Request body too large'], 413);
+    }
+
+    $rateLimit = defined('API_WRITE_RATE_LIMIT') ? max(1, (int) API_WRITE_RATE_LIMIT) : 30;
+    $rateWindowSeconds = defined('API_WRITE_RATE_WINDOW_SECONDS') ? max(1, (int) API_WRITE_RATE_WINDOW_SECONDS) : 60;
+    if (!enforceIpRateLimit('api_write:' . $action, $rateLimit, $rateWindowSeconds)) {
+        jsonResponse(['status' => 'error', 'message' => 'Too many requests'], 429);
+    }
+}
+
 try {
     switch ($action) {
         case 'rates':
             $bankSlug = $_GET['bank'] ?? null;
             $currencyCode = $_GET['currency'] ?? null;
+            $compactParam = $_GET['compact'] ?? null;
             $clientVersion = $_GET['version'] ?? null;
+            $compact = false;
+            if (is_string($compactParam)) {
+                $compact = in_array(strtolower(trim($compactParam)), ['1', 'true', 'yes', 'on'], true);
+            }
             $clientVersion = is_string($clientVersion) ? trim($clientVersion) : '';
 
             // Fast version check: lets clients skip full payload + DB row query when rates did not change.
@@ -54,13 +89,15 @@ try {
 
             $rates = getLatestRates(
                 is_string($bankSlug) ? $bankSlug : null,
-                is_string($currencyCode) ? $currencyCode : null
+                is_string($currencyCode) ? $currencyCode : null,
+                $compact
             );
             jsonResponse([
                 'status' => 'ok',
                 'locale' => $locale,
                 'version' => $currentVersion,
                 'unchanged' => false,
+                'compact' => $compact,
                 'data' => $rates,
                 'count' => count($rates),
             ]);
@@ -74,10 +111,29 @@ try {
 
             $days = (int) ($_GET['days'] ?? 30);
             $days = max(1, min($days, 3650));
+            $limit = (int) ($_GET['limit'] ?? 1000);
+            $limit = max(1, min($limit, 5000));
             $bank = $_GET['bank'] ?? null;
-            $history = getRateHistory($currencyParam, $days, is_string($bank) ? $bank : null);
+            $before = $_GET['before'] ?? null;
+            $history = getRateHistory(
+                $currencyParam,
+                $days,
+                is_string($bank) ? $bank : null,
+                $limit,
+                is_string($before) ? $before : null
+            );
+            $nextBefore = (count($history) === $limit && isset($history[0]['scraped_at']))
+                ? (string) $history[0]['scraped_at']
+                : null;
 
-            jsonResponse(['status' => 'ok', 'locale' => $locale, 'data' => $history, 'count' => count($history)]);
+            jsonResponse([
+                'status' => 'ok',
+                'locale' => $locale,
+                'data' => $history,
+                'count' => count($history),
+                'limit' => $limit,
+                'next_before' => $nextBefore,
+            ]);
             break;
 
         case 'portfolio':
@@ -104,6 +160,44 @@ try {
             jsonResponse(['status' => 'ok', 'id' => $id, 'message' => 'Added to portfolio']);
             break;
 
+        case 'portfolio_update':
+            if ($method !== 'POST' && $method !== 'PUT' && $method !== 'PATCH') {
+                jsonResponse(['status' => 'error', 'message' => 'POST, PUT or PATCH method required'], 405);
+            }
+
+            $requireCsrf = !defined('API_REQUIRE_CSRF') || API_REQUIRE_CSRF;
+            if ($requireCsrf && !verifyCsrfToken(getRequestCsrfToken())) {
+                jsonResponse(['status' => 'error', 'message' => 'Invalid CSRF token'], 419);
+            }
+
+            $input = json_decode(file_get_contents('php://input'), true);
+            if (!is_array($input)) {
+                $input = $_POST;
+            }
+
+            $id = (int) ($input['id'] ?? $_GET['id'] ?? 0);
+            if ($id <= 0) {
+                jsonResponse(['status' => 'error', 'message' => 'Valid id parameter required'], 400);
+            }
+
+            $updateData = array_filter([
+                'amount'   => $input['amount'] ?? null,
+                'buy_rate' => $input['buy_rate'] ?? null,
+                'buy_date' => $input['buy_date'] ?? null,
+                'notes'    => $input['notes'] ?? null,
+            ], fn ($v) => $v !== null);
+
+            if (empty($updateData)) {
+                jsonResponse(['status' => 'error', 'message' => 'No fields to update'], 400);
+            }
+
+            $updated = Portfolio::update($id, $updateData);
+            jsonResponse([
+                'status'  => $updated ? 'ok' : 'error',
+                'message' => $updated ? 'Updated' : 'Not found',
+            ], $updated ? 200 : 404);
+            break;
+
         case 'portfolio_delete':
             if ($method !== 'POST' && $method !== 'DELETE') {
                 jsonResponse(['status' => 'error', 'message' => 'POST or DELETE method required'], 405);
@@ -127,7 +221,7 @@ try {
             break;
 
         case 'banks':
-            $banks = Database::query('SELECT name, slug, url, last_scraped_at, is_active FROM banks ORDER BY name');
+            $banks = Database::query('SELECT name, slug, last_scraped_at, is_active FROM banks ORDER BY name');
             jsonResponse(['status' => 'ok', 'locale' => $locale, 'data' => $banks]);
             break;
 
@@ -159,6 +253,84 @@ try {
             ]);
             break;
 
+        case 'alerts':
+            requirePortfolioAccessForApi();
+            $alerts = Database::query(
+                'SELECT id, currency_code, condition_type, threshold, channel, is_active, last_triggered_at, created_at
+                 FROM alerts ORDER BY created_at DESC'
+            );
+            jsonResponse(['status' => 'ok', 'locale' => $locale, 'data' => $alerts]);
+            break;
+
+        case 'alerts_add':
+            requirePortfolioAccessForApi();
+            if ($method !== 'POST') {
+                jsonResponse(['status' => 'error', 'message' => 'POST method required'], 405);
+            }
+
+            $requireCsrf = !defined('API_REQUIRE_CSRF') || API_REQUIRE_CSRF;
+            if ($requireCsrf && !verifyCsrfToken(getRequestCsrfToken())) {
+                jsonResponse(['status' => 'error', 'message' => 'Invalid CSRF token'], 419);
+            }
+
+            $input = json_decode(file_get_contents('php://input'), true);
+            if (!is_array($input)) {
+                $input = $_POST;
+            }
+
+            $currencyCode = normalizeCurrencyCode($input['currency_code'] ?? '');
+            $conditionType = $input['condition_type'] ?? '';
+            $threshold = isset($input['threshold']) ? (float) $input['threshold'] : 0;
+            $channel = $input['channel'] ?? 'email';
+            $channelConfig = $input['channel_config'] ?? null;
+
+            if ($currencyCode === null || !in_array($conditionType, ['above', 'below', 'change_pct'], true) || $threshold <= 0) {
+                jsonResponse(['status' => 'error', 'message' => 'currency_code, condition_type (above|below|change_pct), threshold required'], 400);
+            }
+
+            $userId = null;
+            if (function_exists('Auth::check') && Auth::check()) {
+                $userId = Auth::id();
+            }
+
+            $configJson = is_string($channelConfig) ? $channelConfig : (is_array($channelConfig) ? json_encode($channelConfig) : null);
+
+            $id = Database::insert('alerts', [
+                'user_id' => $userId,
+                'currency_code' => $currencyCode,
+                'condition_type' => $conditionType,
+                'threshold' => $threshold,
+                'channel' => in_array($channel, ['email', 'telegram', 'webhook'], true) ? $channel : 'email',
+                'channel_config' => $configJson,
+                'is_active' => 1,
+            ]);
+
+            jsonResponse(['status' => 'ok', 'id' => $id, 'message' => 'Alert created']);
+            break;
+
+        case 'alerts_delete':
+            requirePortfolioAccessForApi();
+            if ($method !== 'POST' && $method !== 'DELETE') {
+                jsonResponse(['status' => 'error', 'message' => 'POST or DELETE method required'], 405);
+            }
+
+            $requireCsrf = !defined('API_REQUIRE_CSRF') || API_REQUIRE_CSRF;
+            if ($requireCsrf && !verifyCsrfToken(getRequestCsrfToken())) {
+                jsonResponse(['status' => 'error', 'message' => 'Invalid CSRF token'], 419);
+            }
+
+            $id = (int) ($_GET['id'] ?? $_POST['id'] ?? 0);
+            if ($id <= 0) {
+                jsonResponse(['status' => 'error', 'message' => 'Valid id parameter required'], 400);
+            }
+
+            $deleted = Database::execute('DELETE FROM alerts WHERE id = ?', [$id]);
+            jsonResponse([
+                'status' => $deleted ? 'ok' : 'error',
+                'message' => $deleted ? 'Deleted' : 'Not found',
+            ], $deleted ? 200 : 404);
+            break;
+
         default:
             jsonResponse([
                 'status' => 'ok',
@@ -166,11 +338,13 @@ try {
                 'version' => trim((string) file_get_contents(__DIR__ . '/VERSION')),
                 'endpoints' => [
                     'GET /api.php?action=rates' => 'Latest exchange rates',
+                    'GET /api.php?action=rates&compact=1' => 'Compact rates payload for polling clients',
                     'GET /api.php?action=rates&bank=dunya-katilim' => 'Rates for specific bank',
                     'GET /api.php?action=rates&currency=USD' => 'Rates for specific currency',
-                    'GET /api.php?action=history&currency=USD&days=30' => 'Rate history',
+                    'GET /api.php?action=history&currency=USD&days=30&limit=500' => 'Rate history with pagination support',
                     'GET /api.php?action=portfolio' => 'Portfolio summary',
                     'POST /api.php?action=portfolio_add' => 'Add to portfolio',
+                    'POST|PUT|PATCH /api.php?action=portfolio_update' => 'Update portfolio entry (body: id, amount, buy_rate, buy_date, notes)',
                     'POST|DELETE /api.php?action=portfolio_delete&id=1' => 'Delete from portfolio',
                     'GET /api.php?action=banks' => 'List banks',
                     'GET /api.php?action=currencies' => 'List currencies',

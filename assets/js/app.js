@@ -6,13 +6,18 @@
 (function () {
     'use strict';
 
-    const REFRESH_INTERVAL = 5 * 60 * 1000;
+    const BASE_REFRESH_INTERVAL = 5 * 60 * 1000;
+    const MAX_REFRESH_INTERVAL = 15 * 60 * 1000;
     const appLocale = (document.documentElement.lang || 'tr').toLowerCase();
     const numberLocale = appLocale === 'tr' ? 'tr-TR' : 'en-US';
     const hasRatesTable = document.querySelector('.rates-table') !== null;
+    const refreshStatus = document.getElementById('rates-refresh-status');
+    const refreshStatusTemplate = refreshStatus ? (refreshStatus.getAttribute('data-updated-template') || '') : '';
     const rateRowCache = hasRatesTable ? buildRateRowCache() : new Map();
     const numberFormatterCache = new Map();
     let latestRatesVersion = '';
+    let unchangedRefreshCount = 0;
+    let refreshTimerId = null;
 
     /**
      * Cache row/cell nodes once instead of querying selectors on every refresh.
@@ -45,7 +50,7 @@
             const versionQuery = latestRatesVersion !== ''
                 ? `&version=${encodeURIComponent(latestRatesVersion)}`
                 : '';
-            const response = await fetch(`api.php?action=rates${versionQuery}`, { cache: 'no-store' });
+            const response = await fetch(`api.php?action=rates&compact=1${versionQuery}`, { cache: 'no-store' });
             const json = await response.json();
 
             if (json.status !== 'ok') return;
@@ -55,8 +60,11 @@
             }
 
             if (json.unchanged === true || !json.data) {
+                unchangedRefreshCount = Math.min(unchangedRefreshCount + 1, 2);
                 return;
             }
+
+            unchangedRefreshCount = 0;
 
             json.data.forEach(rate => {
                 const rowCells = rateRowCache.get(`${rate.bank_slug}::${rate.currency_code}`);
@@ -92,11 +100,38 @@
                 }
             });
 
+            announceRefresh();
             console.log(`[Cybokron] Rates refreshed: ${json.count} rates`);
 
         } catch (error) {
             console.error('[Cybokron] Failed to refresh rates:', error);
+        } finally {
+            if (hasRatesTable) {
+                scheduleNextRefresh();
+            }
         }
+    }
+
+    /**
+     * Back off polling when data is stable and while the tab is hidden.
+     */
+    function getNextRefreshDelay() {
+        const adaptiveStep = Math.min(unchangedRefreshCount, 2);
+        const adaptiveDelay = BASE_REFRESH_INTERVAL + (adaptiveStep * 5 * 60 * 1000);
+        return document.hidden ? MAX_REFRESH_INTERVAL : adaptiveDelay;
+    }
+
+    /**
+     * Schedule the next refresh tick with adaptive visibility-aware timing.
+     */
+    function scheduleNextRefresh(delayMs = getNextRefreshDelay()) {
+        if (refreshTimerId !== null) {
+            clearTimeout(refreshTimerId);
+        }
+
+        refreshTimerId = setTimeout(() => {
+            refreshRates();
+        }, delayMs);
     }
 
     /**
@@ -141,8 +176,34 @@
         return 'text-muted';
     }
 
+    /**
+     * Announce successful auto-refresh to assistive technologies.
+     */
+    function announceRefresh() {
+        if (!refreshStatus || refreshStatusTemplate === '') {
+            return;
+        }
+
+        const time = new Intl.DateTimeFormat(numberLocale, {
+            hour: '2-digit',
+            minute: '2-digit',
+        }).format(new Date());
+
+        refreshStatus.textContent = refreshStatusTemplate.replace('__TIME__', time);
+    }
+
     if (hasRatesTable) {
-        setInterval(refreshRates, REFRESH_INTERVAL);
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) {
+                scheduleNextRefresh(MAX_REFRESH_INTERVAL);
+                return;
+            }
+
+            // When users return to the tab, refresh quickly once.
+            scheduleNextRefresh(1000);
+        });
+
+        scheduleNextRefresh(BASE_REFRESH_INTERVAL);
     }
 
     console.log(`[Cybokron] Dashboard loaded (locale: ${appLocale}).`);
