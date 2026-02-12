@@ -33,7 +33,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $message = t('portfolio.message.added');
             $messageType = 'success';
         } catch (Throwable $e) {
-            $message = t('portfolio.message.error', ['error' => $e->getMessage()]);
+            $isClientError = $e instanceof InvalidArgumentException;
+
+            // Security: avoid leaking exception details into user-visible responses.
+            cybokron_log(
+                sprintf(
+                    'Portfolio action failed action=%s code=%d detail=%s',
+                    $action,
+                    $isClientError ? 400 : 500,
+                    $e->getMessage()
+                ),
+                'ERROR'
+            );
+
+            $message = $isClientError ? t('common.invalid_request') : t('portfolio.message.error_generic');
             $messageType = 'error';
         }
     }
@@ -72,12 +85,13 @@ $csrfToken = getCsrfToken();
             <h1>💱 <?= APP_NAME ?></h1>
             <nav class="header-nav">
                 <a href="index.php"><?= t('nav.rates') ?></a>
-                <a href="portfolio.php" class="active"><?= t('nav.portfolio') ?></a>
+                <a href="portfolio.php" class="active" aria-current="page"><?= t('nav.portfolio') ?></a>
                 <span class="lang-label"><?= t('nav.language') ?>:</span>
                 <?php foreach ($availableLocales as $locale): ?>
                     <a
                         href="<?= htmlspecialchars(buildLocaleUrl($locale)) ?>"
                         class="lang-link <?= $currentLocale === $locale ? 'active' : '' ?>"
+                        <?= $currentLocale === $locale ? 'aria-current="page"' : '' ?>
                     >
                         <?= htmlspecialchars(strtoupper($locale)) ?>
                     </a>
@@ -88,7 +102,8 @@ $csrfToken = getCsrfToken();
 
     <main class="container">
         <?php if ($message): ?>
-            <div class="alert alert-<?= $messageType ?>"><?= htmlspecialchars($message) ?></div>
+            <?php $isErrorMessage = $messageType === 'error'; ?>
+            <div class="alert alert-<?= $messageType ?>" role="<?= $isErrorMessage ? 'alert' : 'status' ?>" aria-live="<?= $isErrorMessage ? 'assertive' : 'polite' ?>"><?= htmlspecialchars($message) ?></div>
         <?php endif; ?>
 
         <section class="summary-cards">
@@ -174,15 +189,15 @@ $csrfToken = getCsrfToken();
                     <table class="rates-table">
                         <thead>
                             <tr>
-                                <th><?= t('portfolio.table.currency') ?></th>
-                                <th class="text-right"><?= t('portfolio.table.amount') ?></th>
-                                <th class="text-right"><?= t('portfolio.table.buy_rate') ?></th>
-                                <th class="text-right"><?= t('portfolio.table.current_rate') ?></th>
-                                <th class="text-right"><?= t('portfolio.table.cost') ?></th>
-                                <th class="text-right"><?= t('portfolio.table.value') ?></th>
-                                <th class="text-right"><?= t('portfolio.table.pl_percent') ?></th>
-                                <th><?= t('portfolio.table.date') ?></th>
-                                <th></th>
+                                <th scope="col"><?= t('portfolio.table.currency') ?></th>
+                                <th scope="col" class="text-right"><?= t('portfolio.table.amount') ?></th>
+                                <th scope="col" class="text-right"><?= t('portfolio.table.buy_rate') ?></th>
+                                <th scope="col" class="text-right"><?= t('portfolio.table.current_rate') ?></th>
+                                <th scope="col" class="text-right"><?= t('portfolio.table.cost') ?></th>
+                                <th scope="col" class="text-right"><?= t('portfolio.table.value') ?></th>
+                                <th scope="col" class="text-right"><?= t('portfolio.table.pl_percent') ?></th>
+                                <th scope="col"><?= t('portfolio.table.date') ?></th>
+                                <th scope="col"></th>
                             </tr>
                         </thead>
                         <tbody>
@@ -209,7 +224,8 @@ $csrfToken = getCsrfToken();
                                             <input type="hidden" name="action" value="delete">
                                             <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
                                             <input type="hidden" name="id" value="<?= (int) $item['id'] ?>">
-                                            <button type="submit" class="btn btn-sm btn-danger">🗑</button>
+                                            <?php $deleteActionLabel = t('portfolio.table.delete_action', ['currency' => (string) $item['currency_code']]); ?>
+                                            <button type="submit" class="btn btn-sm btn-danger" aria-label="<?= htmlspecialchars($deleteActionLabel) ?>" title="<?= htmlspecialchars($deleteActionLabel) ?>">🗑</button>
                                         </form>
                                     </td>
                                 </tr>

@@ -25,11 +25,45 @@ try {
         case 'rates':
             $bankSlug = $_GET['bank'] ?? null;
             $currencyCode = $_GET['currency'] ?? null;
+            $clientVersion = $_GET['version'] ?? null;
+            $clientVersion = is_string($clientVersion) ? trim($clientVersion) : '';
+
+            // Fast version check: lets clients skip full payload + DB row query when rates did not change.
+            $versionRow = Database::queryOne('SELECT value FROM settings WHERE `key` = ?', ['last_rate_update']);
+            $currentVersion = (is_array($versionRow) && isset($versionRow['value']))
+                ? trim((string) $versionRow['value'])
+                : '';
+
+            if ($currentVersion === '') {
+                $fallbackVersionRow = Database::queryOne('SELECT MAX(scraped_at) AS value FROM rates');
+                $currentVersion = (is_array($fallbackVersionRow) && isset($fallbackVersionRow['value']))
+                    ? trim((string) $fallbackVersionRow['value'])
+                    : '';
+            }
+
+            if ($clientVersion !== '' && $currentVersion !== '' && hash_equals($currentVersion, $clientVersion)) {
+                jsonResponse([
+                    'status' => 'ok',
+                    'locale' => $locale,
+                    'version' => $currentVersion,
+                    'unchanged' => true,
+                    'data' => [],
+                    'count' => 0,
+                ]);
+            }
+
             $rates = getLatestRates(
                 is_string($bankSlug) ? $bankSlug : null,
                 is_string($currencyCode) ? $currencyCode : null
             );
-            jsonResponse(['status' => 'ok', 'locale' => $locale, 'data' => $rates, 'count' => count($rates)]);
+            jsonResponse([
+                'status' => 'ok',
+                'locale' => $locale,
+                'version' => $currentVersion,
+                'unchanged' => false,
+                'data' => $rates,
+                'count' => count($rates),
+            ]);
             break;
 
         case 'history':
@@ -147,6 +181,21 @@ try {
             break;
     }
 } catch (Throwable $e) {
-    $code = ($e instanceof InvalidArgumentException) ? 400 : 500;
-    jsonResponse(['status' => 'error', 'message' => $e->getMessage()], $code);
+    $isClientError = $e instanceof InvalidArgumentException;
+    $code = $isClientError ? 400 : 500;
+
+    // Security: never expose internal exception details to external API consumers.
+    cybokron_log(
+        sprintf(
+            'API error action=%s method=%s code=%d detail=%s',
+            $action !== '' ? $action : 'default',
+            $method,
+            $code,
+            $e->getMessage()
+        ),
+        'ERROR'
+    );
+
+    $publicMessage = $isClientError ? 'Invalid request parameters' : 'An internal error occurred';
+    jsonResponse(['status' => 'error', 'message' => $publicMessage], $code);
 }

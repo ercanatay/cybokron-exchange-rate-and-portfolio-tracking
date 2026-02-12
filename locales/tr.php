@@ -17,6 +17,7 @@ return [
     'portfolio.page_title' => 'Portföy',
     'portfolio.message.added' => 'Portföye eklendi.',
     'portfolio.message.error' => 'Hata: {{error}}',
+    'portfolio.message.error_generic' => 'Beklenmeyen bir hata oluştu. Lütfen tekrar deneyin.',
     'portfolio.message.deleted' => 'Portföyden silindi.',
     'portfolio.message.not_found' => 'Silinecek kayıt bulunamadı.',
 
@@ -46,6 +47,7 @@ return [
     'portfolio.table.pl_percent' => 'K/Z (%)',
     'portfolio.table.date' => 'Tarih',
     'portfolio.table.delete_confirm' => 'Silmek istediğinize emin misiniz?',
+    'portfolio.table.delete_action' => 'Portföyden {{currency}} sil',
 
     'portfolio.empty_title' => 'Portföyünüz boş',
     'portfolio.empty_desc' => 'Yukarıdaki formu kullanarak döviz/altın ekleyebilirsiniz.',
