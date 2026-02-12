@@ -1,5 +1,5 @@
 /**
- * Döviz Çevirici Widget
+ * Currency Converter Widget
  * Cybokron Exchange Rate & Portfolio Tracking
  */
 

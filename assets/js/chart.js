@@ -42,7 +42,7 @@
                 labels,
                 datasets: [
                     {
-                        label: 'Alış',
+                        label: appLocale === 'tr' ? 'Alış' : 'Buy',
                         data: buyData,
                         borderColor: chartColor,
                         backgroundColor: chartColor + '20',
@@ -50,7 +50,7 @@
                         tension: 0.2,
                     },
                     {
-                        label: 'Satış',
+                        label: appLocale === 'tr' ? 'Satış' : 'Sell',
                         data: sellData,
                         borderColor: chartColorMuted,
                         backgroundColor: chartColorMuted + '20',

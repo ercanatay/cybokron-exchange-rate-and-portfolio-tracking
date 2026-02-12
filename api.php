@@ -226,9 +226,9 @@ try {
             break;
 
         case 'currencies':
-            $nameField = $locale === 'en' ? 'name_en' : 'name_tr';
+            $nameField = in_array($locale, ['en', 'tr'], true) && $locale === 'en' ? 'name_en' : 'name_tr';
             $currencies = Database::query(
-                "SELECT code, name_tr, name_en, {$nameField} AS name, symbol, type FROM currencies WHERE is_active = 1 ORDER BY code"
+                "SELECT code, name_tr, name_en, `{$nameField}` AS name, symbol, type FROM currencies WHERE is_active = 1 ORDER BY code"
             );
             jsonResponse(['status' => 'ok', 'locale' => $locale, 'data' => $currencies]);
             break;
@@ -254,7 +254,6 @@ try {
             break;
 
         case 'alerts':
-            requirePortfolioAccessForApi();
             $alerts = Database::query(
                 'SELECT id, currency_code, condition_type, threshold, channel, is_active, last_triggered_at, created_at
                  FROM alerts ORDER BY created_at DESC'
@@ -289,7 +288,7 @@ try {
             }
 
             $userId = null;
-            if (function_exists('Auth::check') && Auth::check()) {
+            if (class_exists('Auth') && Auth::check()) {
                 $userId = Auth::id();
             }
 

@@ -204,7 +204,7 @@ class OpenRouterRateRepair
         $maxChars = defined('OPENROUTER_AI_MAX_INPUT_CHARS') ? max(1000, (int) OPENROUTER_AI_MAX_INPUT_CHARS) : 12000;
 
         $dom = new DOMDocument();
-        @$dom->loadHTML(mb_convert_encoding($html, 'HTML-ENTITIES', 'UTF-8'));
+        @$dom->loadHTML('<?xml encoding="UTF-8">' . $html);
         $xpath = new DOMXPath($dom);
 
         $rows = $xpath->query('//table//tr');

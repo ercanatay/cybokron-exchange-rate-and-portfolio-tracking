@@ -96,7 +96,7 @@ define('MARKET_DAYS', [1, 2, 3, 4, 5]); // Mon-Fri
 // ─── Rate History Retention ───────────────────────────────────────────────────
 define('RATE_HISTORY_RETENTION_DAYS', 365);   // Delete rate_history older than N days (cron/cleanup_rate_history.php)
 
-// ─── Webhook (Kur güncellemelerinde) ─────────────────────────────────────────
+// ─── Webhook (on rate updates) ────────────────────────────────────────────────
 define('RATE_UPDATE_WEBHOOK_URL', '');              // Single URL (Slack, Discord, Zapier, etc.)
 define('RATE_UPDATE_WEBHOOK_URLS', []);             // Or array of URLs
 
