@@ -42,7 +42,7 @@
                 labels,
                 datasets: [
                     {
-                        label: appLocale === 'tr' ? 'Alış' : 'Buy',
+                        label: canvas.getAttribute('data-label-buy') || 'Buy',
                         data: buyData,
                         borderColor: chartColor,
                         backgroundColor: chartColor + '20',
@@ -50,7 +50,7 @@
                         tension: 0.2,
                     },
                     {
-                        label: appLocale === 'tr' ? 'Satış' : 'Sell',
+                        label: canvas.getAttribute('data-label-sell') || 'Sell',
                         data: sellData,
                         borderColor: chartColorMuted,
                         backgroundColor: chartColorMuted + '20',

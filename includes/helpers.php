@@ -140,7 +140,7 @@ function ensureCliExecution(): void
     }
 
     http_response_code(403);
-    echo 'Forbidden';
+    echo t('common.forbidden');
     exit(1);
 }
 
@@ -275,8 +275,8 @@ function requirePortfolioAccessForApi(): void
 
     sendBasicAuthChallenge('Cybokron API');
     $message = isPortfolioAuthConfigured()
-        ? 'Authentication required'
-        : 'Authentication is required but not configured';
+        ? t('api.error.auth_required')
+        : t('api.error.auth_not_configured');
     jsonResponse(['status' => 'error', 'message' => $message], 401);
 }
 

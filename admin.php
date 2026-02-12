@@ -88,7 +88,7 @@ $version = trim(file_get_contents(__DIR__ . '/VERSION'));
                     <thead>
                         <tr>
                             <th><?= t('observability.bank') ?></th>
-                            <th>Slug</th>
+                            <th><?= t('admin.slug') ?></th>
                             <th><?= t('observability.last_scrape') ?></th>
                             <th><?= t('admin.status') ?></th>
                             <th></th>
@@ -122,9 +122,9 @@ $version = trim(file_get_contents(__DIR__ . '/VERSION'));
                 <table class="rates-table">
                     <thead>
                         <tr>
-                            <th>Code</th>
+                            <th><?= t('admin.code') ?></th>
                             <th><?= t('index.table.currency') ?></th>
-                            <th>Type</th>
+                            <th><?= t('admin.type') ?></th>
                             <th><?= t('admin.status') ?></th>
                             <th></th>
                         </tr>
@@ -157,11 +157,11 @@ $version = trim(file_get_contents(__DIR__ . '/VERSION'));
                 <table class="rates-table">
                     <thead>
                         <tr>
-                            <th>ID</th>
+                            <th><?= t('admin.id') ?></th>
                             <th><?= t('auth.username') ?></th>
-                            <th>Role</th>
+                            <th><?= t('admin.role') ?></th>
                             <th><?= t('admin.status') ?></th>
-                            <th>Created</th>
+                            <th><?= t('admin.created') ?></th>
                         </tr>
                     </thead>
                     <tbody>
