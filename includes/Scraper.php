@@ -200,6 +200,75 @@ abstract class Scraper
     }
 
     /**
+     * Get allowed currency codes as uppercase list.
+     *
+     * @return string[]
+     */
+    protected function getKnownCurrencyCodes(): array
+    {
+        return array_keys($this->getCurrencyIdMap());
+    }
+
+    /**
+     * Merge two rate lists by code, preferring existing parsed rows and filling missing ones.
+     *
+     * @param array<int, array{code:string,buy:float,sell:float,change:?float}> $primary
+     * @param array<int, array{code:string,buy:float,sell:float,change:?float}> $secondary
+     * @return array<int, array{code:string,buy:float,sell:float,change:?float}>
+     */
+    protected function mergeRatesByCode(array $primary, array $secondary): array
+    {
+        $merged = [];
+
+        foreach ($primary as $rate) {
+            if (!isset($rate['code'])) {
+                continue;
+            }
+            $code = strtoupper((string) $rate['code']);
+            $merged[$code] = $rate;
+        }
+
+        foreach ($secondary as $rate) {
+            if (!isset($rate['code'])) {
+                continue;
+            }
+            $code = strtoupper((string) $rate['code']);
+            if (!isset($merged[$code])) {
+                $merged[$code] = $rate;
+            }
+        }
+
+        ksort($merged);
+
+        return array_values($merged);
+    }
+
+    /**
+     * Try OpenRouter-based recovery when scraping output is incomplete.
+     *
+     * @return array<int, array{code:string,buy:float,sell:float,change:?float}>
+     */
+    protected function attemptOpenRouterRateRecovery(string $html, int $minimumRates = 8): array
+    {
+        try {
+            $repair = new OpenRouterRateRepair(
+                $this->bankSlug,
+                $this->bankName,
+                $this->getKnownCurrencyCodes()
+            );
+
+            return $repair->recover($html, $this->computeTableHash($html), $minimumRates);
+        } catch (Throwable $e) {
+            cybokron_log(
+                "OpenRouter fallback error for {$this->bankSlug}: {$e->getMessage()}",
+                'ERROR'
+            );
+
+            return [];
+        }
+    }
+
+    /**
      * Log a scrape result.
      */
     protected function logScrape(string $status, string $message, int $ratesCount, int $durationMs, bool $tableChanged = false): void

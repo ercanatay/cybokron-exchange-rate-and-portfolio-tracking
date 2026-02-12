@@ -1,7 +1,7 @@
 # Cybokron Exchange Rate & Portfolio Tracking
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![PHP Version](https://img.shields.io/badge/PHP-8.0%2B-blue.svg)](https://php.net)
+[![PHP Version](https://img.shields.io/badge/PHP-8.3%20%7C%208.4-blue.svg)](https://php.net)
 [![MySQL Version](https://img.shields.io/badge/MySQL-5.7%2B-orange.svg)](https://mysql.com)
 
 Cybokron is an open-source PHP/MySQL application for tracking Turkish bank exchange rates and monitoring personal currency/metal portfolios.
@@ -16,6 +16,7 @@ Cybokron is an open-source PHP/MySQL application for tracking Turkish bank excha
 
 - Multi-bank architecture (initial bank: Dünya Katılım)
 - Exchange rate scraping with table-structure change detection
+- OpenRouter AI fallback for automatic table-change recovery (cost-guarded)
 - Portfolio tracking with profit/loss calculation
 - Historical rate storage
 - GitHub release-based self-update
@@ -35,6 +36,7 @@ Cybokron is an open-source PHP/MySQL application for tracking Turkish bank excha
 - Currency code-to-ID lookup caching avoids N+1 queries in scrape persistence
 - Transaction-wrapped rate writes reduce DB overhead and improve consistency
 - Additional DB indexes for frequent history and portfolio lookups
+- OpenRouter fallback uses cooldown + row/token limits to reduce API consumption
 
 ## Supported Bank
 
@@ -44,7 +46,7 @@ Cybokron is an open-source PHP/MySQL application for tracking Turkish bank excha
 
 ## Requirements
 
-- PHP 8.0+
+- PHP 8.3 or 8.4
 - MySQL 5.7+ or MariaDB 10.3+
 - PHP extensions: `curl`, `dom`, `mbstring`, `json`, `pdo_mysql`, `zip`
 - Cron access
@@ -82,6 +84,10 @@ define('ENABLE_SECURITY_HEADERS', true);
 define('API_ALLOW_CORS', false);
 define('API_REQUIRE_CSRF', true);
 define('ENFORCE_CLI_CRON', true);
+
+define('OPENROUTER_AI_REPAIR_ENABLED', true);
+define('OPENROUTER_MODEL', 'z-ai/glm-5');
+define('OPENROUTER_API_KEY', ''); // set your key
 ```
 
 ### 4. Configure cron
@@ -98,6 +104,24 @@ define('ENFORCE_CLI_CRON', true);
 
 `http://your-domain.com/cybokron/`
 
+## OpenRouter AI Recovery
+
+When a bank table changes and normal parser output is too small, Cybokron can auto-recover rows with OpenRouter.
+
+- Default model: `z-ai/glm-5`
+- Endpoint: `https://openrouter.ai/api/v1/chat/completions`
+- Trigger condition: parsed row count below `OPENROUTER_MIN_EXPECTED_RATES`
+- Cost controls:
+1. Same table hash cooldown (`OPENROUTER_AI_COOLDOWN_SECONDS`)
+2. Input size limit (`OPENROUTER_AI_MAX_INPUT_CHARS`, `OPENROUTER_AI_MAX_ROWS`)
+3. Output token cap (`OPENROUTER_AI_MAX_TOKENS`)
+
+Change model later (without code edits):
+
+```bash
+php scripts/set_openrouter_model.php z-ai/glm-5
+```
+
 ## API Endpoints
 
 | Method | Endpoint | Description |
@@ -112,6 +136,7 @@ define('ENFORCE_CLI_CRON', true);
 | GET | `/api.php?action=banks` | List banks |
 | GET | `/api.php?action=currencies` | List currencies |
 | GET | `/api.php?action=version` | App version |
+| GET | `/api.php?action=ai_model` | OpenRouter model status |
 
 ## Localization
 
@@ -123,6 +148,24 @@ To add a new language:
 2. Copy keys from `locales/en.php`
 3. Translate values
 4. Add `de` to `AVAILABLE_LOCALES` in `config.php`
+
+## CI/CD Flow (Control -> Test -> Deploy)
+
+GitHub Actions workflow: `.github/workflows/quality-test-deploy.yml`
+
+1. `Control`: syntax checks on PHP 8.3 and 8.4
+2. `Test`: smoke tests on PHP 8.3 and 8.4
+3. `Deploy`: runs only when control + test pass on `main` push (webhook-based, optional)
+4. `Auto Remediation`: opens an issue automatically if pipeline fails on `main`
+
+## Adding New Banks
+
+To add a new bank source later:
+
+1. Create a new scraper class in `banks/` extending `Scraper`
+2. Implement `scrape()` and parse rules for the bank table
+3. Add the class name to `$ACTIVE_BANKS` in `config.php`
+4. Insert bank metadata into `banks` table (`name`, `slug`, `url`, `scraper_class`)
 
 ## Legal Disclaimer
 
