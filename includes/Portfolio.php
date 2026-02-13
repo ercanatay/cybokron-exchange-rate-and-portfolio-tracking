@@ -450,6 +450,270 @@ class Portfolio
         return Database::execute('DELETE FROM portfolio_groups WHERE ' . $where, $params) > 0;
     }
 
+    // ─── Bulk Group Operations ─────────────────────────────────────────
+
+    /**
+     * Bulk assign items to a group.
+     */
+    public static function bulkAssignGroup(array $itemIds, ?int $groupId): int
+    {
+        if (empty($itemIds)) {
+            return 0;
+        }
+        $ids = array_map('intval', $itemIds);
+        $ids = array_filter($ids, fn($id) => $id > 0);
+        if (empty($ids)) {
+            return 0;
+        }
+
+        // Validate group exists if not null
+        if ($groupId !== null && $groupId > 0) {
+            $group = Database::queryOne('SELECT id FROM portfolio_groups WHERE id = ?', [$groupId]);
+            if (!$group) {
+                return 0;
+            }
+        } else {
+            $groupId = null;
+        }
+
+        $placeholders = implode(',', array_fill(0, count($ids), '?'));
+        $params = [$groupId];
+        $where = "id IN ({$placeholders})";
+        $params = array_merge($params, $ids);
+
+        if (class_exists('Auth') && Auth::check() && !Auth::isAdmin()) {
+            $userId = Auth::id();
+            if ($userId !== null) {
+                $where .= ' AND (user_id IS NULL OR user_id = ?)';
+                $params[] = $userId;
+            }
+        }
+
+        return Database::execute(
+            "UPDATE portfolio SET group_id = ? WHERE {$where} AND deleted_at IS NULL",
+            $params
+        );
+    }
+
+    // ─── Tag Management ─────────────────────────────────────────────────
+
+    /**
+     * Get all tags for current user.
+     */
+    public static function getTags(): array
+    {
+        $where = '1=1';
+        $params = [];
+
+        if (class_exists('Auth') && Auth::check() && !Auth::isAdmin()) {
+            $userId = Auth::id();
+            if ($userId !== null) {
+                $where .= ' AND (t.user_id IS NULL OR t.user_id = ?)';
+                $params[] = $userId;
+            }
+        }
+
+        return Database::query(
+            "SELECT t.*, (SELECT COUNT(*) FROM portfolio_tag_items pti
+              JOIN portfolio p ON p.id = pti.portfolio_id AND p.deleted_at IS NULL
+              WHERE pti.tag_id = t.id) AS item_count
+             FROM portfolio_tags t WHERE {$where} ORDER BY t.name",
+            $params
+        );
+    }
+
+    /**
+     * Add a new tag.
+     */
+    public static function addTag(array $data): int
+    {
+        $name = trim((string) ($data['name'] ?? ''));
+        if ($name === '' || mb_strlen($name, 'UTF-8') > 50) {
+            throw new InvalidArgumentException('Tag name is required (max 50 chars)');
+        }
+
+        $slug = self::generateSlug($name);
+
+        $color = trim((string) ($data['color'] ?? '#8b5cf6'));
+        if (!preg_match('/^#[0-9a-fA-F]{6}$/', $color)) {
+            $color = '#8b5cf6';
+        }
+
+        $userId = null;
+        if (class_exists('Auth') && Auth::check()) {
+            $userId = Auth::id();
+        }
+
+        return Database::insert('portfolio_tags', [
+            'user_id' => $userId,
+            'name' => $name,
+            'slug' => $slug,
+            'color' => $color,
+        ]);
+    }
+
+    /**
+     * Update a tag.
+     */
+    public static function updateTag(int $id, array $data): bool
+    {
+        if ($id <= 0) {
+            return false;
+        }
+
+        $update = [];
+
+        if (isset($data['name'])) {
+            $name = trim((string) $data['name']);
+            if ($name === '' || mb_strlen($name, 'UTF-8') > 50) {
+                throw new InvalidArgumentException('Tag name is required (max 50 chars)');
+            }
+            $update['name'] = $name;
+            $update['slug'] = self::generateSlug($name);
+        }
+
+        if (isset($data['color'])) {
+            $color = trim((string) $data['color']);
+            if (preg_match('/^#[0-9a-fA-F]{6}$/', $color)) {
+                $update['color'] = $color;
+            }
+        }
+
+        if (empty($update)) {
+            return false;
+        }
+
+        $where = 'id = ?';
+        $params = [$id];
+        if (class_exists('Auth') && Auth::check() && !Auth::isAdmin()) {
+            $userId = Auth::id();
+            if ($userId !== null) {
+                $where .= ' AND (user_id IS NULL OR user_id = ?)';
+                $params[] = $userId;
+            }
+        }
+
+        return Database::update('portfolio_tags', $update, $where, $params) > 0;
+    }
+
+    /**
+     * Delete a tag and all its item associations.
+     */
+    public static function deleteTag(int $id): bool
+    {
+        if ($id <= 0) {
+            return false;
+        }
+
+        $where = 'id = ?';
+        $params = [$id];
+        if (class_exists('Auth') && Auth::check() && !Auth::isAdmin()) {
+            $userId = Auth::id();
+            if ($userId !== null) {
+                $where .= ' AND (user_id IS NULL OR user_id = ?)';
+                $params[] = $userId;
+            }
+        }
+
+        // Remove pivot records
+        Database::execute('DELETE FROM portfolio_tag_items WHERE tag_id = ?', [$id]);
+
+        return Database::execute('DELETE FROM portfolio_tags WHERE ' . $where, $params) > 0;
+    }
+
+    /**
+     * Assign a tag to a portfolio item (ignores duplicates).
+     */
+    public static function assignTag(int $portfolioId, int $tagId): bool
+    {
+        if ($portfolioId <= 0 || $tagId <= 0) {
+            return false;
+        }
+        // Check if already exists
+        $existing = Database::queryOne(
+            'SELECT id FROM portfolio_tag_items WHERE portfolio_id = ? AND tag_id = ?',
+            [$portfolioId, $tagId]
+        );
+        if ($existing) {
+            return true; // already assigned
+        }
+        Database::insert('portfolio_tag_items', [
+            'portfolio_id' => $portfolioId,
+            'tag_id' => $tagId,
+        ]);
+        return true;
+    }
+
+    /**
+     * Remove a tag from a portfolio item.
+     */
+    public static function removeTag(int $portfolioId, int $tagId): bool
+    {
+        return Database::execute(
+            'DELETE FROM portfolio_tag_items WHERE portfolio_id = ? AND tag_id = ?',
+            [$portfolioId, $tagId]
+        ) > 0;
+    }
+
+    /**
+     * Bulk assign a tag to multiple portfolio items.
+     */
+    public static function bulkAssignTag(array $itemIds, int $tagId): int
+    {
+        if (empty($itemIds) || $tagId <= 0) {
+            return 0;
+        }
+        $count = 0;
+        foreach ($itemIds as $id) {
+            $id = (int) $id;
+            if ($id > 0 && self::assignTag($id, $tagId)) {
+                $count++;
+            }
+        }
+        return $count;
+    }
+
+    /**
+     * Bulk remove a tag from multiple portfolio items.
+     */
+    public static function bulkRemoveTag(array $itemIds, int $tagId): int
+    {
+        if (empty($itemIds) || $tagId <= 0) {
+            return 0;
+        }
+        $count = 0;
+        foreach ($itemIds as $id) {
+            $id = (int) $id;
+            if ($id > 0 && self::removeTag($id, $tagId)) {
+                $count++;
+            }
+        }
+        return $count;
+    }
+
+    /**
+     * Get all tags for all portfolio items (keyed by portfolio_id).
+     */
+    public static function getAllItemTags(): array
+    {
+        $sql = "SELECT pti.portfolio_id, t.id AS tag_id, t.name, t.slug, t.color
+                FROM portfolio_tag_items pti
+                JOIN portfolio_tags t ON t.id = pti.tag_id
+                ORDER BY t.name";
+        $rows = Database::query($sql);
+        $result = [];
+        foreach ($rows as $row) {
+            $pid = (int) $row['portfolio_id'];
+            $result[$pid][] = [
+                'id' => (int) $row['tag_id'],
+                'name' => $row['name'],
+                'slug' => $row['slug'],
+                'color' => $row['color'],
+            ];
+        }
+        return $result;
+    }
+
     /**
      * Generate a URL-safe slug from a name.
      */
