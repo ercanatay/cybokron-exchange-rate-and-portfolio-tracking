@@ -964,6 +964,74 @@ function jsonResponse(array $data, int $statusCode = 200): void
 }
 
 /**
+ * Check whether the site is set to noindex (hide from search engines).
+ */
+function isSiteNoindex(): bool
+{
+    static $cached = null;
+    if ($cached !== null) {
+        return $cached;
+    }
+    try {
+        $row = Database::queryOne('SELECT value FROM settings WHERE `key` = ?', ['site_noindex']);
+        $cached = ($row && ($row['value'] ?? '0') === '1');
+    } catch (\Throwable $e) {
+        $cached = false;
+    }
+    return $cached;
+}
+
+/**
+ * Generate SEO meta tags for the <head> section.
+ *
+ * @param array{title:string,description:string,canonical?:string,page?:string} $meta
+ */
+function renderSeoMeta(array $meta): string
+{
+    $title = htmlspecialchars($meta['title'] ?? APP_NAME, ENT_QUOTES, 'UTF-8');
+    $description = htmlspecialchars($meta['description'] ?? '', ENT_QUOTES, 'UTF-8');
+    $appUrl = defined('APP_URL') ? rtrim(APP_URL, '/') : '';
+    $canonical = $meta['canonical'] ?? '';
+    if ($canonical === '' && $appUrl !== '') {
+        $page = $meta['page'] ?? basename($_SERVER['SCRIPT_NAME'] ?? 'index.php');
+        $canonical = $appUrl . '/' . $page;
+    }
+
+    $out = '';
+
+    // Description
+    if ($description !== '') {
+        $out .= '    <meta name="description" content="' . $description . '">' . "\n";
+    }
+
+    // Robots
+    if (isSiteNoindex()) {
+        $out .= '    <meta name="robots" content="noindex, nofollow">' . "\n";
+    } else {
+        $out .= '    <meta name="robots" content="index, follow">' . "\n";
+    }
+
+    // Canonical
+    if ($canonical !== '') {
+        $out .= '    <link rel="canonical" href="' . htmlspecialchars($canonical, ENT_QUOTES, 'UTF-8') . '">' . "\n";
+    }
+
+    // Open Graph
+    $out .= '    <meta property="og:type" content="website">' . "\n";
+    $out .= '    <meta property="og:title" content="' . $title . '">' . "\n";
+    if ($description !== '') {
+        $out .= '    <meta property="og:description" content="' . $description . '">' . "\n";
+    }
+    if ($canonical !== '') {
+        $out .= '    <meta property="og:url" content="' . htmlspecialchars($canonical, ENT_QUOTES, 'UTF-8') . '">' . "\n";
+    }
+    $out .= '    <meta property="og:site_name" content="' . htmlspecialchars(APP_NAME, ENT_QUOTES, 'UTF-8') . '">' . "\n";
+    $out .= '    <meta property="og:locale" content="' . htmlspecialchars(getAppLocale(), ENT_QUOTES, 'UTF-8') . '">' . "\n";
+
+    return $out;
+}
+
+/**
  * Simple logging.
  */
 function cybokron_log(string $message, string $level = 'INFO'): void

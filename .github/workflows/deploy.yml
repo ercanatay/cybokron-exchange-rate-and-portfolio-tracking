@@ -28,6 +28,7 @@ jobs:
           APP_URL: ${{ secrets.APP_URL }}
           TURNSTILE_SITE_KEY: ${{ secrets.TURNSTILE_SITE_KEY }}
           TURNSTILE_SECRET_KEY: ${{ secrets.TURNSTILE_SECRET_KEY }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
         run: |
           cat > config.php << 'PHPEOF'
           <?php
@@ -62,7 +63,7 @@ jobs:
           define('SCRAPE_RETRY_DELAY', 5);
           define('SCRAPE_ALLOWED_HOSTS', ['dunyakatilim.com.tr', 'www.dunyakatilim.com.tr', 'www.tcmb.gov.tr', 'tcmb.gov.tr', 'kur.doviz.com', 'doviz.com']);
           define('OPENROUTER_AI_REPAIR_ENABLED', true);
-          define('OPENROUTER_API_KEY', '');
+          define('OPENROUTER_API_KEY', '__OPENROUTER_API_KEY__');
           define('OPENROUTER_MODEL', 'z-ai/glm-5');
           define('OPENROUTER_API_URL', 'https://openrouter.ai/api/v1/chat/completions');
           define('OPENROUTER_ALLOWED_HOSTS', ['openrouter.ai']);
@@ -70,8 +71,8 @@ jobs:
           define('OPENROUTER_AI_COOLDOWN_SECONDS', 21600);
           define('OPENROUTER_AI_MAX_INPUT_CHARS', 12000);
           define('OPENROUTER_AI_MAX_ROWS', 160);
-          define('OPENROUTER_AI_MAX_TOKENS', 600);
-          define('OPENROUTER_AI_TIMEOUT_SECONDS', 25);
+          define('OPENROUTER_AI_MAX_TOKENS', 4000);
+          define('OPENROUTER_AI_TIMEOUT_SECONDS', 60);
           define('API_ALLOW_CORS', false);
           define('API_ALLOWED_ORIGINS', []);
           define('API_REQUIRE_CSRF', true);
@@ -116,6 +117,7 @@ jobs:
           sed -i "s|__APP_URL__|${APP_URL}|g" config.php
           sed -i "s|__TURNSTILE_SITE_KEY__|${TURNSTILE_SITE_KEY}|g" config.php
           sed -i "s|__TURNSTILE_SECRET_KEY__|${TURNSTILE_SECRET_KEY}|g" config.php
+          sed -i "s|__OPENROUTER_API_KEY__|${OPENROUTER_API_KEY}|g" config.php
 
       - name: Setup SSH key
         run: |

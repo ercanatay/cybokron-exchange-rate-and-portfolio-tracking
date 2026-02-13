@@ -62,6 +62,11 @@ $version = trim(file_get_contents(__DIR__ . '/VERSION'));
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= t('observability.title') ?> — <?= APP_NAME ?></title>
+<?= renderSeoMeta([
+    'title' => t('observability.title') . ' — ' . APP_NAME,
+    'description' => t('seo.observability_description'),
+    'page' => 'observability.php',
+]) ?>
     <link rel="icon" type="image/svg+xml" href="favicon.svg">
     <link rel="stylesheet" href="assets/css/style.css?v=<?= filemtime(__DIR__ . '/assets/css/style.css') ?>">
 </head>

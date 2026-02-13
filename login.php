@@ -50,6 +50,11 @@ $currentLocale = getAppLocale();
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= t('auth.login_title') ?> — <?= APP_NAME ?></title>
+<?= renderSeoMeta([
+    'title' => t('auth.login_title') . ' — ' . APP_NAME,
+    'description' => t('seo.login_description'),
+    'page' => 'login.php',
+]) ?>
     <link rel="icon" type="image/svg+xml" href="favicon.svg">
     <link rel="stylesheet" href="assets/css/style.css?v=<?= filemtime(__DIR__ . '/assets/css/style.css') ?>">
     <?php if (defined('TURNSTILE_ENABLED') && TURNSTILE_ENABLED): ?>

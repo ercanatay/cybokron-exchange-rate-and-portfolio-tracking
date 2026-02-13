@@ -135,7 +135,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         }
     }
 
-    if (!in_array($_POST['action'], ['update_rates', 'toggle_homepage', 'set_default_bank', 'update_rate_order', 'set_chart_defaults', 'save_widget_config'], true)) {
+    if ($_POST['action'] === 'toggle_noindex') {
+        $currentNoindex = Database::queryOne('SELECT value FROM settings WHERE `key` = ?', ['site_noindex']);
+        $newValue = ($currentNoindex && ($currentNoindex['value'] ?? '0') === '1') ? '0' : '1';
+        Database::query(
+            'INSERT INTO settings (`key`, value) VALUES (?, ?) ON DUPLICATE KEY UPDATE value = ?',
+            ['site_noindex', $newValue, $newValue]
+        );
+        $message = t('admin.noindex_updated');
+        $messageType = 'success';
+    }
+
+    if (!in_array($_POST['action'], ['update_rates', 'toggle_homepage', 'set_default_bank', 'update_rate_order', 'set_chart_defaults', 'save_widget_config', 'toggle_noindex'], true)) {
         header('Location: admin.php');
         exit;
     }
@@ -216,6 +227,11 @@ foreach ($allRates as $r) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= t('admin.title') ?> — <?= APP_NAME ?></title>
+<?= renderSeoMeta([
+    'title' => t('admin.title') . ' — ' . APP_NAME,
+    'description' => t('seo.admin_description'),
+    'page' => 'admin.php',
+]) ?>
     <link rel="icon" type="image/svg+xml" href="favicon.svg">
     <link rel="stylesheet" href="assets/css/style.css?v=<?= filemtime(__DIR__ . '/assets/css/style.css') ?>">
     <link rel="stylesheet" href="assets/css/admin.css">
@@ -374,6 +390,40 @@ foreach ($allRates as $r) {
                             </li>
                         <?php endforeach; ?>
                     </ul>
+                </div>
+            </div>
+
+            <!-- SEO Settings -->
+            <div class="admin-card">
+                <div class="admin-card-header">
+                    <div class="admin-card-header-left">
+                        <div class="admin-card-icon" style="background: linear-gradient(135deg, #10b98120, #059e6820);">🔍</div>
+                        <div>
+                            <h2><?= t('admin.seo_settings') ?></h2>
+                            <p><?= t('admin.seo_settings_desc') ?></p>
+                        </div>
+                    </div>
+                </div>
+                <div class="admin-card-body">
+                    <?php $isNoindex = isSiteNoindex(); ?>
+                    <div class="settings-form" style="display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap;">
+                        <div style="flex:1; min-width:200px;">
+                            <strong><?= t('admin.noindex_label') ?></strong>
+                            <p style="margin:4px 0 0; font-size:0.85rem; color:var(--text-muted);"><?= t('admin.noindex_desc') ?></p>
+                            <p style="margin:8px 0 0;">
+                                <span class="badge <?= $isNoindex ? 'badge-muted' : 'badge-success' ?>">
+                                    <?= $isNoindex ? t('admin.noindex_enabled') : t('admin.noindex_disabled') ?>
+                                </span>
+                            </p>
+                        </div>
+                        <form method="POST" style="margin:0;">
+                            <input type="hidden" name="action" value="toggle_noindex">
+                            <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
+                            <button type="submit" class="btn <?= $isNoindex ? 'btn-primary' : 'btn-action' ?>" style="white-space:nowrap;">
+                                <?= $isNoindex ? '🌐 ' . t('admin.show') : '🚫 ' . t('admin.hide') ?>
+                            </button>
+                        </form>
+                    </div>
                 </div>
             </div>
 
@@ -681,7 +731,8 @@ foreach ($allRates as $r) {
     <footer class="footer">
         <div class="container">
             <p>Cybokron v<?= htmlspecialchars($version) ?> | <a
-                    href="observability.php"><?= t('observability.title') ?></a></p>
+                    href="observability.php"><?= t('observability.title') ?></a> | <a
+                    href="openrouter.php"><?= t('nav.openrouter') ?></a></p>
         </div>
     </footer>
 
