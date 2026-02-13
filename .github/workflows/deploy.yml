@@ -1,16 +1,20 @@
 name: Deploy to Production
 
 on:
-  push:
-    branches: [main]
+  workflow_call:
   workflow_dispatch:
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Read version
+        id: version
+        run: echo "VERSION=$(cat VERSION)" >> "$GITHUB_OUTPUT"
 
       - name: Generate config.php
         env:
@@ -110,6 +114,34 @@ jobs:
           chmod 600 ~/.ssh/deploy_key
           ssh-keyscan -H ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts 2>/dev/null
 
+      - name: Backup current deployment
+        run: |
+          TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \
+            ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} bash -s << BACKUP_EOF
+          set -e
+          mkdir -p ~/cybokron-backups
+
+          # Create backup of current deployment (exclude logs and backups)
+          if [ -f ~/public_html/index.php ]; then
+            echo "Creating backup: deploy-${TIMESTAMP}.tar.gz"
+            cd ~/public_html
+            tar czf ~/cybokron-backups/deploy-${TIMESTAMP}.tar.gz \
+              --exclude='.well-known' \
+              --exclude='cgi-bin' \
+              . 2>/dev/null || true
+            echo "Backup created successfully"
+          else
+            echo "No existing deployment to backup (first deploy?)"
+          fi
+
+          # Keep only last 3 backups
+          cd ~/cybokron-backups
+          ls -1t deploy-*.tar.gz 2>/dev/null | tail -n +4 | xargs -r rm -f
+          echo "Backup cleanup done. Current backups:"
+          ls -lh deploy-*.tar.gz 2>/dev/null || echo "  (none)"
+          BACKUP_EOF
+
       - name: Deploy files
         run: |
           rsync -rlgoDzvc --delete \
@@ -139,3 +171,73 @@ jobs:
           ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \
             ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} \
             'mkdir -p ~/cybokron-logs ~/cybokron-backups && chmod 600 ~/public_html/config.php && echo "Deploy OK at $(date)"'
+
+      - name: Run database migrations
+        run: |
+          echo "Running database migrations..."
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \
+            ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} \
+            'cd ~/public_html && php database/migrator.php'
+
+      - name: Update admin password
+        env:
+          ADMIN_HASH: ${{ secrets.ADMIN_PASSWORD_HASH }}
+        run: |
+          if [ -n "${ADMIN_HASH}" ]; then
+            echo "Updating admin password..."
+            ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \
+              ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} \
+              "cd ~/public_html && php -r '
+                require_once \"includes/helpers.php\";
+                cybokron_init();
+                \\\$pdo = Database::getInstance();
+                \\\$stmt = \\\$pdo->prepare(\"UPDATE users SET password_hash = ? WHERE username = ?\");
+                \\\$stmt->execute([\"${ADMIN_HASH}\", \"admin\"]);
+                echo \"admin password updated (\" . \\\$stmt->rowCount() . \" row)\";
+              '"
+          else
+            echo "ADMIN_PASSWORD_HASH secret not set, skipping password update."
+          fi
+
+      - name: Update app version in database
+        env:
+          APP_VERSION: ${{ steps.version.outputs.VERSION }}
+        run: |
+          echo "Setting app_version to ${APP_VERSION}"
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \
+            ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} \
+            "cd ~/public_html && php -r \"
+              require_once 'includes/helpers.php';
+              cybokron_init();
+              \\\$pdo = Database::getInstance();
+              \\\$stmt = \\\$pdo->prepare('INSERT INTO settings (\\\`key\\\`, value) VALUES (\\\"app_version\\\", ?) ON DUPLICATE KEY UPDATE value = ?');
+              \\\$stmt->execute(['${APP_VERSION}', '${APP_VERSION}']);
+              echo 'app_version updated to ${APP_VERSION}';
+            \""
+
+      - name: Smoke test
+        env:
+          APP_URL: ${{ secrets.APP_URL }}
+        run: |
+          echo "Running smoke test on ${APP_URL}..."
+          HTTP_STATUS=$(curl -s -o /dev/null -w '%{http_code}' --max-time 30 "${APP_URL}" || true)
+          echo "HTTP Status: ${HTTP_STATUS}"
+          if [ "${HTTP_STATUS}" -ge 200 ] && [ "${HTTP_STATUS}" -lt 400 ]; then
+            echo "Smoke test PASSED"
+          else
+            echo "Smoke test FAILED (HTTP ${HTTP_STATUS})"
+            exit 1
+          fi
+
+      - name: Deploy summary
+        if: always()
+        env:
+          APP_VERSION: ${{ steps.version.outputs.VERSION }}
+        run: |
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "Deploy Summary"
+          echo "  Version: ${APP_VERSION}"
+          echo "  Commit:  ${GITHUB_SHA:0:7}"
+          echo "  Branch:  ${GITHUB_REF_NAME}"
+          echo "  Time:    $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
