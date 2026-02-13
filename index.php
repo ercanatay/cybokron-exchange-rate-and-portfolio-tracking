@@ -93,11 +93,15 @@ sort($converterCurrencies);
 
 // Top movers: currencies with largest absolute change (any bank)
 $changeByCurrency = [];
+$currencyNameMap = [];
 foreach ($rates as $r) {
     $code = $r['currency_code'];
     $chg = (float) ($r['change_percent'] ?? 0);
     if (!isset($changeByCurrency[$code]) || abs($chg) > abs($changeByCurrency[$code])) {
         $changeByCurrency[$code] = $chg;
+    }
+    if (!isset($currencyNameMap[$code])) {
+        $currencyNameMap[$code] = localizedCurrencyName($r);
     }
 }
 uasort($changeByCurrency, fn($a, $b) => abs($b) <=> abs($a));
@@ -272,7 +276,12 @@ foreach ($widgetConfig as $w) {
                                 ?>
                                 <li class="<?= changeClass($chg) ?>" style="--change-width: <?= $changeWidth ?>%">
                                     <span class="mover-rank"><?= $rank ?></span>
-                                    <span class="currency-code"><?= htmlspecialchars($code) ?></span>
+                                    <span class="mover-currency">
+                                        <span class="currency-code"><?= htmlspecialchars($code) ?></span>
+                                        <?php $cName = $currencyNameMap[$code] ?? ''; if ($cName !== ''): ?>
+                                            <span class="currency-label"><?= htmlspecialchars($cName) ?></span>
+                                        <?php endif; ?>
+                                    </span>
                                     <span class="mover-change">
                                         <?= changeArrow($chg) ?> %<?= formatNumberLocalized(abs($chg), 2) ?>
                                     </span>
