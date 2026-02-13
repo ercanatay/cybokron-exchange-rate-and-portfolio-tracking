@@ -50,6 +50,10 @@ if ($row) {
     echo "  input hash length: " . strlen($hash) . "\n";
     echo "  input hash prefix: " . substr($hash, 0, 7) . "\n";
     echo "  hashes match: " . ($row['password_hash'] === $hash ? 'YES' : 'NO') . "\n";
+    // Test password_verify with known password
+    $testResult = password_verify('Cyb0kr0n!2026xQ', $row['password_hash']);
+    echo "  password_verify test: " . ($testResult ? 'PASS' : 'FAIL') . "\n";
+    echo "  PHP version: " . PHP_VERSION . "\n";
 } else {
     echo "  WARNING: admin user NOT FOUND after insert!\n";
 }
