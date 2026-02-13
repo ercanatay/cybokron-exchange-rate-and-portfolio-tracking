@@ -146,7 +146,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         $messageType = 'success';
     }
 
-    if (!in_array($_POST['action'], ['update_rates', 'toggle_homepage', 'set_default_bank', 'update_rate_order', 'set_chart_defaults', 'save_widget_config', 'toggle_noindex'], true)) {
+    if ($_POST['action'] === 'save_openrouter_settings') {
+        $orApiKey = trim((string) ($_POST['openrouter_api_key'] ?? ''));
+        $orModel = trim((string) ($_POST['openrouter_model'] ?? ''));
+
+        if ($orApiKey !== '') {
+            Database::query(
+                'INSERT INTO settings (`key`, value) VALUES (?, ?) ON DUPLICATE KEY UPDATE value = ?',
+                ['openrouter_api_key', $orApiKey, $orApiKey]
+            );
+        }
+
+        if ($orModel !== '' && preg_match('/^[a-zA-Z0-9._\/-]{3,120}$/', $orModel)) {
+            Database::query(
+                'INSERT INTO settings (`key`, value) VALUES (?, ?) ON DUPLICATE KEY UPDATE value = ?',
+                ['openrouter_model', $orModel, $orModel]
+            );
+        }
+
+        $message = t('admin.openrouter_settings_saved');
+        $messageType = 'success';
+    }
+
+    if (!in_array($_POST['action'], ['update_rates', 'toggle_homepage', 'set_default_bank', 'update_rate_order', 'set_chart_defaults', 'save_widget_config', 'toggle_noindex', 'save_openrouter_settings'], true)) {
         header('Location: admin.php');
         exit;
     }
@@ -642,6 +664,77 @@ foreach ($allRates as $r) {
                 </div>
             </div>
 
+            <!-- OpenRouter AI Settings -->
+            <?php
+            $dbApiKey = Database::queryOne('SELECT value FROM settings WHERE `key` = ?', ['openrouter_api_key']);
+            $dbApiKeyVal = trim($dbApiKey['value'] ?? '');
+            $effectiveApiKey = $dbApiKeyVal !== '' ? $dbApiKeyVal : (defined('OPENROUTER_API_KEY') ? trim((string) OPENROUTER_API_KEY) : '');
+            $maskedKey = $effectiveApiKey !== '' ? str_repeat('*', max(0, strlen($effectiveApiKey) - 4)) . substr($effectiveApiKey, -4) : '';
+            $keySource = $dbApiKeyVal !== '' ? 'DB' : ($effectiveApiKey !== '' ? 'config.php' : '');
+
+            $dbModel = Database::queryOne('SELECT value FROM settings WHERE `key` = ?', ['openrouter_model']);
+            $effectiveModel = trim($dbModel['value'] ?? '');
+            if ($effectiveModel === '') {
+                $effectiveModel = defined('OPENROUTER_MODEL') ? trim((string) OPENROUTER_MODEL) : 'z-ai/glm-5';
+            }
+            ?>
+            <div class="admin-card">
+                <div class="admin-card-header">
+                    <div class="admin-card-header-left">
+                        <div class="admin-card-icon" style="background: linear-gradient(135deg, #8b5cf620, #a78bfa20);">🤖</div>
+                        <div>
+                            <h2><?= t('admin.openrouter_settings') ?></h2>
+                            <p><?= t('admin.openrouter_settings_desc') ?></p>
+                        </div>
+                    </div>
+                    <?php if ($effectiveApiKey !== ''): ?>
+                        <span class="badge badge-success">● <?= t('admin.config_set') ?></span>
+                    <?php else: ?>
+                        <span class="badge badge-muted">○ <?= t('admin.config_not_set') ?></span>
+                    <?php endif; ?>
+                </div>
+                <div class="admin-card-body">
+                    <form method="POST" class="or-settings-form">
+                        <input type="hidden" name="action" value="save_openrouter_settings">
+                        <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
+
+                        <div class="or-field-group">
+                            <div class="or-field">
+                                <label for="openrouter_api_key"><?= t('admin.openrouter_api_key_label') ?></label>
+                                <div class="or-input-wrapper">
+                                    <input type="password" id="openrouter_api_key" name="openrouter_api_key"
+                                           placeholder="<?= $maskedKey !== '' ? $maskedKey : 'sk-or-v1-...' ?>"
+                                           autocomplete="off" spellcheck="false">
+                                    <button type="button" class="or-toggle-vis" onclick="var i=document.getElementById('openrouter_api_key');i.type=i.type==='password'?'text':'password';this.textContent=i.type==='password'?'👁️':'🙈'" title="<?= t('admin.openrouter_toggle_key') ?>">👁️</button>
+                                </div>
+                                <small class="or-field-hint">
+                                    <?php if ($keySource === 'DB'): ?>
+                                        <?= t('admin.openrouter_key_source_db') ?>
+                                    <?php elseif ($keySource === 'config.php'): ?>
+                                        <?= t('admin.openrouter_key_source_config') ?>
+                                    <?php else: ?>
+                                        <?= t('admin.openrouter_key_not_configured') ?>
+                                    <?php endif; ?>
+                                </small>
+                            </div>
+
+                            <div class="or-field">
+                                <label for="openrouter_model"><?= t('admin.openrouter_model_label') ?></label>
+                                <input type="text" id="openrouter_model" name="openrouter_model"
+                                       value="<?= htmlspecialchars($effectiveModel) ?>"
+                                       placeholder="z-ai/glm-5" spellcheck="false">
+                                <small class="or-field-hint"><?= t('admin.openrouter_model_hint') ?></small>
+                            </div>
+                        </div>
+
+                        <div class="or-actions">
+                            <button type="submit" class="btn btn-primary"><?= t('admin.save') ?></button>
+                            <a href="openrouter.php" class="btn-action"><?= t('admin.openrouter_panel_link') ?> →</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
             <!-- System Configuration (read-only) -->
             <div class="admin-card">
                 <div class="admin-card-header">
@@ -654,72 +747,114 @@ foreach ($allRates as $r) {
                     </div>
                 </div>
                 <div class="admin-card-body">
-                    <div class="config-grid">
-                        <?php
-                        $configSections = [
-                            t('admin.config_section_security') => [
-                                'TURNSTILE_ENABLED' => [defined('TURNSTILE_ENABLED') ? TURNSTILE_ENABLED : false, 'bool'],
-                                'ENABLE_SECURITY_HEADERS' => [defined('ENABLE_SECURITY_HEADERS') ? ENABLE_SECURITY_HEADERS : false, 'bool'],
-                                'API_REQUIRE_CSRF' => [defined('API_REQUIRE_CSRF') ? API_REQUIRE_CSRF : true, 'bool'],
-                                'ENFORCE_CLI_CRON' => [defined('ENFORCE_CLI_CRON') ? ENFORCE_CLI_CRON : true, 'bool'],
-                                'LOGIN_RATE_LIMIT' => [defined('LOGIN_RATE_LIMIT') ? LOGIN_RATE_LIMIT . ' / ' . (defined('LOGIN_RATE_WINDOW_SECONDS') ? LOGIN_RATE_WINDOW_SECONDS : 300) . 's' : '—', 'text'],
-                                'AUTH_REQUIRE_PORTFOLIO' => [defined('AUTH_REQUIRE_PORTFOLIO') ? AUTH_REQUIRE_PORTFOLIO : false, 'bool'],
+                    <?php
+                    $configSections = [
+                        [
+                            'title' => t('admin.config_section_security'),
+                            'icon' => '🛡️',
+                            'color' => '#22c55e',
+                            'items' => [
+                                ['label' => 'Turnstile CAPTCHA', 'value' => defined('TURNSTILE_ENABLED') ? TURNSTILE_ENABLED : false, 'type' => 'bool'],
+                                ['label' => t('admin.cfg_security_headers'), 'value' => defined('ENABLE_SECURITY_HEADERS') ? ENABLE_SECURITY_HEADERS : false, 'type' => 'bool'],
+                                ['label' => 'CSRF', 'value' => defined('API_REQUIRE_CSRF') ? API_REQUIRE_CSRF : true, 'type' => 'bool'],
+                                ['label' => t('admin.cfg_cli_cron'), 'value' => defined('ENFORCE_CLI_CRON') ? ENFORCE_CLI_CRON : true, 'type' => 'bool'],
+                                ['label' => t('admin.cfg_login_limit'), 'value' => defined('LOGIN_RATE_LIMIT') ? LOGIN_RATE_LIMIT . ' / ' . (defined('LOGIN_RATE_WINDOW_SECONDS') ? LOGIN_RATE_WINDOW_SECONDS : 300) . 's' : '—', 'type' => 'text'],
+                                ['label' => t('admin.cfg_portfolio_auth'), 'value' => defined('AUTH_REQUIRE_PORTFOLIO') ? AUTH_REQUIRE_PORTFOLIO : false, 'type' => 'bool'],
                             ],
-                            t('admin.config_section_scraping') => [
-                                'SCRAPE_TIMEOUT' => [defined('SCRAPE_TIMEOUT') ? SCRAPE_TIMEOUT . 's' : '—', 'text'],
-                                'SCRAPE_RETRY_COUNT' => [defined('SCRAPE_RETRY_COUNT') ? SCRAPE_RETRY_COUNT : '—', 'text'],
-                                'OPENROUTER_AI_REPAIR_ENABLED' => [defined('OPENROUTER_AI_REPAIR_ENABLED') ? OPENROUTER_AI_REPAIR_ENABLED : false, 'bool'],
-                                'OPENROUTER_MODEL' => [defined('OPENROUTER_MODEL') ? OPENROUTER_MODEL : '—', 'text'],
-                                'OPENROUTER_API_KEY' => [defined('OPENROUTER_API_KEY') && OPENROUTER_API_KEY !== '' ? true : false, 'secret'],
+                        ],
+                        [
+                            'title' => t('admin.config_section_scraping'),
+                            'icon' => '🔄',
+                            'color' => '#f59e0b',
+                            'items' => [
+                                ['label' => t('admin.cfg_scrape_timeout'), 'value' => defined('SCRAPE_TIMEOUT') ? SCRAPE_TIMEOUT . 's' : '—', 'type' => 'text'],
+                                ['label' => t('admin.cfg_retry_count'), 'value' => defined('SCRAPE_RETRY_COUNT') ? (string) SCRAPE_RETRY_COUNT : '—', 'type' => 'text'],
+                                ['label' => t('admin.cfg_ai_repair'), 'value' => defined('OPENROUTER_AI_REPAIR_ENABLED') ? OPENROUTER_AI_REPAIR_ENABLED : false, 'type' => 'bool'],
+                                ['label' => t('admin.cfg_ai_model'), 'value' => defined('OPENROUTER_MODEL') ? OPENROUTER_MODEL : '—', 'type' => 'mono'],
+                                ['label' => 'API Key', 'value' => defined('OPENROUTER_API_KEY') && OPENROUTER_API_KEY !== '' ? true : false, 'type' => 'secret'],
                             ],
-                            t('admin.config_section_market') => [
-                                'UPDATE_INTERVAL_MINUTES' => [defined('UPDATE_INTERVAL_MINUTES') ? UPDATE_INTERVAL_MINUTES . ' min' : '—', 'text'],
-                                'MARKET_OPEN_HOUR' => [defined('MARKET_OPEN_HOUR') ? sprintf('%02d:00', MARKET_OPEN_HOUR) : '—', 'text'],
-                                'MARKET_CLOSE_HOUR' => [defined('MARKET_CLOSE_HOUR') ? sprintf('%02d:00', MARKET_CLOSE_HOUR) : '—', 'text'],
-                                'MARKET_DAYS' => [defined('MARKET_DAYS') ? implode(', ', array_map(fn($d) => ['','Pzt','Sal','Çar','Per','Cum','Cmt','Paz'][$d] ?? $d, MARKET_DAYS)) : '—', 'text'],
-                                'RATE_HISTORY_RETENTION_DAYS' => [defined('RATE_HISTORY_RETENTION_DAYS') ? RATE_HISTORY_RETENTION_DAYS . ' ' . t('index.chart.days_unit') : '—', 'text'],
+                        ],
+                        [
+                            'title' => t('admin.config_section_market'),
+                            'icon' => '📅',
+                            'color' => '#3b82f6',
+                            'items' => [
+                                ['label' => t('admin.cfg_update_interval'), 'value' => defined('UPDATE_INTERVAL_MINUTES') ? UPDATE_INTERVAL_MINUTES . ' min' : '—', 'type' => 'text'],
+                                ['label' => t('admin.cfg_market_open'), 'value' => defined('MARKET_OPEN_HOUR') ? sprintf('%02d:00', MARKET_OPEN_HOUR) : '—', 'type' => 'text'],
+                                ['label' => t('admin.cfg_market_close'), 'value' => defined('MARKET_CLOSE_HOUR') ? sprintf('%02d:00', MARKET_CLOSE_HOUR) : '—', 'type' => 'text'],
+                                ['label' => t('admin.cfg_market_days'), 'value' => defined('MARKET_DAYS') ? implode(', ', array_map(fn($d) => [1 => t('admin.day_mon'), 2 => t('admin.day_tue'), 3 => t('admin.day_wed'), 4 => t('admin.day_thu'), 5 => t('admin.day_fri'), 6 => t('admin.day_sat'), 7 => t('admin.day_sun')][$d] ?? $d, MARKET_DAYS)) : '—', 'type' => 'text'],
+                                ['label' => t('admin.cfg_history_retention'), 'value' => defined('RATE_HISTORY_RETENTION_DAYS') ? RATE_HISTORY_RETENTION_DAYS . ' ' . t('index.chart.days_unit') : '—', 'type' => 'text'],
                             ],
-                            t('admin.config_section_alerts') => [
-                                'ALERT_EMAIL_TO' => [defined('ALERT_EMAIL_TO') && ALERT_EMAIL_TO !== '' ? true : false, 'secret'],
-                                'ALERT_TELEGRAM_BOT_TOKEN' => [defined('ALERT_TELEGRAM_BOT_TOKEN') && ALERT_TELEGRAM_BOT_TOKEN !== '' ? true : false, 'secret'],
-                                'ALERT_WEBHOOK_URL' => [defined('ALERT_WEBHOOK_URL') && ALERT_WEBHOOK_URL !== '' ? true : false, 'secret'],
-                                'ALERT_COOLDOWN_MINUTES' => [defined('ALERT_COOLDOWN_MINUTES') ? ALERT_COOLDOWN_MINUTES . ' min' : '—', 'text'],
-                                'RATE_UPDATE_WEBHOOK_URL' => [defined('RATE_UPDATE_WEBHOOK_URL') && RATE_UPDATE_WEBHOOK_URL !== '' ? true : false, 'secret'],
+                        ],
+                        [
+                            'title' => t('admin.config_section_alerts'),
+                            'icon' => '🔔',
+                            'color' => '#ec4899',
+                            'items' => [
+                                ['label' => 'E-posta', 'value' => defined('ALERT_EMAIL_TO') && ALERT_EMAIL_TO !== '' ? true : false, 'type' => 'secret'],
+                                ['label' => 'Telegram Bot', 'value' => defined('ALERT_TELEGRAM_BOT_TOKEN') && ALERT_TELEGRAM_BOT_TOKEN !== '' ? true : false, 'type' => 'secret'],
+                                ['label' => 'Webhook', 'value' => defined('ALERT_WEBHOOK_URL') && ALERT_WEBHOOK_URL !== '' ? true : false, 'type' => 'secret'],
+                                ['label' => t('admin.cfg_alert_cooldown'), 'value' => defined('ALERT_COOLDOWN_MINUTES') ? ALERT_COOLDOWN_MINUTES . ' min' : '—', 'type' => 'text'],
+                                ['label' => t('admin.cfg_rate_webhook'), 'value' => defined('RATE_UPDATE_WEBHOOK_URL') && RATE_UPDATE_WEBHOOK_URL !== '' ? true : false, 'type' => 'secret'],
                             ],
-                            t('admin.config_section_api') => [
-                                'API_ALLOW_CORS' => [defined('API_ALLOW_CORS') ? API_ALLOW_CORS : false, 'bool'],
-                                'API_READ_RATE_LIMIT' => [defined('API_READ_RATE_LIMIT') ? API_READ_RATE_LIMIT . ' / ' . (defined('API_READ_RATE_WINDOW_SECONDS') ? API_READ_RATE_WINDOW_SECONDS : 60) . 's' : '—', 'text'],
-                                'API_WRITE_RATE_LIMIT' => [defined('API_WRITE_RATE_LIMIT') ? API_WRITE_RATE_LIMIT . ' / ' . (defined('API_WRITE_RATE_WINDOW_SECONDS') ? API_WRITE_RATE_WINDOW_SECONDS : 60) . 's' : '—', 'text'],
+                        ],
+                        [
+                            'title' => t('admin.config_section_api'),
+                            'icon' => '⚡',
+                            'color' => '#8b5cf6',
+                            'items' => [
+                                ['label' => 'CORS', 'value' => defined('API_ALLOW_CORS') ? API_ALLOW_CORS : false, 'type' => 'bool'],
+                                ['label' => t('admin.cfg_read_limit'), 'value' => defined('API_READ_RATE_LIMIT') ? API_READ_RATE_LIMIT . ' / ' . (defined('API_READ_RATE_WINDOW_SECONDS') ? API_READ_RATE_WINDOW_SECONDS : 60) . 's' : '—', 'type' => 'text'],
+                                ['label' => t('admin.cfg_write_limit'), 'value' => defined('API_WRITE_RATE_LIMIT') ? API_WRITE_RATE_LIMIT . ' / ' . (defined('API_WRITE_RATE_WINDOW_SECONDS') ? API_WRITE_RATE_WINDOW_SECONDS : 60) . 's' : '—', 'type' => 'text'],
                             ],
-                            t('admin.config_section_system') => [
-                                'APP_DEBUG' => [defined('APP_DEBUG') ? APP_DEBUG : false, 'bool'],
-                                'APP_TIMEZONE' => [defined('APP_TIMEZONE') ? APP_TIMEZONE : '—', 'text'],
-                                'DEFAULT_LOCALE' => [defined('DEFAULT_LOCALE') ? DEFAULT_LOCALE : '—', 'text'],
-                                'AUTO_UPDATE' => [defined('AUTO_UPDATE') ? AUTO_UPDATE : false, 'bool'],
-                                'LOG_ENABLED' => [defined('LOG_ENABLED') ? LOG_ENABLED : false, 'bool'],
-                                'DB_PERSISTENT' => [defined('DB_PERSISTENT') ? DB_PERSISTENT : false, 'bool'],
+                        ],
+                        [
+                            'title' => t('admin.config_section_system'),
+                            'icon' => '🖥️',
+                            'color' => '#64748b',
+                            'items' => [
+                                ['label' => 'Debug', 'value' => defined('APP_DEBUG') ? APP_DEBUG : false, 'type' => 'bool'],
+                                ['label' => t('admin.cfg_timezone'), 'value' => defined('APP_TIMEZONE') ? APP_TIMEZONE : '—', 'type' => 'text'],
+                                ['label' => t('admin.cfg_locale'), 'value' => defined('DEFAULT_LOCALE') ? strtoupper(DEFAULT_LOCALE) : '—', 'type' => 'text'],
+                                ['label' => t('admin.cfg_auto_update'), 'value' => defined('AUTO_UPDATE') ? AUTO_UPDATE : false, 'type' => 'bool'],
+                                ['label' => t('admin.cfg_logging'), 'value' => defined('LOG_ENABLED') ? LOG_ENABLED : false, 'type' => 'bool'],
+                                ['label' => t('admin.cfg_db_persistent'), 'value' => defined('DB_PERSISTENT') ? DB_PERSISTENT : false, 'type' => 'bool'],
                             ],
-                        ];
-                        foreach ($configSections as $sectionName => $items): ?>
-                            <div class="config-section">
-                                <h3 class="config-section-title"><?= htmlspecialchars($sectionName) ?></h3>
-                                <div class="config-items">
-                                    <?php foreach ($items as $key => [$value, $type]): ?>
-                                        <div class="config-item">
-                                            <span class="config-key"><code><?= htmlspecialchars($key) ?></code></span>
-                                            <span class="config-value">
-                                                <?php if ($type === 'bool'): ?>
-                                                    <span class="badge <?= $value ? 'badge-success' : 'badge-muted' ?>"><?= $value ? t('admin.config_enabled') : t('admin.config_disabled') ?></span>
-                                                <?php elseif ($type === 'secret'): ?>
-                                                    <span class="badge <?= $value ? 'badge-success' : 'badge-muted' ?>"><?= $value ? t('admin.config_set') : t('admin.config_not_set') ?></span>
-                                                <?php else: ?>
-                                                    <?= htmlspecialchars((string) $value) ?>
-                                                <?php endif; ?>
-                                            </span>
-                                        </div>
-                                    <?php endforeach; ?>
-                                </div>
+                        ],
+                    ];
+                    ?>
+                    <div class="sc-grid">
+                        <?php foreach ($configSections as $section): ?>
+                        <div class="sc-card">
+                            <div class="sc-card-header" style="--sc-accent: <?= $section['color'] ?>">
+                                <span class="sc-card-icon"><?= $section['icon'] ?></span>
+                                <span class="sc-card-title"><?= htmlspecialchars($section['title']) ?></span>
                             </div>
+                            <div class="sc-card-body">
+                                <?php foreach ($section['items'] as $item): ?>
+                                <div class="sc-row">
+                                    <span class="sc-label"><?= htmlspecialchars($item['label']) ?></span>
+                                    <span class="sc-value">
+                                        <?php if ($item['type'] === 'bool'): ?>
+                                            <span class="sc-indicator <?= $item['value'] ? 'sc-on' : 'sc-off' ?>">
+                                                <span class="sc-dot"></span>
+                                                <?= $item['value'] ? t('admin.config_enabled') : t('admin.config_disabled') ?>
+                                            </span>
+                                        <?php elseif ($item['type'] === 'secret'): ?>
+                                            <span class="sc-indicator <?= $item['value'] ? 'sc-on' : 'sc-off' ?>">
+                                                <span class="sc-dot"></span>
+                                                <?= $item['value'] ? t('admin.config_set') : t('admin.config_not_set') ?>
+                                            </span>
+                                        <?php elseif ($item['type'] === 'mono'): ?>
+                                            <code class="sc-mono"><?= htmlspecialchars((string) $item['value']) ?></code>
+                                        <?php else: ?>
+                                            <span class="sc-text"><?= htmlspecialchars((string) $item['value']) ?></span>
+                                        <?php endif; ?>
+                                    </span>
+                                </div>
+                                <?php endforeach; ?>
+                            </div>
+                        </div>
                         <?php endforeach; ?>
                     </div>
                 </div>
