@@ -22,8 +22,16 @@ if (PHP_SAPI !== 'cli') {
     die('Migration must run from CLI.');
 }
 
-$pdo = Database::getInstance();
-$pdo->setAttribute(PDO::MYSQL_ATTR_USE_BUFFERED_QUERY, true);
+// Create a dedicated PDO connection for migrations with buffered queries enabled.
+// The shared Database::getInstance() connection may have EMULATE_PREPARES=false
+// which causes "unbuffered queries" errors on some hosting environments.
+$dsn = sprintf('mysql:host=%s;dbname=%s;charset=%s', DB_HOST, DB_NAME, DB_CHARSET);
+$pdo = new PDO($dsn, DB_USER, DB_PASS, [
+    PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
+    PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+    PDO::ATTR_EMULATE_PREPARES   => true,
+    PDO::MYSQL_ATTR_USE_BUFFERED_QUERY => true,
+]);
 $migrationsDir = __DIR__ . '/migrations';
 $exitCode = 0;
 
