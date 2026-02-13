@@ -209,7 +209,7 @@ jobs:
           echo "Setting app_version to ${APP_VERSION}"
           ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \
             ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} \
-            "cd ~/public_html && export APP_VERSION='${APP_VERSION}' && php database/update_version.php"
+            "cd ~/public_html && php database/update_version.php '${APP_VERSION}'"
 
       - name: Smoke test
         env:
