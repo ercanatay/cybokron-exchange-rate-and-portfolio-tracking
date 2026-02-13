@@ -383,6 +383,10 @@ return [
     'portfolio.goals.source_removed' => 'Quelle vom Ziel entfernt.',
     'common.add' => 'Hinzufügen',
     'common.select_all' => 'Alle auswählen',
+    'common.delete' => 'Löschen',
+    'common.remove' => 'Entfernen',
+    'common.save' => 'Speichern',
+    'common.cancel' => 'Abbrechen',
 
     // System Config
     'admin.system_config' => 'Systemkonfiguration',

@@ -458,6 +458,10 @@ return [
 
     'common.add' => 'Ekle',
     'common.select_all' => 'Tümünü seç',
+    'common.delete' => 'Sil',
+    'common.remove' => 'Kaldır',
+    'common.save' => 'Kaydet',
+    'common.cancel' => 'İptal',
 
     // OpenRouter AI
     'nav.openrouter' => 'OpenRouter AI',

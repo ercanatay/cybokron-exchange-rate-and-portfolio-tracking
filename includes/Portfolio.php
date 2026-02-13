@@ -1005,6 +1005,23 @@ class Portfolio
     {
         $result = [];
 
+        // Pre-index items for O(1) lookups
+        $itemsById = [];
+        $itemsByGroupId = [];
+        foreach ($allItems as $item) {
+            $id = (int) $item['id'];
+            $itemsById[$id] = $item;
+            $itemsByGroupId[(int) ($item['group_id'] ?? 0)][] = $id;
+        }
+
+        // Pre-index item tags for O(1) lookups
+        $itemsByTagId = [];
+        foreach ($allItemTags as $pid => $tags) {
+            foreach ($tags as $tag) {
+                $itemsByTagId[(int) $tag['id']][] = $pid;
+            }
+        }
+
         foreach ($goals as $goal) {
             $goalId = (int) $goal['id'];
             $targetType = $goal['target_type'] ?? 'value';
@@ -1022,26 +1039,16 @@ class Portfolio
                 if ($sType === 'item') {
                     $matchedItemIds[$sId] = true;
                 } elseif ($sType === 'group') {
-                    foreach ($allItems as $item) {
-                        if ((int) ($item['group_id'] ?? 0) === $sId) {
-                            $matchedItemIds[(int) $item['id']] = true;
-                        }
+                    foreach (($itemsByGroupId[$sId] ?? []) as $id) {
+                        $matchedItemIds[$id] = true;
                     }
                 } elseif ($sType === 'tag') {
-                    foreach ($allItems as $item) {
-                        $tags = $allItemTags[(int) $item['id']] ?? [];
-                        foreach ($tags as $t) {
-                            if ((int) $t['id'] === $sId) {
-                                $matchedItemIds[(int) $item['id']] = true;
-                                break;
-                            }
-                        }
+                    foreach (($itemsByTagId[$sId] ?? []) as $id) {
+                        $matchedItemIds[$id] = true;
                     }
                 }
             }
 
-            // Sum values for matched items (deduplicated)
-            // If bank_slug is set, additionally filter items by bank
             $current = 0.0;
             $countedItems = 0;
 
@@ -1055,8 +1062,9 @@ class Portfolio
                 // For since_first mode: find earliest buy_date among matched items
                 $earliestDate = null;
                 if ($dateMode === 'since_first') {
-                    foreach ($allItems as $item) {
-                        if (!isset($matchedItemIds[(int) $item['id']])) continue;
+                    foreach ($matchedItemIds as $itemId => $ignored) {
+                        $item = $itemsById[$itemId] ?? null;
+                        if (!$item) continue;
                         if ($goalBankSlug !== null && ($item['bank_slug'] ?? '') !== $goalBankSlug) continue;
                         $bd = $item['buy_date'] ?? null;
                         if ($bd && ($earliestDate === null || $bd < $earliestDate)) {
@@ -1075,8 +1083,9 @@ class Portfolio
                 $totalValue = 0.0;
                 $weightedSum = 0.0;
 
-                foreach ($allItems as $item) {
-                    if (!isset($matchedItemIds[(int) $item['id']])) continue;
+                foreach ($matchedItemIds as $itemId => $ignored) {
+                    $item = $itemsById[$itemId] ?? null;
+                    if (!$item) continue;
                     if ($goalBankSlug !== null && ($item['bank_slug'] ?? '') !== $goalBankSlug) continue;
 
                     // Date filter for range and since_first modes
@@ -1131,8 +1140,9 @@ class Portfolio
                 $totalValue = 0.0;
                 $earliestDate = null;
 
-                foreach ($allItems as $item) {
-                    if (!isset($matchedItemIds[(int) $item['id']])) continue;
+                foreach ($matchedItemIds as $itemId => $ignored) {
+                    $item = $itemsById[$itemId] ?? null;
+                    if (!$item) continue;
                     if ($goalBankSlug !== null && ($item['bank_slug'] ?? '') !== $goalBankSlug) continue;
 
                     $itemCost = (float) ($item['cost_try'] ?? 0);
@@ -1185,8 +1195,9 @@ class Portfolio
                 $totalCost = 0.0;
                 $totalValue = 0.0;
 
-                foreach ($allItems as $item) {
-                    if (!isset($matchedItemIds[(int) $item['id']])) continue;
+                foreach ($matchedItemIds as $itemId => $ignored) {
+                    $item = $itemsById[$itemId] ?? null;
+                    if (!$item) continue;
                     if ($goalBankSlug !== null && ($item['bank_slug'] ?? '') !== $goalBankSlug) continue;
 
                     $itemCost = (float) ($item['cost_try'] ?? 0);
@@ -1222,10 +1233,9 @@ class Portfolio
                 continue;
             }
 
-            foreach ($allItems as $item) {
-                if (!isset($matchedItemIds[(int) $item['id']])) {
-                    continue;
-                }
+            foreach ($matchedItemIds as $itemId => $ignored) {
+                $item = $itemsById[$itemId] ?? null;
+                if (!$item) continue;
 
                 // Bank filter: skip items not from the goal's bank
                 if ($goalBankSlug !== null && ($item['bank_slug'] ?? '') !== $goalBankSlug) {

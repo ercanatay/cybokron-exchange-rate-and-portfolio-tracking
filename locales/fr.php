@@ -383,6 +383,10 @@ return [
     'portfolio.goals.source_removed' => 'Source retirée de l\'objectif.',
     'common.add' => 'Ajouter',
     'common.select_all' => 'Tout sélectionner',
+    'common.delete' => 'Supprimer',
+    'common.remove' => 'Retirer',
+    'common.save' => 'Enregistrer',
+    'common.cancel' => 'Annuler',
 
     // System Config
     'admin.system_config' => 'Configuration système',
