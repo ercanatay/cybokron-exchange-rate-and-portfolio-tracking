@@ -191,14 +191,7 @@ jobs:
             echo "Updating admin password..."
             ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \
               ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} \
-              "cd ~/public_html && php -r '
-                require_once \"includes/helpers.php\";
-                cybokron_init();
-                \\\$pdo = Database::getInstance();
-                \\\$stmt = \\\$pdo->prepare(\"UPDATE users SET password_hash = ? WHERE username = ?\");
-                \\\$stmt->execute([\"${ADMIN_HASH}\", \"admin\"]);
-                echo \"admin password updated (\" . \\\$stmt->rowCount() . \" row)\";
-              '"
+              "cd ~/public_html && ADMIN_HASH='${ADMIN_HASH}' php database/update_admin_password.php"
           else
             echo "ADMIN_PASSWORD_HASH secret not set, skipping password update."
           fi
@@ -210,14 +203,7 @@ jobs:
           echo "Setting app_version to ${APP_VERSION}"
           ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \
             ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} \
-            "cd ~/public_html && php -r \"
-              require_once 'includes/helpers.php';
-              cybokron_init();
-              \\\$pdo = Database::getInstance();
-              \\\$stmt = \\\$pdo->prepare('INSERT INTO settings (\\\`key\\\`, value) VALUES (\\\"app_version\\\", ?) ON DUPLICATE KEY UPDATE value = ?');
-              \\\$stmt->execute(['${APP_VERSION}', '${APP_VERSION}']);
-              echo 'app_version updated to ${APP_VERSION}';
-            \""
+            "cd ~/public_html && APP_VERSION='${APP_VERSION}' php database/update_version.php"
 
       - name: Smoke test
         env:
