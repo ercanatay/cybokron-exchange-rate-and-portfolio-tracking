@@ -407,6 +407,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'target_value' => $_POST['goal_target_value'] ?? 0,
                 'target_type' => $_POST['goal_target_type'] ?? 'value',
                 'target_currency' => $_POST['goal_target_currency'] ?? '',
+                'bank_slug' => $_POST['goal_bank_slug'] ?? '',
             ]);
             // Add sources if provided
             $srcTypes = $_POST['goal_source_type'] ?? [];
@@ -434,6 +435,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'target_value' => $_POST['goal_target_value'] ?? 0,
                 'target_type' => $_POST['goal_target_type'] ?? 'value',
                 'target_currency' => $_POST['goal_target_currency'] ?? '',
+                'bank_slug' => $_POST['goal_bank_slug'] ?? '',
             ]);
             // Re-sync sources: remove all then add
             $existingSources = Portfolio::getGoalSources($goalId);
@@ -501,7 +503,18 @@ $tags = Portfolio::getTags();
 $itemTags = Portfolio::getAllItemTags();
 $goals = Portfolio::getGoals();
 $goalSources = Portfolio::getAllGoalSources();
-$goalProgress = Portfolio::computeGoalProgress($goals, $summary['items'] ?? [], $itemTags, $goalSources);
+// Build currency sell rates map for currency_value goals (code => sell_rate in TRY)
+$currencyRatesMap = [];
+$latestRates = getLatestRates(null, null, true);
+foreach ($latestRates as $lr) {
+    $code = strtoupper($lr['currency_code'] ?? '');
+    $sell = (float) ($lr['sell_rate'] ?? 0);
+    // Keep highest sell rate per currency (across banks)
+    if ($code !== '' && $sell > 0 && (!isset($currencyRatesMap[$code]) || $sell > $currencyRatesMap[$code])) {
+        $currencyRatesMap[$code] = $sell;
+    }
+}
+$goalProgress = Portfolio::computeGoalProgress($goals, $summary['items'] ?? [], $itemTags, $goalSources, $currencyRatesMap);
 // Distribution & annualized return will be recalculated after filters are applied
 $currencies = Database::query('SELECT code, name_tr, name_en FROM currencies WHERE is_active = 1 ORDER BY code');
 $banks = Database::query('SELECT slug, name FROM banks WHERE is_active = 1 ORDER BY name');
@@ -856,6 +869,7 @@ $annualizedReturn = ($oldestDate && $analyticsCost > 0)
                                         <option value="value"><?= t('portfolio.goals.type_value') ?></option>
                                         <option value="cost"><?= t('portfolio.goals.type_cost') ?></option>
                                         <option value="amount"><?= t('portfolio.goals.type_amount') ?></option>
+                                        <option value="currency_value"><?= t('portfolio.goals.type_currency_value') ?></option>
                                     </select>
                                 </div>
                                 <div class="goal-form-field goal-currency-field" id="goal-currency-add" style="display:none">
@@ -864,6 +878,15 @@ $annualizedReturn = ($oldestDate && $analyticsCost > 0)
                                         <option value=""><?= t('portfolio.goals.select_currency') ?></option>
                                         <?php foreach ($currencies as $c): ?>
                                             <option value="<?= htmlspecialchars($c['code']) ?>"><?= htmlspecialchars($c['code']) ?> — <?= htmlspecialchars(localizedCurrencyName($c)) ?></option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                </div>
+                                <div class="goal-form-field">
+                                    <label><?= t('portfolio.goals.bank') ?></label>
+                                    <select name="goal_bank_slug">
+                                        <option value=""><?= t('portfolio.goals.all_banks') ?></option>
+                                        <?php foreach ($banks as $bank): ?>
+                                            <option value="<?= htmlspecialchars($bank['slug']) ?>"><?= htmlspecialchars($bank['name']) ?></option>
                                         <?php endforeach; ?>
                                     </select>
                                 </div>
@@ -912,8 +935,21 @@ $annualizedReturn = ($oldestDate && $analyticsCost > 0)
                                 $pct = $gp['percent'];
                                 $barColor = $pct >= 100 ? '#22c55e' : ($pct >= 50 ? '#eab308' : '#9ca3af');
                                 $gSources = $goalSources[(int)$goal['id']] ?? [];
-                                $isAmountGoal = ($goal['target_type'] ?? 'value') === 'amount';
+                                $goalTargetType = $goal['target_type'] ?? 'value';
+                                $isAmountGoal = $goalTargetType === 'amount';
+                                $isCurrencyValueGoal = $goalTargetType === 'currency_value';
+                                $hasCurrencyUnit = ($isAmountGoal || $isCurrencyValueGoal);
                                 $goalCurrency = $goal['target_currency'] ?? '';
+                                $goalBankSlug = $goal['bank_slug'] ?? '';
+                                $goalBankName = '';
+                                if ($goalBankSlug) {
+                                    foreach ($banks as $bk) {
+                                        if ($bk['slug'] === $goalBankSlug) {
+                                            $goalBankName = $bk['name'];
+                                            break;
+                                        }
+                                    }
+                                }
                             ?>
                                 <div class="goal-card">
                                     <div class="goal-card-header">
@@ -921,8 +957,11 @@ $annualizedReturn = ($oldestDate && $analyticsCost > 0)
                                             <span class="goal-name">🎯 <?= htmlspecialchars($goal['name']) ?></span>
                                             <span class="goal-meta">
                                                 <?= t('portfolio.goals.type_' . ($goal['target_type'] ?? 'value')) ?>
-                                                <?php if ($isAmountGoal && $goalCurrency): ?>
+                                                <?php if ($hasCurrencyUnit && $goalCurrency): ?>
                                                     <span class="goal-currency-badge"><?= htmlspecialchars($goalCurrency) ?></span>
+                                                <?php endif; ?>
+                                                <?php if ($goalBankName): ?>
+                                                    <span class="goal-bank-badge">🏦 <?= htmlspecialchars($goalBankName) ?></span>
                                                 <?php endif; ?>
                                                 · <?= $gp['item_count'] ?> <?= t('portfolio.goals.items') ?>
                                             </span>
@@ -946,6 +985,8 @@ $annualizedReturn = ($oldestDate && $analyticsCost > 0)
                                         <span class="goal-current<?= $pct >= 100 ? ' goal-complete' : '' ?>">
                                             <?php if ($isAmountGoal): ?>
                                                 <?= formatNumberLocalized($gp['current'], 4) ?> <?= htmlspecialchars($goalCurrency) ?>
+                                            <?php elseif ($isCurrencyValueGoal): ?>
+                                                <?= formatNumberLocalized($gp['current'], 2) ?> <?= htmlspecialchars($goalCurrency) ?>
                                             <?php else: ?>
                                                 <?= formatTRY($gp['current']) ?>
                                             <?php endif; ?>
@@ -956,6 +997,8 @@ $annualizedReturn = ($oldestDate && $analyticsCost > 0)
                                         <span class="goal-target">
                                             <?php if ($isAmountGoal): ?>
                                                 <?= formatNumberLocalized($gp['target'], 4) ?> <?= htmlspecialchars($goalCurrency) ?>
+                                            <?php elseif ($isCurrencyValueGoal): ?>
+                                                <?= formatNumberLocalized($gp['target'], 2) ?> <?= htmlspecialchars($goalCurrency) ?>
                                             <?php else: ?>
                                                 <?= formatTRY($gp['target']) ?>
                                             <?php endif; ?>
@@ -1019,9 +1062,10 @@ $annualizedReturn = ($oldestDate && $analyticsCost > 0)
                                                     <option value="value" <?= ($goal['target_type'] ?? 'value') === 'value' ? 'selected' : '' ?>><?= t('portfolio.goals.type_value') ?></option>
                                                     <option value="cost" <?= ($goal['target_type'] ?? 'value') === 'cost' ? 'selected' : '' ?>><?= t('portfolio.goals.type_cost') ?></option>
                                                     <option value="amount" <?= ($goal['target_type'] ?? 'value') === 'amount' ? 'selected' : '' ?>><?= t('portfolio.goals.type_amount') ?></option>
+                                                    <option value="currency_value" <?= ($goal['target_type'] ?? 'value') === 'currency_value' ? 'selected' : '' ?>><?= t('portfolio.goals.type_currency_value') ?></option>
                                                 </select>
                                             </div>
-                                            <div class="goal-form-field goal-currency-field" id="goal-currency-edit-<?= (int)$goal['id'] ?>" style="<?= $isAmountGoal ? '' : 'display:none' ?>">
+                                            <div class="goal-form-field goal-currency-field" id="goal-currency-edit-<?= (int)$goal['id'] ?>" style="<?= $hasCurrencyUnit ? '' : 'display:none' ?>">
                                                 <label><?= t('portfolio.goals.currency') ?></label>
                                                 <select name="goal_target_currency">
                                                     <option value=""><?= t('portfolio.goals.select_currency') ?></option>
@@ -1031,7 +1075,16 @@ $annualizedReturn = ($oldestDate && $analyticsCost > 0)
                                                 </select>
                                             </div>
                                             <div class="goal-form-field">
-                                                <label id="goal-target-label-edit-<?= (int)$goal['id'] ?>"><?= $isAmountGoal ? t('portfolio.goals.target_amount') : t('portfolio.goals.target_value') ?></label>
+                                                <label><?= t('portfolio.goals.bank') ?></label>
+                                                <select name="goal_bank_slug">
+                                                    <option value=""><?= t('portfolio.goals.all_banks') ?></option>
+                                                    <?php foreach ($banks as $bk): ?>
+                                                        <option value="<?= htmlspecialchars($bk['slug']) ?>" <?= $goalBankSlug === $bk['slug'] ? 'selected' : '' ?>><?= htmlspecialchars($bk['name']) ?></option>
+                                                    <?php endforeach; ?>
+                                                </select>
+                                            </div>
+                                            <div class="goal-form-field">
+                                                <label id="goal-target-label-edit-<?= (int)$goal['id'] ?>"><?= $isAmountGoal ? t('portfolio.goals.target_amount') : ($isCurrencyValueGoal ? t('portfolio.goals.target_currency_value_label') : t('portfolio.goals.target_value')) ?></label>
                                                 <input type="number" name="goal_target_value" step="0.000001" value="<?= (float)$goal['target_value'] ?>" required>
                                             </div>
                                         </div>
@@ -1654,19 +1707,24 @@ $annualizedReturn = ($oldestDate && $analyticsCost > 0)
 
         /* ─── Goal Type → Currency Field Toggle ────────────────────────────── */
         function goalTypeChanged(select, formId) {
-            var isAmount = select.value === 'amount';
+            var val = select.value;
+            var needsCurrency = (val === 'amount' || val === 'currency_value');
             var currField = document.getElementById('goal-currency-' + formId);
             var label = document.getElementById('goal-target-label-' + formId);
-            if (currField) currField.style.display = isAmount ? '' : 'none';
+            if (currField) currField.style.display = needsCurrency ? '' : 'none';
             if (label) {
-                label.textContent = isAmount
-                    ? <?= json_encode(t('portfolio.goals.target_amount'), JSON_UNESCAPED_UNICODE) ?>
-                    : <?= json_encode(t('portfolio.goals.target_value'), JSON_UNESCAPED_UNICODE) ?>;
+                if (val === 'amount') {
+                    label.textContent = <?= json_encode(t('portfolio.goals.target_amount'), JSON_UNESCAPED_UNICODE) ?>;
+                } else if (val === 'currency_value') {
+                    label.textContent = <?= json_encode(t('portfolio.goals.target_currency_value_label'), JSON_UNESCAPED_UNICODE) ?>;
+                } else {
+                    label.textContent = <?= json_encode(t('portfolio.goals.target_value'), JSON_UNESCAPED_UNICODE) ?>;
+                }
             }
             // Toggle required on currency select
             if (currField) {
                 var sel = currField.querySelector('select');
-                if (sel) sel.required = isAmount;
+                if (sel) sel.required = needsCurrency;
             }
         }
 

@@ -2413,6 +2413,16 @@ button:focus-visible,
     letter-spacing: 0.5px;
     vertical-align: middle;
 }
+.goal-bank-badge {
+    display: inline-block;
+    background: linear-gradient(135deg, #0ea5e9, #06b6d4);
+    color: #fff;
+    font-size: 0.65rem;
+    font-weight: 600;
+    padding: 1px 6px;
+    border-radius: 4px;
+    vertical-align: middle;
+}
 .goal-form-grid-4 {
     grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
 }
