@@ -3,14 +3,19 @@
  * Basic offline caching for static assets
  */
 
-const CACHE_NAME = 'cybokron-v1';
+const CACHE_NAME = 'cybokron-v2';
 const STATIC_ASSETS = [
   '/',
   '/index.php',
   '/login.php',
   '/assets/css/style.css',
+  '/assets/css/currency-icons.css',
+  '/assets/js/bootstrap.js',
   '/assets/js/theme.js',
   '/assets/js/app.js',
+  '/assets/js/converter.js',
+  '/assets/js/chart.js',
+  '/assets/js/lib/chart.umd.min.js',
   '/manifest.json'
 ];
 

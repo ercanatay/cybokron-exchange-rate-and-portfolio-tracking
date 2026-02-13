@@ -18,7 +18,9 @@ if (Auth::check()) {
 
 $error = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    if (!enforceLoginRateLimit()) {
+    if (!verifyCsrfToken($_POST['csrf_token'] ?? null)) {
+        $error = t('common.invalid_request');
+    } elseif (!enforceLoginRateLimit()) {
         $error = t('auth.error_rate_limit');
     } elseif (defined('TURNSTILE_ENABLED') && TURNSTILE_ENABLED && !verifyTurnstile($_POST['cf-turnstile-response'] ?? '')) {
         $error = t('auth.error_captcha');
@@ -69,6 +71,7 @@ $currentLocale = getAppLocale();
             <div class="alert alert-error"><?= htmlspecialchars($error) ?></div>
         <?php endif; ?>
         <form method="POST" class="portfolio-form">
+            <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(getCsrfToken()) ?>">
             <div class="form-group">
                 <label for="username"><?= t('auth.username') ?></label>
                 <input type="text" name="username" id="username" required autofocus autocomplete="username">

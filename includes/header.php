@@ -26,10 +26,13 @@ $_headerActivePage = $activePage ?? '';
 
         <!-- Mobile: Auth button visible outside hamburger -->
         <?php if (Auth::check()): ?>
-            <a href="logout.php" class="header-auth-btn header-auth-btn--logout header-auth-btn--mobile" title="<?= t('nav.logout') ?>">
-                <span class="auth-icon">🚪</span>
-                <span class="auth-text"><?= t('nav.logout') ?></span>
-            </a>
+            <form method="POST" action="logout.php" class="header-auth-form header-auth-form--mobile" style="display:inline">
+                <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(getCsrfToken()) ?>">
+                <button type="submit" class="header-auth-btn header-auth-btn--logout header-auth-btn--mobile" title="<?= t('nav.logout') ?>">
+                    <span class="auth-icon">🚪</span>
+                    <span class="auth-text"><?= t('nav.logout') ?></span>
+                </button>
+            </form>
         <?php else: ?>
             <a href="login.php" class="header-auth-btn header-auth-btn--login header-auth-btn--mobile" title="<?= t('nav.login') ?>">
                 <span class="auth-icon">🔑</span>
@@ -112,12 +115,15 @@ $_headerActivePage = $activePage ?? '';
 
                 <!-- Auth -->
                 <?php if (Auth::check()): ?>
-                    <a href="logout.php" class="header-auth-btn header-auth-btn--logout" title="<?= t('nav.logout') ?>">
-                        <span class="auth-icon">🚪</span>
-                        <span class="auth-text">
-                            <?= t('nav.logout') ?>
-                        </span>
-                    </a>
+                    <form method="POST" action="logout.php" class="header-auth-form" style="display:inline">
+                        <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(getCsrfToken()) ?>">
+                        <button type="submit" class="header-auth-btn header-auth-btn--logout" title="<?= t('nav.logout') ?>">
+                            <span class="auth-icon">🚪</span>
+                            <span class="auth-text">
+                                <?= t('nav.logout') ?>
+                            </span>
+                        </button>
+                    </form>
                 <?php else: ?>
                     <a href="login.php" class="header-auth-btn header-auth-btn--login" title="<?= t('nav.login') ?>">
                         <span class="auth-icon">🔑</span>

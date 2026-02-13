@@ -19,10 +19,10 @@
     --border: #2a2e3f;
     --text: #e4e6f0;
     --text-muted: #8b8fa3;
-    --primary: #3b82f6;
+    --primary: #60a5fa;
     --primary-strong: #2563eb;
     --success: #22c55e;
-    --danger: #ef4444;
+    --danger: #f87171;
     --warning: #f59e0b;
     --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     --mono: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
@@ -235,8 +235,10 @@ button:focus-visible,
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 32px;
-    height: 32px;
+    min-width: 44px;
+    min-height: 44px;
+    width: 44px;
+    height: 44px;
     border-radius: 8px;
     border: 1px solid var(--border);
     background: transparent;
@@ -264,9 +266,12 @@ button:focus-visible,
 }
 
 .header-lang-btn {
-    padding: 3px 7px;
+    padding: 6px 10px;
     border-radius: 6px;
-    font-size: 0.68rem;
+    font-size: 0.75rem;
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
     font-weight: 700;
     letter-spacing: 0.04em;
     color: var(--text-muted);
@@ -373,8 +378,10 @@ button:focus-visible,
     justify-content: center;
     align-items: center;
     gap: 5px;
-    width: 36px;
-    height: 36px;
+    min-width: 44px;
+    min-height: 44px;
+    width: 44px;
+    height: 44px;
     border: 1px solid var(--border);
     border-radius: 10px;
     background: transparent;
@@ -569,8 +576,10 @@ button:focus-visible,
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 36px;
-    height: 36px;
+    min-width: 44px;
+    min-height: 44px;
+    width: 44px;
+    height: 44px;
     border-radius: 50%;
     border: 1px solid var(--border);
     background: var(--surface);
@@ -1186,8 +1195,9 @@ button:focus-visible,
 }
 
 .btn-sm {
-    padding: 4px 8px;
+    padding: 8px 14px;
     font-size: 0.8rem;
+    min-height: 44px;
 }
 
 /* ─── Alerts ────────────────────────────────────────────────────────────── */
@@ -1266,8 +1276,8 @@ button:focus-visible,
     }
 
     .header-lang-btn {
-        padding: 3px 6px;
-        font-size: 0.65rem;
+        padding: 4px 8px;
+        font-size: 0.72rem;
     }
 
     .header-auth-btn {
@@ -1513,9 +1523,10 @@ button:focus-visible,
 }
 
 .btn-xs {
-    padding: 4px 8px;
+    padding: 6px 12px;
     font-size: 0.75rem;
     border-radius: 6px;
+    min-height: 44px;
 }
 
 /* ─── Filter Bar ────────────────────────────────────────────────────── */

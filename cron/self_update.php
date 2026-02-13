@@ -9,6 +9,7 @@
 
 require_once __DIR__ . '/../includes/helpers.php';
 cybokron_init();
+require_once __DIR__ . '/../includes/Updater.php';
 ensureCliExecution();
 
 if (!defined('AUTO_UPDATE') || !AUTO_UPDATE) {

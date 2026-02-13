@@ -451,15 +451,15 @@ foreach ($widgetConfig as $w) {
     </footer>
 
     <script id="cybokron-rates-data" type="application/json"><?= json_encode($converterRates ?? []) ?></script>
-    <script src="assets/js/bootstrap.js"></script>
-    <script src="assets/js/lib/chart.umd.min.js"></script>
-    <script src="assets/js/theme.js"></script>
-    <script src="assets/js/app.js"></script>
+    <script src="assets/js/bootstrap.js" defer></script>
+    <script src="assets/js/lib/chart.umd.min.js" defer></script>
+    <script src="assets/js/theme.js" defer></script>
+    <script src="assets/js/app.js" defer></script>
     <?php if (!empty($converterRates)): ?>
-    <script src="assets/js/converter.js"></script>
+    <script src="assets/js/converter.js" defer></script>
     <?php endif; ?>
     <?php if (!empty($chartCurrencies)): ?>
-    <script src="assets/js/chart.js"></script>
+    <script src="assets/js/chart.js" defer></script>
     <?php endif; ?>
 </body>
 </html>

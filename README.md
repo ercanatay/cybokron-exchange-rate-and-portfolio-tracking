@@ -254,6 +254,30 @@ To add a new bank source later:
 
 ## Changelog
 
+### v1.5.2 (2026-02-13)
+
+Security hardening, accessibility improvements, and performance optimizations.
+
+**Security**
+- Added CSRF token validation to login form (`login.php`)
+- Converted logout from GET to POST with CSRF protection (`logout.php`, `header.php`)
+- Added explicit SSL verification (`CURLOPT_SSL_VERIFYPEER`, `CURLOPT_SSL_VERIFYHOST`) to webhook and alert curl calls (`WebhookDispatcher.php`, `AlertChecker.php`)
+
+**UI/UX & Accessibility**
+- Increased all touch targets to minimum 44px (WCAG 2.5.5): theme toggle, hamburger menu, swap button, language pills, `.btn-sm`, `.btn-xs`, admin `.btn-icon` and `.btn-action`
+- Improved `--danger` color contrast from `#ef4444` to `#f87171` (~5.5:1 ratio on dark bg)
+- Improved `--primary` color contrast from `#3b82f6` to `#60a5fa` (~6.3:1 ratio on dark bg)
+- Increased language button font size from 0.68rem to 0.75rem
+
+**Performance**
+- Fixed N+1 query issue in OpenRouter panel: 3N separate SELECTs replaced with single `WHERE key IN(...)` batch query
+- Added `defer` attribute to all script tags on index page for non-blocking loading
+- Updated service worker precache list with missing assets (`chart.umd.min.js`, `converter.js`, `chart.js`, `bootstrap.js`, `currency-icons.css`), cache version bumped to `cybokron-v2`
+- Lazy-loaded `Scraper.php`, `OpenRouterRateRepair.php`, `Updater.php` — removed from `cybokron_init()`, now loaded only in cron scripts that need them
+
+**Localization**
+- Added `nav.logout_action` translation key in Turkish and English
+
 ### v1.5.1 (2026-02-13)
 
 Admin panel improvements: editable OpenRouter settings and redesigned system configuration UI.
