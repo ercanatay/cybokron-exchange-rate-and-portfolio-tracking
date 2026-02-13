@@ -771,7 +771,7 @@ $annualizedReturn = ($oldestDate && $analyticsCost > 0)
                                             <input type="hidden" name="action" value="delete_group">
                                             <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
                                             <input type="hidden" name="group_id" value="<?= (int) $group['id'] ?>">
-                                            <button type="submit" class="btn btn-xs btn-danger">🗑</button>
+                                            <button type="submit" class="btn btn-xs btn-danger" aria-label="<?= t('common.delete') ?>">🗑</button>
                                         </form>
                                     </div>
                                     <form method="POST" class="group-edit-form hidden"
@@ -787,7 +787,7 @@ $annualizedReturn = ($oldestDate && $analyticsCost > 0)
                                             <input type="text" name="group_icon"
                                                 value="<?= htmlspecialchars($group['icon'] ?? '') ?>" placeholder="<?= htmlspecialchars(t('portfolio.groups.icon_placeholder')) ?>"
                                                 maxlength="10" class="group-icon-input">
-                                            <button type="submit" class="btn btn-primary btn-xs">💾</button>
+                                            <button type="submit" class="btn btn-primary btn-xs" aria-label="<?= t('common.save') ?>">💾</button>
                                         </div>
                                     </form>
                                 </div>
@@ -844,7 +844,7 @@ $annualizedReturn = ($oldestDate && $analyticsCost > 0)
                                             <input type="hidden" name="action" value="delete_tag">
                                             <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
                                             <input type="hidden" name="tag_id" value="<?= (int) $tag['id'] ?>">
-                                            <button type="submit" class="btn btn-xs btn-danger">🗑</button>
+                                            <button type="submit" class="btn btn-xs btn-danger" aria-label="<?= t('common.delete') ?>">🗑</button>
                                         </form>
                                     </div>
                                     <form method="POST" class="group-edit-form hidden" id="edit-tag-<?= (int) $tag['id'] ?>">
@@ -856,7 +856,7 @@ $annualizedReturn = ($oldestDate && $analyticsCost > 0)
                                                 maxlength="50" required class="group-name-input">
                                             <input type="color" name="tag_color" value="<?= htmlspecialchars($tag['color']) ?>"
                                                 class="group-color-input">
-                                            <button type="submit" class="btn btn-primary btn-xs">💾</button>
+                                            <button type="submit" class="btn btn-primary btn-xs" aria-label="<?= t('common.save') ?>">💾</button>
                                         </div>
                                     </form>
                                 </div>
@@ -1044,7 +1044,7 @@ $annualizedReturn = ($oldestDate && $analyticsCost > 0)
                                                 <input type="hidden" name="goal_id" value="<?= (int)$goal['id'] ?>">
                                                 <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
                                                 <button type="submit" class="goal-favorite-btn<?= !empty($goal['is_favorite']) ? ' active' : '' ?>"
-                                                    title="<?= !empty($goal['is_favorite']) ? t('portfolio.goals.favorite_remove') : t('portfolio.goals.favorite_add') ?>">
+                                                    aria-label="<?= !empty($goal['is_favorite']) ? t('portfolio.goals.favorite_remove') : t('portfolio.goals.favorite_add') ?>" title="<?= !empty($goal['is_favorite']) ? t('portfolio.goals.favorite_remove') : t('portfolio.goals.favorite_add') ?>">
                                                     <?= !empty($goal['is_favorite']) ? '★' : '☆' ?>
                                                 </button>
                                             </form>
@@ -1071,7 +1071,7 @@ $annualizedReturn = ($oldestDate && $analyticsCost > 0)
                                                 <input type="hidden" name="action" value="delete_goal">
                                                 <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
                                                 <input type="hidden" name="goal_id" value="<?= (int)$goal['id'] ?>">
-                                                <button type="submit" class="btn btn-xs btn-danger">🗑</button>
+                                                <button type="submit" class="btn btn-xs btn-danger" aria-label="<?= t('common.delete') ?>">🗑</button>
                                             </form>
                                         </div>
                                     </div>
@@ -1261,7 +1261,7 @@ $annualizedReturn = ($oldestDate && $analyticsCost > 0)
                                                         <input type="hidden" name="goal_source_type[]" value="<?= htmlspecialchars($src['source_type']) ?>">
                                                         <input type="hidden" name="goal_source_id[]" value="<?= (int)$src['source_id'] ?>">
                                                         <span class="goal-source-pill goal-source-<?= htmlspecialchars($src['source_type']) ?>"><?= $srcIcon ?> <?= htmlspecialchars($srcLabel) ?></span>
-                                                        <button type="button" class="btn btn-xs btn-danger" onclick="removeGoalSourceRow(this)">×</button>
+                                                        <button type="button" class="btn btn-xs btn-danger" aria-label="' + removeLabel + ' ' + label + '" onclick="removeGoalSourceRow(this)">×</button>
                                                     </div>
                                                 <?php endforeach; ?>
                                             </div>
@@ -1289,7 +1289,7 @@ $annualizedReturn = ($oldestDate && $analyticsCost > 0)
                                         </div>
                                         <div class="goal-edit-actions">
                                             <button type="submit" class="btn btn-primary btn-xs">💾 <?= t('portfolio.form.update') ?></button>
-                                            <button type="button" class="btn btn-secondary btn-xs" onclick="toggleEditGoal(<?= (int)$goal['id'] ?>)">❌</button>
+                                            <button type="button" class="btn btn-secondary btn-xs" onclick="toggleEditGoal(<?= (int)$goal['id'] ?>)" aria-label="<?= t('common.cancel') ?>">❌</button>
                                         </div>
                                     </form>
                                 </div>
@@ -2005,13 +2005,14 @@ $annualizedReturn = ($oldestDate && $analyticsCost > 0)
                 if (et && ei && et.value === type && ei.value === id) return;
             }
             goalSourceCounter++;
+            var removeLabel = <?= json_encode(t('common.remove')) ?>;
             var icons = {group: '📦', tag: '🏷️', item: '📋'};
             var row = document.createElement('div');
             row.className = 'goal-source-row';
             row.innerHTML = '<input type="hidden" name="goal_source_type[]" value="' + type + '">' +
                 '<input type="hidden" name="goal_source_id[]" value="' + id + '">' +
                 '<span class="goal-source-pill goal-source-' + type + '">' + (icons[type] || '') + ' ' + label + '</span>' +
-                '<button type="button" class="btn btn-xs btn-danger" onclick="removeGoalSourceRow(this)">×</button>';
+                '<button type="button" class="btn btn-xs btn-danger" aria-label="' + removeLabel + ' ' + label + '" onclick="removeGoalSourceRow(this)">×</button>';
             document.getElementById(listId).appendChild(row);
         }
 
