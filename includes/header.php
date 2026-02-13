@@ -66,6 +66,12 @@ $_headerActivePage = $activePage ?? '';
                         <span class="nav-icon">🔍</span>
                         <?= t('observability.title') ?>
                     </a>
+                    <a href="openrouter.php"
+                        class="header-nav-link <?= $_headerActivePage === 'openrouter' ? 'active' : '' ?>"
+                        <?= $_headerActivePage === 'openrouter' ? ' aria-current="page"' : '' ?>>
+                        <span class="nav-icon">🤖</span>
+                        <?= t('nav.openrouter') ?>
+                    </a>
                     <a href="admin.php" class="header-nav-link <?= $_headerActivePage === 'admin' ? 'active' : '' ?>"
                         <?= $_headerActivePage === 'admin' ? ' aria-current="page"' : '' ?>>
                         <span class="nav-icon">⚙️</span>

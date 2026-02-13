@@ -1,0 +1,397 @@
+/**
+ * Cybokron OpenRouter AI Management — Panel Styles
+ */
+
+/* ─── Page Layout ─────────────────────────────────────────────────────── */
+.or-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 24px;
+    padding: 24px 0 40px;
+}
+
+.or-grid .row-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+}
+
+/* ─── Cards (reuse admin-card pattern) ────────────────────────────────── */
+.or-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    overflow: hidden;
+    transition: box-shadow 0.3s ease;
+}
+
+.or-card:hover {
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+}
+
+.or-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 24px;
+    border-bottom: 1px solid var(--border);
+    gap: 12px;
+}
+
+.or-card-header-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.or-card-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+    flex-shrink: 0;
+}
+
+.or-card-icon.connection {
+    background: linear-gradient(135deg, #22c55e20, #16a34a20);
+}
+
+.or-card-icon.stats {
+    background: linear-gradient(135deg, #3b82f620, #2563eb20);
+}
+
+.or-card-icon.logs {
+    background: linear-gradient(135deg, #f59e0b20, #d9790020);
+}
+
+.or-card-icon.model {
+    background: linear-gradient(135deg, #8b5cf620, #7c3aed20);
+}
+
+.or-card-header h2 {
+    font-size: 1rem;
+    font-weight: 700;
+    margin: 0;
+    padding: 0;
+    letter-spacing: -0.01em;
+}
+
+.or-card-header p {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin: 2px 0 0;
+}
+
+.or-card-body {
+    padding: 20px 24px;
+}
+
+/* ─── Connection Status ───────────────────────────────────────────────── */
+.or-status-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 14px;
+    border-radius: 10px;
+    background: var(--surface-hover);
+    font-size: 0.85rem;
+    margin-bottom: 8px;
+}
+
+.or-status-row:last-child {
+    margin-bottom: 0;
+}
+
+.or-status-label {
+    color: var(--text-muted);
+    font-weight: 500;
+}
+
+.or-status-value {
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.or-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.or-dot.green {
+    background: #22c55e;
+    box-shadow: 0 0 8px rgba(34, 197, 94, 0.4);
+    animation: pulse-dot 2s ease-in-out infinite;
+}
+
+.or-dot.red {
+    background: #ef4444;
+    box-shadow: 0 0 8px rgba(239, 68, 68, 0.4);
+}
+
+@keyframes pulse-dot {
+    0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.4); }
+    50% { opacity: 0.8; box-shadow: 0 0 0 6px rgba(34, 197, 94, 0); }
+}
+
+/* ─── Stats Grid ──────────────────────────────────────────────────────── */
+.or-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 12px;
+}
+
+.or-stat-card {
+    padding: 16px;
+    border-radius: 12px;
+    background: var(--surface-hover);
+    border: 1px solid transparent;
+    transition: border-color 0.2s;
+}
+
+.or-stat-card:hover {
+    border-color: var(--border);
+}
+
+.or-stat-card h3 {
+    font-size: 0.85rem;
+    font-weight: 700;
+    margin: 0 0 10px;
+}
+
+.or-stat-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.82rem;
+    padding: 4px 0;
+}
+
+.or-stat-row .label {
+    color: var(--text-muted);
+}
+
+.or-stat-row .value {
+    font-weight: 600;
+}
+
+/* ─── Log Table ───────────────────────────────────────────────────────── */
+.or-log-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.82rem;
+}
+
+.or-log-table thead th {
+    padding: 10px 14px;
+    text-align: left;
+    font-weight: 600;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+    background: var(--surface-hover);
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+}
+
+.or-log-table tbody tr {
+    border-bottom: 1px solid var(--border);
+    transition: background 0.15s;
+}
+
+.or-log-table tbody tr:last-child {
+    border-bottom: none;
+}
+
+.or-log-table tbody tr:hover {
+    background: var(--surface-hover);
+}
+
+.or-log-table td {
+    padding: 10px 14px;
+    vertical-align: middle;
+}
+
+.or-log-table .highlight-row {
+    background: rgba(245, 158, 11, 0.06);
+}
+
+.or-log-table .highlight-row:hover {
+    background: rgba(245, 158, 11, 0.1);
+}
+
+.or-log-table .message-cell {
+    max-width: 300px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* ─── Model Form ──────────────────────────────────────────────────────── */
+.or-model-form {
+    display: flex;
+    gap: 12px;
+    align-items: flex-end;
+    flex-wrap: wrap;
+}
+
+.or-model-form .form-field {
+    flex: 1;
+    min-width: 200px;
+}
+
+.or-model-form .form-field label {
+    display: block;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 6px;
+}
+
+.or-model-form .form-field input {
+    width: 100%;
+    padding: 10px 14px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--bg);
+    color: var(--text);
+    font-size: 0.875rem;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    font-family: var(--mono);
+}
+
+.or-model-form .form-field input:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+}
+
+/* ─── Test Result ─────────────────────────────────────────────────────── */
+.or-test-result {
+    margin-top: 12px;
+    padding: 12px 16px;
+    border-radius: 10px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    display: none;
+}
+
+.or-test-result.success {
+    display: block;
+    background: rgba(34, 197, 94, 0.1);
+    color: #16a34a;
+    border: 1px solid rgba(34, 197, 94, 0.2);
+}
+
+.or-test-result.error {
+    display: block;
+    background: rgba(239, 68, 68, 0.1);
+    color: #ef4444;
+    border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+[data-theme="dark"] .or-test-result.success {
+    color: #4ade80;
+}
+
+[data-theme="dark"] .or-test-result.error {
+    color: #f87171;
+}
+
+/* ─── Badges ──────────────────────────────────────────────────────────── */
+.or-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 0.72rem;
+    font-weight: 600;
+}
+
+.or-badge-success {
+    background: rgba(34, 197, 94, 0.12);
+    color: #16a34a;
+}
+
+.or-badge-warning {
+    background: rgba(245, 158, 11, 0.12);
+    color: #d97900;
+}
+
+.or-badge-danger {
+    background: rgba(239, 68, 68, 0.12);
+    color: #ef4444;
+}
+
+.or-badge-muted {
+    background: rgba(100, 116, 139, 0.12);
+    color: #64748b;
+}
+
+[data-theme="dark"] .or-badge-success { color: #4ade80; }
+[data-theme="dark"] .or-badge-warning { color: #fbbf24; }
+[data-theme="dark"] .or-badge-danger { color: #f87171; }
+[data-theme="dark"] .or-badge-muted { color: #94a3b8; }
+
+/* ─── Alert messages ──────────────────────────────────────────────────── */
+.or-alert {
+    padding: 14px 20px;
+    border-radius: 12px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    margin-bottom: 16px;
+}
+
+.or-alert-success {
+    background: rgba(34, 197, 94, 0.1);
+    color: #16a34a;
+    border: 1px solid rgba(34, 197, 94, 0.2);
+}
+
+.or-alert-error {
+    background: rgba(239, 68, 68, 0.1);
+    color: #ef4444;
+    border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+[data-theme="dark"] .or-alert-success { color: #4ade80; }
+[data-theme="dark"] .or-alert-error { color: #f87171; }
+
+/* ─── Responsive ──────────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+    .or-grid .row-2 {
+        grid-template-columns: 1fr;
+    }
+
+    .or-card-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .or-model-form {
+        flex-direction: column;
+    }
+
+    .or-model-form .form-field {
+        min-width: 100%;
+    }
+
+    .or-stats-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .or-log-table td,
+    .or-log-table th {
+        padding: 8px 10px;
+    }
+}
