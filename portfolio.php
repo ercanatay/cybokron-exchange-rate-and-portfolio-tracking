@@ -259,10 +259,151 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $messageType = 'error';
         }
     }
+
+    // Bulk group assign
+    if ($messageType === '' && $action === 'bulk_assign_group') {
+        $selectedIds = $_POST['selected_ids'] ?? [];
+        $bulkGroupId = $_POST['bulk_group_id'] ?? '';
+        if (!empty($selectedIds) && is_array($selectedIds)) {
+            $gid = $bulkGroupId !== '' ? (int) $bulkGroupId : null;
+            $count = Portfolio::bulkAssignGroup($selectedIds, $gid);
+            $message = t('portfolio.bulk.success', ['count' => $count]);
+            $messageType = 'success';
+        } else {
+            $message = t('portfolio.bulk.no_selection');
+            $messageType = 'error';
+        }
+    }
+
+    // Bulk group remove
+    if ($messageType === '' && $action === 'bulk_remove_group') {
+        $selectedIds = $_POST['selected_ids'] ?? [];
+        if (!empty($selectedIds) && is_array($selectedIds)) {
+            $count = Portfolio::bulkAssignGroup($selectedIds, null);
+            $message = t('portfolio.bulk.success', ['count' => $count]);
+            $messageType = 'success';
+        } else {
+            $message = t('portfolio.bulk.no_selection');
+            $messageType = 'error';
+        }
+    }
+
+    // Tag actions
+    if ($messageType === '' && $action === 'add_tag') {
+        try {
+            Portfolio::addTag([
+                'name' => trim((string) ($_POST['tag_name'] ?? '')),
+                'color' => trim((string) ($_POST['tag_color'] ?? '#8b5cf6')),
+            ]);
+            $message = t('portfolio.tags.added');
+            $messageType = 'success';
+        } catch (Throwable $e) {
+            cybokron_log('Tag add failed: ' . $e->getMessage(), 'ERROR');
+            $message = t('portfolio.tags.error');
+            $messageType = 'error';
+        }
+    }
+
+    if ($messageType === '' && $action === 'edit_tag' && !empty($_POST['tag_id'])) {
+        try {
+            Portfolio::updateTag((int) $_POST['tag_id'], [
+                'name' => trim((string) ($_POST['tag_name'] ?? '')),
+                'color' => trim((string) ($_POST['tag_color'] ?? '')),
+            ]);
+            $message = t('portfolio.tags.updated');
+            $messageType = 'success';
+        } catch (Throwable $e) {
+            cybokron_log('Tag edit failed: ' . $e->getMessage(), 'ERROR');
+            $message = t('portfolio.tags.error');
+            $messageType = 'error';
+        }
+    }
+
+    if ($messageType === '' && $action === 'delete_tag' && !empty($_POST['tag_id'])) {
+        if (Portfolio::deleteTag((int) $_POST['tag_id'])) {
+            $message = t('portfolio.tags.deleted');
+            $messageType = 'success';
+        } else {
+            $message = t('portfolio.tags.error');
+            $messageType = 'error';
+        }
+    }
+
+    // Inline tag assign (from table row)
+    if ($messageType === '' && $action === 'inline_assign_tag') {
+        $portfolioId = (int) ($_POST['portfolio_id'] ?? 0);
+        $tagId = (int) ($_POST['tag_id'] ?? 0);
+        if ($portfolioId > 0 && $tagId > 0 && Portfolio::assignTag($portfolioId, $tagId)) {
+            $message = t('portfolio.tags.assigned');
+            $messageType = 'success';
+        } else {
+            $message = t('portfolio.tags.error');
+            $messageType = 'error';
+        }
+    }
+
+    // Inline tag remove (from table row)
+    if ($messageType === '' && $action === 'inline_remove_tag') {
+        $portfolioId = (int) ($_POST['portfolio_id'] ?? 0);
+        $tagId = (int) ($_POST['tag_id'] ?? 0);
+        if ($portfolioId > 0 && $tagId > 0 && Portfolio::removeTag($portfolioId, $tagId)) {
+            $message = t('portfolio.tags.removed');
+            $messageType = 'success';
+        } else {
+            $message = t('portfolio.tags.error');
+            $messageType = 'error';
+        }
+    }
+
+    // Bulk tag assign
+    if ($messageType === '' && $action === 'bulk_assign_tag') {
+        $selectedIds = $_POST['selected_ids'] ?? [];
+        $bulkTagId = (int) ($_POST['bulk_tag_id'] ?? 0);
+        if (!empty($selectedIds) && is_array($selectedIds) && $bulkTagId > 0) {
+            $count = Portfolio::bulkAssignTag($selectedIds, $bulkTagId);
+            $message = t('portfolio.bulk.success', ['count' => $count]);
+            $messageType = 'success';
+        } else {
+            $message = t('portfolio.bulk.no_selection');
+            $messageType = 'error';
+        }
+    }
+
+    // Bulk tag remove
+    if ($messageType === '' && $action === 'bulk_remove_tag') {
+        $selectedIds = $_POST['selected_ids'] ?? [];
+        $bulkTagId = (int) ($_POST['bulk_tag_id'] ?? 0);
+        if (!empty($selectedIds) && is_array($selectedIds) && $bulkTagId > 0) {
+            $count = Portfolio::bulkRemoveTag($selectedIds, $bulkTagId);
+            $message = t('portfolio.bulk.success', ['count' => $count]);
+            $messageType = 'success';
+        } else {
+            $message = t('portfolio.bulk.no_selection');
+            $messageType = 'error';
+        }
+    }
+
+    // Assign tags during add/edit
+    if ($messageType === 'success' && ($action === 'add' || $action === 'edit')) {
+        $tagIds = $_POST['tag_ids'] ?? [];
+        if (!empty($tagIds) && is_array($tagIds)) {
+            // Get the item id (for add, it's the last inserted; for edit, from POST)
+            $itemId = $action === 'add'
+                ? (int) Database::queryOne('SELECT MAX(id) as id FROM portfolio WHERE deleted_at IS NULL')['id']
+                : (int) $_POST['id'];
+            if ($itemId > 0) {
+                foreach ($tagIds as $tid) {
+                    Portfolio::assignTag($itemId, (int) $tid);
+                }
+            }
+        }
+    }
 }
 
 $summary = Portfolio::getSummary();
 $groups = Portfolio::getGroups();
+$tags = Portfolio::getTags();
+$itemTags = Portfolio::getAllItemTags();
 $distribution = !empty($summary['items']) ? PortfolioAnalytics::getDistribution($summary['items']) : [];
 $oldestDate = !empty($summary['items']) ? PortfolioAnalytics::getOldestDate($summary['items']) : null;
 $annualizedReturn = ($oldestDate && $summary['total_cost'] > 0)
@@ -279,14 +420,24 @@ $currentLocale = getAppLocale();
 $availableLocales = getAvailableLocales();
 $newTabText = t('common.opens_new_tab');
 $deleteConfirmText = json_encode(t('portfolio.table.delete_confirm'), JSON_UNESCAPED_UNICODE | JSON_HEX_APOS | JSON_HEX_QUOT);
-$deleteGroupConfirmText = json_encode(t('portfolio.groups.delete_confirm'), JSON_UNESCAPED_UNICODE | JSON_HEX_APOS | JSON_HEX_QUOT);
 $csrfToken = getCsrfToken();
+
+// Build delete confirm messages with item counts
+$groupDeleteConfirms = [];
+foreach ($groups as $g) {
+    $groupDeleteConfirms[(int) $g['id']] = t('portfolio.groups.delete_confirm_count', ['count' => (int) $g['item_count']]);
+}
+$tagDeleteConfirms = [];
+foreach ($tags as $tag) {
+    $tagDeleteConfirms[(int) $tag['id']] = t('portfolio.tags.delete_confirm_count', ['count' => (int) $tag['item_count']]);
+}
 
 // Filters
 $filterGroup = $_GET['group'] ?? '';
 $filterDateFrom = $_GET['date_from'] ?? '';
 $filterDateTo = $_GET['date_to'] ?? '';
-$hasFilters = ($filterGroup !== '' || $filterDateFrom !== '' || $filterDateTo !== '');
+$filterTag = $_GET['tag'] ?? '';
+$hasFilters = ($filterGroup !== '' || $filterDateFrom !== '' || $filterDateTo !== '' || $filterTag !== '');
 
 // Apply filters to items
 $filteredItems = $summary['items'];
@@ -304,7 +455,52 @@ if ($filterDateFrom !== '') {
 if ($filterDateTo !== '') {
     $filteredItems = array_filter($filteredItems, fn($item) => $item['buy_date'] <= $filterDateTo);
 }
+// Tag filter
+if ($filterTag !== '') {
+    if ($filterTag === 'none') {
+        $filteredItems = array_filter($filteredItems, function ($item) use ($itemTags) {
+            return empty($itemTags[(int) $item['id']]);
+        });
+    } else {
+        $tagId = (int) $filterTag;
+        $filteredItems = array_filter($filteredItems, function ($item) use ($itemTags, $tagId) {
+            $tags = $itemTags[(int) $item['id']] ?? [];
+            foreach ($tags as $t) {
+                if ((int) $t['id'] === $tagId)
+                    return true;
+            }
+            return false;
+        });
+    }
+}
 $filteredItems = array_values($filteredItems);
+
+// Compute group analytics when group filter active
+$groupAnalytics = null;
+if ($filterGroup !== '' && $filterGroup !== 'none') {
+    $gCost = 0.0;
+    $gValue = 0.0;
+    foreach ($filteredItems as $fi) {
+        $gCost += (float) $fi['cost_try'];
+        $gValue += (float) $fi['value_try'];
+    }
+    $gPl = $gValue - $gCost;
+    $gPlPercent = $gCost > 0 ? ($gPl / $gCost * 100) : 0;
+    $gName = '';
+    foreach ($groups as $g) {
+        if ((int) $g['id'] === (int) $filterGroup) {
+            $gName = ($g['icon'] ? $g['icon'] . ' ' : '') . $g['name'];
+            break;
+        }
+    }
+    $groupAnalytics = [
+        'name' => $gName,
+        'cost' => $gCost,
+        'value' => $gValue,
+        'pl' => $gPl,
+        'pl_percent' => $gPlPercent,
+    ];
+}
 
 // Compute filtered totals
 $filteredTotalCost = 0.0;
@@ -356,65 +552,174 @@ $filteredProfitPercent = $filteredTotalCost > 0 ? ($filteredProfitLoss / $filter
             </div>
         </section>
 
-        <!-- Group Management Panel -->
-        <section class="groups-section" id="groups-section">
-            <div class="groups-header">
-                <h2>🏷️ <?= t('portfolio.groups.title') ?></h2>
-                <button type="button" class="btn btn-sm btn-secondary" onclick="document.getElementById('group-form-panel').classList.toggle('hidden')">
-                    <?= t('portfolio.groups.add') ?>
-                </button>
+        <!-- Combined Groups & Tags Management Panel -->
+        <section class="manage-panel" id="manage-panel">
+            <div class="manage-panel-header" onclick="toggleManagePanel()">
+                <h2>📦 <?= t('portfolio.manage.title') ?> <span class="manage-toggle-icon">▼</span></h2>
             </div>
-
-            <div id="group-form-panel" class="group-form-panel hidden">
-                <form method="POST" class="group-form">
-                    <input type="hidden" name="action" value="add_group">
-                    <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
-                    <div class="group-form-row">
-                        <input type="text" name="group_name" placeholder="<?= htmlspecialchars(t('portfolio.groups.name')) ?>" maxlength="100" required class="group-name-input">
-                        <input type="color" name="group_color" value="#3b82f6" class="group-color-input" title="<?= htmlspecialchars(t('portfolio.groups.color')) ?>">
-                        <input type="text" name="group_icon" placeholder="<?= htmlspecialchars(t('portfolio.groups.icon')) ?> (emoji)" maxlength="10" class="group-icon-input">
-                        <button type="submit" class="btn btn-primary btn-sm"><?= t('portfolio.groups.add') ?></button>
-                    </div>
-                </form>
-            </div>
-
-            <?php if (!empty($groups)): ?>
-                <div class="groups-grid">
-                    <?php foreach ($groups as $group): ?>
-                        <div class="group-card" style="--group-color: <?= htmlspecialchars($group['color']) ?>">
-                            <div class="group-card-header">
-                                <span class="group-badge" style="background: <?= htmlspecialchars($group['color']) ?>">
-                                    <?php if ($group['icon']): ?>
-                                        <span class="group-icon"><?= htmlspecialchars($group['icon']) ?></span>
-                                    <?php endif; ?>
-                                    <?= htmlspecialchars($group['name']) ?>
-                                </span>
-                                <span class="group-count"><?= t('portfolio.groups.items', ['count' => (int) $group['item_count']]) ?></span>
-                            </div>
-                            <div class="group-card-actions">
-                                <button type="button" class="btn btn-xs btn-secondary" onclick="toggleEditGroup(<?= (int) $group['id'] ?>)">✏️</button>
-                                <form method="POST" style="display:inline" onsubmit="return confirm(<?= $deleteGroupConfirmText ?>)">
-                                    <input type="hidden" name="action" value="delete_group">
-                                    <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
-                                    <input type="hidden" name="group_id" value="<?= (int) $group['id'] ?>">
-                                    <button type="submit" class="btn btn-xs btn-danger">🗑</button>
-                                </form>
-                            </div>
-                            <form method="POST" class="group-edit-form hidden" id="edit-group-<?= (int) $group['id'] ?>">
-                                <input type="hidden" name="action" value="edit_group">
-                                <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
-                                <input type="hidden" name="group_id" value="<?= (int) $group['id'] ?>">
-                                <div class="group-form-row">
-                                    <input type="text" name="group_name" value="<?= htmlspecialchars($group['name']) ?>" maxlength="100" required class="group-name-input">
-                                    <input type="color" name="group_color" value="<?= htmlspecialchars($group['color']) ?>" class="group-color-input">
-                                    <input type="text" name="group_icon" value="<?= htmlspecialchars($group['icon'] ?? '') ?>" placeholder="emoji" maxlength="10" class="group-icon-input">
-                                    <button type="submit" class="btn btn-primary btn-xs">💾</button>
-                                </div>
-                            </form>
-                        </div>
-                    <?php endforeach; ?>
+            <div class="manage-panel-body">
+                <div class="manage-tabs">
+                    <button type="button" class="manage-tab active" data-tab="groups-tab"
+                        onclick="switchManageTab('groups-tab')">
+                        📦 <?= t('portfolio.manage.tab_groups') ?>
+                        <span class="manage-tab-badge"><?= count($groups) ?></span>
+                    </button>
+                    <button type="button" class="manage-tab" data-tab="tags-tab" onclick="switchManageTab('tags-tab')">
+                        🏷️ <?= t('portfolio.manage.tab_tags') ?>
+                        <span class="manage-tab-badge"><?= count($tags) ?></span>
+                    </button>
                 </div>
-            <?php endif; ?>
+
+                <!-- === Groups Tab === -->
+                <div class="manage-tab-content active" id="groups-tab">
+                    <div class="manage-tab-actions">
+                        <span></span>
+                        <button type="button" class="btn btn-sm btn-secondary"
+                            onclick="document.getElementById('group-form-panel').classList.toggle('hidden')">
+                            <?= t('portfolio.groups.add') ?>
+                        </button>
+                    </div>
+                    <div id="group-form-panel" class="group-form-panel hidden">
+                        <form method="POST" class="group-form">
+                            <input type="hidden" name="action" value="add_group">
+                            <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
+                            <div class="group-form-row">
+                                <input type="text" name="group_name"
+                                    placeholder="<?= htmlspecialchars(t('portfolio.groups.name')) ?>" maxlength="100"
+                                    required class="group-name-input">
+                                <input type="color" name="group_color" value="#3b82f6" class="group-color-input"
+                                    title="<?= htmlspecialchars(t('portfolio.groups.color')) ?>">
+                                <input type="text" name="group_icon"
+                                    placeholder="<?= htmlspecialchars(t('portfolio.groups.icon')) ?> (emoji)"
+                                    maxlength="10" class="group-icon-input">
+                                <button type="submit"
+                                    class="btn btn-primary btn-sm"><?= t('portfolio.groups.add') ?></button>
+                            </div>
+                        </form>
+                    </div>
+                    <?php if (!empty($groups)): ?>
+                        <div class="groups-grid">
+                            <?php foreach ($groups as $group): ?>
+                                <div class="group-card" style="--group-color: <?= htmlspecialchars($group['color']) ?>">
+                                    <div class="group-card-header">
+                                        <span class="group-badge" style="background: <?= htmlspecialchars($group['color']) ?>">
+                                            <?php if ($group['icon']): ?>
+                                                <span class="group-icon"><?= htmlspecialchars($group['icon']) ?></span>
+                                            <?php endif; ?>
+                                            <?= htmlspecialchars($group['name']) ?>
+                                        </span>
+                                        <a href="?group=<?= (int) $group['id'] ?>"
+                                            class="group-count-link"><?= t('portfolio.groups.items', ['count' => (int) $group['item_count']]) ?></a>
+                                    </div>
+                                    <div class="group-card-actions">
+                                        <button type="button" class="btn btn-xs btn-secondary"
+                                            onclick="toggleEditGroup(<?= (int) $group['id'] ?>)">✏️</button>
+                                        <form method="POST" style="display:inline" data-confirm-type="group"
+                                            data-item-count="<?= (int) $group['item_count'] ?>"
+                                            data-item-name="<?= htmlspecialchars($group['name']) ?>"
+                                            onsubmit="return confirmDeleteWithCount(this, 'group')">
+                                            <input type="hidden" name="action" value="delete_group">
+                                            <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
+                                            <input type="hidden" name="group_id" value="<?= (int) $group['id'] ?>">
+                                            <button type="submit" class="btn btn-xs btn-danger">🗑</button>
+                                        </form>
+                                    </div>
+                                    <form method="POST" class="group-edit-form hidden"
+                                        id="edit-group-<?= (int) $group['id'] ?>">
+                                        <input type="hidden" name="action" value="edit_group">
+                                        <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
+                                        <input type="hidden" name="group_id" value="<?= (int) $group['id'] ?>">
+                                        <div class="group-form-row">
+                                            <input type="text" name="group_name" value="<?= htmlspecialchars($group['name']) ?>"
+                                                maxlength="100" required class="group-name-input">
+                                            <input type="color" name="group_color"
+                                                value="<?= htmlspecialchars($group['color']) ?>" class="group-color-input">
+                                            <input type="text" name="group_icon"
+                                                value="<?= htmlspecialchars($group['icon'] ?? '') ?>" placeholder="emoji"
+                                                maxlength="10" class="group-icon-input">
+                                            <button type="submit" class="btn btn-primary btn-xs">💾</button>
+                                        </div>
+                                    </form>
+                                </div>
+                            <?php endforeach; ?>
+                        </div>
+                    <?php else: ?>
+                        <div class="manage-empty">
+                            <span class="manage-empty-icon">📦</span>
+                            <?= t('portfolio.groups.empty') ?>
+                        </div>
+                    <?php endif; ?>
+                </div>
+
+                <!-- === Tags Tab === -->
+                <div class="manage-tab-content" id="tags-tab">
+                    <div class="manage-tab-actions">
+                        <span></span>
+                        <button type="button" class="btn btn-sm btn-secondary"
+                            onclick="document.getElementById('tag-form-panel').classList.toggle('hidden')">
+                            <?= t('portfolio.tags.add') ?>
+                        </button>
+                    </div>
+                    <div id="tag-form-panel" class="group-form-panel hidden">
+                        <form method="POST" class="group-form">
+                            <input type="hidden" name="action" value="add_tag">
+                            <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
+                            <div class="group-form-row">
+                                <input type="text" name="tag_name"
+                                    placeholder="<?= htmlspecialchars(t('portfolio.tags.name')) ?>" maxlength="50"
+                                    required class="group-name-input">
+                                <input type="color" name="tag_color" value="#8b5cf6" class="group-color-input"
+                                    title="<?= htmlspecialchars(t('portfolio.tags.color')) ?>">
+                                <button type="submit"
+                                    class="btn btn-primary btn-sm"><?= t('portfolio.tags.add') ?></button>
+                            </div>
+                        </form>
+                    </div>
+                    <?php if (!empty($tags)): ?>
+                        <div class="tags-pills-list">
+                            <?php foreach ($tags as $tag): ?>
+                                <div class="tag-card" style="--tag-color: <?= htmlspecialchars($tag['color']) ?>">
+                                    <span class="tag-pill" style="background: <?= htmlspecialchars($tag['color']) ?>">
+                                        <?= htmlspecialchars($tag['name']) ?>
+                                    </span>
+                                    <a href="?tag=<?= (int) $tag['id'] ?>"
+                                        class="tag-count-link"><?= t('portfolio.tags.items', ['count' => (int) $tag['item_count']]) ?></a>
+                                    <div class="tag-card-actions">
+                                        <button type="button" class="btn btn-xs btn-secondary"
+                                            onclick="toggleEditTag(<?= (int) $tag['id'] ?>)">✏️</button>
+                                        <form method="POST" style="display:inline" data-confirm-type="tag"
+                                            data-item-count="<?= (int) $tag['item_count'] ?>"
+                                            data-item-name="<?= htmlspecialchars($tag['name']) ?>"
+                                            onsubmit="return confirmDeleteWithCount(this, 'tag')">
+                                            <input type="hidden" name="action" value="delete_tag">
+                                            <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
+                                            <input type="hidden" name="tag_id" value="<?= (int) $tag['id'] ?>">
+                                            <button type="submit" class="btn btn-xs btn-danger">🗑</button>
+                                        </form>
+                                    </div>
+                                    <form method="POST" class="group-edit-form hidden" id="edit-tag-<?= (int) $tag['id'] ?>">
+                                        <input type="hidden" name="action" value="edit_tag">
+                                        <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
+                                        <input type="hidden" name="tag_id" value="<?= (int) $tag['id'] ?>">
+                                        <div class="group-form-row">
+                                            <input type="text" name="tag_name" value="<?= htmlspecialchars($tag['name']) ?>"
+                                                maxlength="50" required class="group-name-input">
+                                            <input type="color" name="tag_color" value="<?= htmlspecialchars($tag['color']) ?>"
+                                                class="group-color-input">
+                                            <button type="submit" class="btn btn-primary btn-xs">💾</button>
+                                        </div>
+                                    </form>
+                                </div>
+                            <?php endforeach; ?>
+                        </div>
+                    <?php else: ?>
+                        <div class="manage-empty">
+                            <span class="manage-empty-icon">🏷️</span>
+                            <?= t('portfolio.tags.empty') ?>
+                        </div>
+                    <?php endif; ?>
+                </div>
+            </div>
         </section>
 
         <section id="form-section" class="form-section">
@@ -468,9 +773,8 @@ $filteredProfitPercent = $filteredTotalCost > 0 ? ($filteredProfitLoss / $filter
                         <select name="group_id" id="group_id">
                             <option value=""><?= t('portfolio.form.group_optional') ?></option>
                             <?php foreach ($groups as $group): ?>
-                                <option value="<?= (int) $group['id'] ?>"
-                                    <?= $formValues['group_id'] == (string) $group['id'] ? 'selected' : '' ?>>
-                                    <?= $group['icon'] ? htmlspecialchars($group['icon']) . ' ' : '' ?><?= htmlspecialchars($group['name']) ?>
+                                <option value="<?= (int) $group['id'] ?>" <?= $formValues['group_id'] == (string) $group['id'] ? 'selected' : '' ?>>
+                                    <?= $group['icon'] ? htmlspecialchars($group['icon']) . ' ' : '' ?>        <?= htmlspecialchars($group['name']) ?>
                                 </option>
                             <?php endforeach; ?>
                         </select>
@@ -521,6 +825,24 @@ $filteredProfitPercent = $filteredTotalCost > 0 ? ($filteredProfitLoss / $filter
                     <?php endif; ?>
                 </div>
 
+                <?php if (!empty($tags)): ?>
+                    <div class="form-group">
+                        <label><?= t('portfolio.form.tags') ?></label>
+                        <div class="form-tag-selector">
+                                <?php foreach ($tags as $tag): ?>
+                                <input type="checkbox" class="form-tag-checkbox" id="form-tag-<?= (int) $tag['id'] ?>"
+                                    name="tag_ids[]" value="<?= (int) $tag['id'] ?>">
+                                <label for="form-tag-<?= (int) $tag['id'] ?>" class="form-tag-label"
+                                    style="--tag-color: <?= htmlspecialchars($tag['color']) ?>">
+                                    <span class="form-tag-dot"
+                                        style="background: <?= htmlspecialchars($tag['color']) ?>"></span>
+                                            <?= htmlspecialchars($tag['name']) ?>
+                                </label>
+                                <?php endforeach; ?>
+                        </div>
+                    </div>
+                <?php endif; ?>
+
                 <button type="submit"
                     class="btn btn-primary"><?= $editItem ? t('portfolio.form.update') : t('portfolio.form.submit') ?></button>
                 <?php if ($editItem): ?>
@@ -570,26 +892,46 @@ $filteredProfitPercent = $filteredTotalCost > 0 ? ($filteredProfitLoss / $filter
                             <label><?= t('portfolio.filter.group') ?></label>
                             <div class="filter-pills">
                                 <a href="?<?= http_build_query(array_diff_key($_GET, ['group' => ''])) ?>"
-                                   class="filter-pill <?= $filterGroup === '' ? 'active' : '' ?>"><?= t('portfolio.groups.all') ?></a>
+                                    class="filter-pill <?= $filterGroup === '' ? 'active' : '' ?>"><?= t('portfolio.groups.all') ?></a>
                                 <?php foreach ($groups as $group): ?>
                                     <a href="?<?= http_build_query(array_merge($_GET, ['group' => $group['id']])) ?>"
-                                       class="filter-pill <?= $filterGroup == (string) $group['id'] ? 'active' : '' ?>"
-                                       style="--pill-color: <?= htmlspecialchars($group['color']) ?>">
-                                        <?= $group['icon'] ? htmlspecialchars($group['icon']) . ' ' : '' ?><?= htmlspecialchars($group['name']) ?>
+                                        class="filter-pill <?= $filterGroup == (string) $group['id'] ? 'active' : '' ?>"
+                                        style="--pill-color: <?= htmlspecialchars($group['color']) ?>">
+                                        <?= $group['icon'] ? htmlspecialchars($group['icon']) . ' ' : '' ?>                <?= htmlspecialchars($group['name']) ?>
                                     </a>
                                 <?php endforeach; ?>
                                 <a href="?<?= http_build_query(array_merge($_GET, ['group' => 'none'])) ?>"
-                                   class="filter-pill <?= $filterGroup === 'none' ? 'active' : '' ?>"><?= t('portfolio.groups.no_group') ?></a>
+                                    class="filter-pill <?= $filterGroup === 'none' ? 'active' : '' ?>"><?= t('portfolio.groups.no_group') ?></a>
                             </div>
                         </div>
+                        <?php if (!empty($tags)): ?>
+                            <div class="filter-group">
+                                <label><?= t('portfolio.filter.tag') ?></label>
+                                <div class="filter-pills">
+                                    <a href="?<?= http_build_query(array_diff_key($_GET, ['tag' => ''])) ?>"
+                                        class="filter-pill filter-pill-tag <?= $filterTag === '' ? 'active' : '' ?>"><?= t('portfolio.tags.all') ?></a>
+                                            <?php foreach ($tags as $tag): ?>
+                                        <a href="?<?= http_build_query(array_merge($_GET, ['tag' => $tag['id']])) ?>"
+                                            class="filter-pill filter-pill-tag <?= $filterTag == (string) $tag['id'] ? 'active' : '' ?>"
+                                            style="--pill-color: <?= htmlspecialchars($tag['color']) ?>">
+                                           <?= htmlspecialchars($tag['name']) ?>
+                                        </a>
+                                  <?php endforeach; ?>
+                                    <a href="?<?= http_build_query(array_merge($_GET, ['tag' => 'none'])) ?>"
+                                        class="filter-pill filter-pill-tag <?= $filterTag === 'none' ? 'active' : '' ?>"><?= t('portfolio.tags.no_tag') ?></a>
+                                </div>
+                            </div>
+                        <?php endif; ?>
                         <div class="filter-dates">
                             <div class="filter-date-field">
                                 <label for="date_from"><?= t('portfolio.filter.date_from') ?></label>
-                                <input type="date" name="date_from" id="date_from" value="<?= htmlspecialchars($filterDateFrom) ?>">
+                                <input type="date" name="date_from" id="date_from"
+                                    value="<?= htmlspecialchars($filterDateFrom) ?>">
                             </div>
                             <div class="filter-date-field">
                                 <label for="date_to"><?= t('portfolio.filter.date_to') ?></label>
-                                <input type="date" name="date_to" id="date_to" value="<?= htmlspecialchars($filterDateTo) ?>">
+                                <input type="date" name="date_to" id="date_to"
+                                    value="<?= htmlspecialchars($filterDateTo) ?>">
                             </div>
                             <?php if ($filterGroup !== ''): ?>
                                 <input type="hidden" name="group" value="<?= htmlspecialchars($filterGroup) ?>">
@@ -602,11 +944,13 @@ $filteredProfitPercent = $filteredTotalCost > 0 ? ($filteredProfitLoss / $filter
                     </form>
                     <?php if ($hasFilters): ?>
                         <div class="filter-summary">
-                            <span class="filter-result-count"><?= count($filteredItems) ?> / <?= $summary['item_count'] ?></span>
+                            <span class="filter-result-count"><?= count($filteredItems) ?> /
+                                <?= $summary['item_count'] ?></span>
                             <span class="filter-result-total">
                                 <?= formatTRY($filteredTotalCost) ?> → <?= formatTRY($filteredTotalValue) ?>
                                 <span class="<?= changeClass($filteredProfitLoss) ?>">
-                                    (<?= $filteredProfitLoss >= 0 ? '+' : '' ?><?= formatTRY($filteredProfitLoss) ?>, %<?= formatNumberLocalized(abs($filteredProfitPercent), 2) ?>)
+                                    (<?= $filteredProfitLoss >= 0 ? '+' : '' ?><?= formatTRY($filteredProfitLoss) ?>,
+                                    %<?= formatNumberLocalized(abs($filteredProfitPercent), 2) ?>)
                                 </span>
                             </span>
                         </div>
@@ -616,13 +960,107 @@ $filteredProfitPercent = $filteredTotalCost > 0 ? ($filteredProfitLoss / $filter
                 <p class="portfolio-export-link">
                     <a href="portfolio_export.php" class="btn btn-secondary" download><?= t('portfolio.export_csv') ?></a>
                 </p>
+
+                <?php if ($groupAnalytics): ?>
+                    <div class="group-analytics-strip">
+                        <div class="group-stat">
+                            <span class="group-stat-label">📦 <?= htmlspecialchars($groupAnalytics['name']) ?></span>
+                        </div>
+                        <div class="group-stat">
+                            <span class="group-stat-label"><?= t('portfolio.analytics.group_cost') ?></span>
+                            <span class="group-stat-value"><?= formatTRY($groupAnalytics['cost']) ?></span>
+                        </div>
+                        <div class="group-stat">
+                            <span class="group-stat-label"><?= t('portfolio.analytics.group_value') ?></span>
+                            <span class="group-stat-value"><?= formatTRY($groupAnalytics['value']) ?></span>
+                        </div>
+                        <div class="group-stat">
+                            <span class="group-stat-label"><?= t('portfolio.analytics.group_pl') ?></span>
+                            <span class="group-stat-value <?= changeClass($groupAnalytics['pl']) ?>">
+                <?= $groupAnalytics['pl'] >= 0 ? '+' : '' ?>                <?= formatTRY($groupAnalytics['pl']) ?>
+                                (% <?= formatNumberLocalized(abs($groupAnalytics['pl_percent']), 2) ?>)
+                            </span>
+                        </div>
+                    </div>
+                <?php endif; ?>
+
+                <!-- Bulk Actions Toolbar (Sticky Bottom) -->
+                <div id="bulk-actions-bar" class="bulk-actions-bar hidden">
+                    <div class="bulk-info">
+                        <span id="bulk-count">0</span> <?= t('portfolio.bulk.selected', ['count' => '']) ?>
+                    </div>
+                    <div class="bulk-section">
+                        <span class="bulk-section-label"><?= t('portfolio.bulk.group_actions') ?></span>
+                        <div class="bulk-buttons">
+                            <form method="POST" class="bulk-form" id="bulk-assign-group-form">
+                                <input type="hidden" name="action" value="bulk_assign_group">
+                                <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
+                                <div id="bulk-assign-group-ids"></div>
+                                <select name="bulk_group_id" class="bulk-select" required>
+                                    <option value=""><?= t('portfolio.bulk.select_group') ?></option>
+                                    <?php foreach ($groups as $group): ?>
+                                        <option value="<?= (int) $group['id'] ?>">
+                                       <?= $group['icon'] ? htmlspecialchars($group['icon']) . ' ' : '' ?>                <?= htmlspecialchars($group['name']) ?>
+                                        </option>
+                                    <?php endforeach; ?>
+                                </select>
+                                <button type="submit"
+                                    class="btn btn-xs btn-primary"><?= t('portfolio.bulk.assign_group') ?></button>
+                            </form>
+                            <form method="POST" class="bulk-form" id="bulk-remove-group-form">
+                                <input type="hidden" name="action" value="bulk_remove_group">
+                                <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
+                                <div id="bulk-remove-group-ids"></div>
+                                <button type="submit"
+                                    class="btn btn-xs btn-danger"><?= t('portfolio.bulk.remove_group') ?></button>
+                            </form>
+                        </div>
+                    </div>
+                    <?php if (!empty($tags)): ?>
+                        <div class="bulk-section">
+                            <span class="bulk-section-label"><?= t('portfolio.bulk.tag_actions') ?></span>
+                            <div class="bulk-buttons">
+                                <form method="POST" class="bulk-form" id="bulk-assign-tag-form">
+                                    <input type="hidden" name="action" value="bulk_assign_tag">
+                                    <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
+                                    <div id="bulk-assign-tag-ids"></div>
+                                    <select name="bulk_tag_id" class="bulk-select" required>
+                                        <option value=""><?= t('portfolio.bulk.select_tag') ?></option>
+                                                <?php foreach ($tags as $tag): ?>
+                                            <option value="<?= (int) $tag['id'] ?>"><?= htmlspecialchars($tag['name']) ?></option>
+                                                <?php endforeach; ?>
+                                    </select>
+                                    <button type="submit"
+                                        class="btn btn-xs btn-primary"><?= t('portfolio.bulk.assign_tag') ?></button>
+                                </form>
+                                <form method="POST" class="bulk-form" id="bulk-remove-tag-form">
+                                    <input type="hidden" name="action" value="bulk_remove_tag">
+                                    <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
+                                    <div id="bulk-remove-tag-ids"></div>
+                                    <select name="bulk_tag_id" class="bulk-select" required>
+                                        <option value=""><?= t('portfolio.bulk.select_tag') ?></option>
+                                                <?php foreach ($tags as $tag): ?>
+                                            <option value="<?= (int) $tag['id'] ?>"><?= htmlspecialchars($tag['name']) ?></option>
+                                                <?php endforeach; ?>
+                                    </select>
+                                    <button type="submit"
+                                        class="btn btn-xs btn-danger"><?= t('portfolio.bulk.remove_tag') ?></button>
+                                </form>
+                            </div>
+                        </div>
+                    <?php endif; ?>
+                </div>
+
                 <div class="table-responsive">
-                    <table class="rates-table">
+                    <table class="rates-table" id="portfolio-table">
                         <caption class="sr-only"><?= htmlspecialchars(t('portfolio.table.caption')) ?></caption>
                         <thead>
                             <tr>
+                                <th scope="col" class="col-checkbox"><input type="checkbox" id="select-all"
+                                        title="Select all"></th>
                                 <th scope="col"><?= t('portfolio.table.currency') ?></th>
                                 <th scope="col"><?= t('portfolio.table.group') ?></th>
+                                <th scope="col"><?= t('portfolio.table.tags') ?></th>
                                 <th scope="col" class="text-right"><?= t('portfolio.table.amount') ?></th>
                                 <th scope="col" class="text-right"><?= t('portfolio.table.buy_rate') ?></th>
                                 <th scope="col" class="text-right"><?= t('portfolio.table.current_rate') ?></th>
@@ -636,20 +1074,79 @@ $filteredProfitPercent = $filteredTotalCost > 0 ? ($filteredProfitLoss / $filter
                         <tbody>
                             <?php foreach ($filteredItems as $item): ?>
                                 <?php $pl = (float) $item['profit_percent']; ?>
-                                <tr>
+                                <tr data-id="<?= (int) $item['id'] ?>">
+                                    <td class="col-checkbox">
+                                        <input type="checkbox" class="row-checkbox" value="<?= (int) $item['id'] ?>">
+                                    </td>
                                     <td>
                                         <strong><?= htmlspecialchars($item['currency_code']) ?></strong>
                                         <small><?= htmlspecialchars(localizedCurrencyName($item)) ?></small>
                                     </td>
                                     <td>
                                         <?php if (!empty($item['group_name'])): ?>
-                                            <span class="group-badge-sm" style="background: <?= htmlspecialchars($item['group_color'] ?? '#666') ?>">
-                                                <?php if ($item['group_icon']): ?><span class="group-icon-sm"><?= htmlspecialchars($item['group_icon']) ?></span><?php endif; ?>
+                                            <span class="group-badge-sm"
+                                                style="background: <?= htmlspecialchars($item['group_color'] ?? '#666') ?>">
+                                                <?php if ($item['group_icon']): ?><span
+                                                        class="group-icon-sm"><?= htmlspecialchars($item['group_icon']) ?></span><?php endif; ?>
                                                 <?= htmlspecialchars($item['group_name']) ?>
                                             </span>
                                         <?php else: ?>
                                             <span class="text-muted">—</span>
                                         <?php endif; ?>
+                                    </td>
+                                    <td class="col-tags">
+                                        <div class="inline-tag-wrapper" data-portfolio-id="<?= (int) $item['id'] ?>">
+                                                    <?php
+                                                    $thisTags = $itemTags[(int) $item['id']] ?? [];
+                                                    if (!empty($thisTags)):
+                                                        foreach ($thisTags as $t): ?>
+                                                    <span class="tag-pill-sm" style="background: <?= htmlspecialchars($t['color']) ?>">
+                                                       <?= htmlspecialchars($t['name']) ?>
+                                                        <form method="POST" style="display:inline;margin:0;padding:0">
+                                                            <input type="hidden" name="action" value="inline_remove_tag">
+                                                            <input type="hidden" name="csrf_token"
+                                                                value="<?= htmlspecialchars($csrfToken) ?>">
+                                                            <input type="hidden" name="portfolio_id" value="<?= (int) $item['id'] ?>">
+                                                            <input type="hidden" name="tag_id" value="<?= (int) $t['id'] ?>">
+                                                            <button type="submit" class="tag-remove"
+                                                                title="<?= htmlspecialchars(t('portfolio.inline.remove_tag')) ?>">✕</button>
+                                                        </form>
+                                                    </span>
+                                                            <?php endforeach;
+                                                    endif; ?>
+                                         <?php if (!empty($tags)): ?>
+                                                <button type="button" class="inline-tag-add"
+                                                    onclick="toggleInlineTagDropdown(this)"><?= t('portfolio.tags.inline_add') ?></button>
+                                                <div class="inline-tag-dropdown">
+                                               <?php foreach ($tags as $availTag): ?>
+                                                                        <?php
+                                                                        // Check if already assigned
+                                                                        $alreadyAssigned = false;
+                                                                        foreach ($thisTags as $at) {
+                                                                            if ((int) $at['id'] === (int) $availTag['id']) {
+                                                                                $alreadyAssigned = true;
+                                                                                break;
+                                                                            }
+                                                                        }
+                                                                        if ($alreadyAssigned)
+                                                                            continue;
+                                                                        ?>
+                                                                        <form method="POST" style="margin:0">
+                                                            <input type="hidden" name="action" value="inline_assign_tag">
+                                                            <input type="hidden" name="csrf_token"
+                                                                value="<?= htmlspecialchars($csrfToken) ?>">
+                                                            <input type="hidden" name="portfolio_id" value="<?= (int) $item['id'] ?>">
+                                                            <input type="hidden" name="tag_id" value="<?= (int) $availTag['id'] ?>">
+                                                            <button type="submit" class="inline-tag-option">
+                                                                <span class="tag-dot"
+                                                                    style="background: <?= htmlspecialchars($availTag['color']) ?>"></span>
+                                                                                <?= htmlspecialchars($availTag['name']) ?>
+                                                            </button>
+                                                        </form>
+                                                                <?php endforeach; ?>
+                                                </div>
+                                          <?php endif; ?>
+                                        </div>
                                     </td>
                                     <td class="text-right mono"><?= formatRate((float) $item['amount']) ?></td>
                                     <td class="text-right mono"><?= formatRate((float) $item['buy_rate']) ?></td>
@@ -709,10 +1206,144 @@ $filteredProfitPercent = $filteredTotalCost > 0 ? ($filteredProfitLoss / $filter
     </footer>
     <script src="assets/js/theme.js"></script>
     <script>
-    function toggleEditGroup(id) {
-        var el = document.getElementById('edit-group-' + id);
-        if (el) el.classList.toggle('hidden');
-    }
+        /* ─── Panel Toggle (Collapse/Expand) ─────────────────────────────────── */
+        function toggleManagePanel() {
+            var panel = document.getElementById('manage-panel');
+            if (panel) panel.classList.toggle('collapsed');
+        }
+
+        /* ─── Tab Switching ──────────────────────────────────────────────────── */
+        function switchManageTab(tabId) {
+            document.querySelectorAll('.manage-tab').forEach(function (t) { t.classList.remove('active'); });
+            document.querySelectorAll('.manage-tab-content').forEach(function (c) { c.classList.remove('active'); });
+            var tab = document.querySelector('.manage-tab[data-tab="' + tabId + '"]');
+            var content = document.getElementById(tabId);
+            if (tab) tab.classList.add('active');
+            if (content) content.classList.add('active');
+        }
+
+        /* ─── Edit Toggle ───────────────────────────────────────────────────── */
+        function toggleEditGroup(id) {
+            var el = document.getElementById('edit-group-' + id);
+            if (el) el.classList.toggle('hidden');
+        }
+        function toggleEditTag(id) {
+            var el = document.getElementById('edit-tag-' + id);
+            if (el) el.classList.toggle('hidden');
+        }
+
+        /* ─── Enhanced Delete Confirmation with Item Count ──────────────────── */
+        function confirmDeleteWithCount(form, type) {
+            var count = parseInt(form.getAttribute('data-item-count') || '0', 10);
+            var name = form.getAttribute('data-item-name') || '';
+            var icon = type === 'group' ? '📦' : '🏷️';
+            var msg;
+            if (count > 0) {
+                if (type === 'group') {
+                    msg = <?= json_encode(t('portfolio.groups.delete_confirm_count', ['count' => '__COUNT__']), JSON_UNESCAPED_UNICODE | JSON_HEX_APOS | JSON_HEX_QUOT) ?>.replace('__COUNT__', count);
+                } else {
+                    msg = <?= json_encode(t('portfolio.tags.delete_confirm_count', ['count' => '__COUNT__']), JSON_UNESCAPED_UNICODE | JSON_HEX_APOS | JSON_HEX_QUOT) ?>.replace('__COUNT__', count);
+                }
+            } else {
+                msg = type === 'group'
+                    ? <?= json_encode(t('portfolio.groups.delete_confirm'), JSON_UNESCAPED_UNICODE | JSON_HEX_APOS | JSON_HEX_QUOT) ?>
+                    : <?= json_encode(t('portfolio.tags.delete_confirm'), JSON_UNESCAPED_UNICODE | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+            }
+            return confirm(icon + ' ' + name + '\n\n' + msg);
+        }
+
+        /* ─── Inline Tag Dropdown ───────────────────────────────────────────── */
+        function toggleInlineTagDropdown(btn) {
+            // Close any other open dropdowns
+            document.querySelectorAll('.inline-tag-dropdown.open').forEach(function (d) {
+                if (d !== btn.nextElementSibling) d.classList.remove('open');
+            });
+            var dd = btn.nextElementSibling;
+            if (dd) dd.classList.toggle('open');
+        }
+        // Close inline dropdowns when clicking outside
+        document.addEventListener('click', function (e) {
+            if (!e.target.closest('.inline-tag-wrapper')) {
+                document.querySelectorAll('.inline-tag-dropdown.open').forEach(function (d) {
+                    d.classList.remove('open');
+                });
+            }
+        });
+
+        /* ─── Checkbox / Bulk Actions ───────────────────────────────────────── */
+        (function () {
+            var selectAll = document.getElementById('select-all');
+            var bulkBar = document.getElementById('bulk-actions-bar');
+            var bulkCount = document.getElementById('bulk-count');
+            if (!selectAll || !bulkBar) return;
+
+            function getCheckboxes() {
+                return document.querySelectorAll('.row-checkbox');
+            }
+
+            function getSelected() {
+                var selected = [];
+                getCheckboxes().forEach(function (cb) {
+                    if (cb.checked) selected.push(cb.value);
+                });
+                return selected;
+            }
+
+            function updateBulkBar() {
+                var selected = getSelected();
+                var count = selected.length;
+                bulkCount.textContent = count;
+                if (count > 0) {
+                    bulkBar.classList.remove('hidden');
+                    bulkBar.classList.add('visible');
+                } else {
+                    bulkBar.classList.add('hidden');
+                    bulkBar.classList.remove('visible');
+                }
+            }
+
+            selectAll.addEventListener('change', function () {
+                var checked = this.checked;
+                getCheckboxes().forEach(function (cb) {
+                    cb.checked = checked;
+                });
+                updateBulkBar();
+            });
+
+            document.addEventListener('change', function (e) {
+                if (e.target.classList.contains('row-checkbox')) {
+                    updateBulkBar();
+                    var cbs = getCheckboxes();
+                    var allChecked = true;
+                    cbs.forEach(function (cb) {
+                        if (!cb.checked) allChecked = false;
+                    });
+                    selectAll.checked = allChecked && cbs.length > 0;
+                }
+            });
+
+            // Inject selected IDs into bulk forms on submit
+            var bulkForms = document.querySelectorAll('.bulk-form');
+            bulkForms.forEach(function (form) {
+                form.addEventListener('submit', function (e) {
+                    var selected = getSelected();
+                    if (selected.length === 0) {
+                        e.preventDefault();
+                        return;
+                    }
+                    var container = form.querySelector('[id^="bulk-"]');
+                    if (!container) return;
+                    container.innerHTML = '';
+                    selected.forEach(function (id) {
+                        var inp = document.createElement('input');
+                        inp.type = 'hidden';
+                        inp.name = 'selected_ids[]';
+                        inp.value = id;
+                        container.appendChild(inp);
+                    });
+                });
+            });
+        })();
     </script>
     <?php if (!empty($distribution)): ?>
         <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" crossorigin="anonymous"></script>
