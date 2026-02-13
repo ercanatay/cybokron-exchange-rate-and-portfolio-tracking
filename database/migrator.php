@@ -45,13 +45,16 @@ $dryRun       = in_array('--dry-run', $argv ?? [], true);
 $markApplied  = in_array('--mark-applied', $argv ?? [], true);
 
 // ─── Ensure schema_migrations table exists ──────────────────────────────────
-$pdo->exec("CREATE TABLE IF NOT EXISTS `schema_migrations` (
+$result = $pdo->query("CREATE TABLE IF NOT EXISTS `schema_migrations` (
     `id` INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     `filename` VARCHAR(255) NOT NULL UNIQUE,
     `checksum` VARCHAR(32) NOT NULL,
     `applied_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     `execution_time_ms` INT UNSIGNED NOT NULL DEFAULT 0
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+if ($result instanceof PDOStatement) {
+    $result->closeCursor();
+}
 
 // ─── Collect migration files (only .sql, not .down.sql) ─────────────────────
 $files = glob($migrationsDir . '/*.sql');
@@ -178,7 +181,10 @@ foreach ($pending as $migration) {
             if ($statement === '') {
                 continue;
             }
-            $pdo->exec($statement);
+            $result = $pdo->query($statement);
+            if ($result instanceof PDOStatement) {
+                $result->closeCursor();
+            }
         }
 
         $elapsedMs = (int) ((hrtime(true) - $startTime) / 1_000_000);
@@ -188,6 +194,7 @@ foreach ($pending as $migration) {
             "INSERT INTO schema_migrations (filename, checksum, execution_time_ms) VALUES (?, ?, ?)"
         );
         $insertStmt->execute([$basename, $checksum, $elapsedMs]);
+        $insertStmt->closeCursor();
 
         echo "OK ({$elapsedMs}ms)\n";
         $appliedCount++;
