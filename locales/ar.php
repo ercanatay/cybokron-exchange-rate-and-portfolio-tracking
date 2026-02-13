@@ -25,6 +25,7 @@ return [
     'auth.error_empty' => 'اسم المستخدم وكلمة المرور مطلوبان.',
     'auth.error_invalid' => 'اسم المستخدم أو كلمة المرور غير صحيحة.',
     'auth.error_rate_limit' => 'محاولات كثيرة جدًا. يرجى المحاولة بعد بضع دقائق.',
+    'auth.error_captcha' => 'فشل التحقق الأمني. يرجى المحاولة مرة أخرى.',
 
     'index.last_update' => 'آخر تحديث: {{datetime}}',
     'index.table.currency' => 'العملة',

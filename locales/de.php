@@ -25,6 +25,7 @@ return [
     'auth.error_empty' => 'Benutzername und Passwort erforderlich.',
     'auth.error_invalid' => 'Ungültiger Benutzername oder Passwort.',
     'auth.error_rate_limit' => 'Zu viele Versuche. Bitte versuchen Sie es in einigen Minuten erneut.',
+    'auth.error_captcha' => 'Sicherheitsüberprüfung fehlgeschlagen. Bitte versuchen Sie es erneut.',
 
     'index.last_update' => 'Letzte Aktualisierung: {{datetime}}',
     'index.table.currency' => 'Währung',
