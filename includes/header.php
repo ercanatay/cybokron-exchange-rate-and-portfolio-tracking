@@ -25,7 +25,7 @@ $_headerActivePage = $activePage ?? '';
         </a>
 
         <!-- Mobile menu toggle -->
-        <button type="button" class="header-menu-toggle" id="header-menu-toggle" aria-label="Menu" aria-expanded="false"
+        <button type="button" class="header-menu-toggle" id="header-menu-toggle" aria-label="<?= htmlspecialchars(t('nav.menu')) ?>" aria-expanded="false"
             aria-controls="header-nav">
             <span class="hamburger-line"></span>
             <span class="hamburger-line"></span>
@@ -33,7 +33,7 @@ $_headerActivePage = $activePage ?? '';
         </button>
 
         <nav class="header-nav" id="header-nav" role="navigation"
-            aria-label="<?= t('nav.main') ?? 'Main navigation' ?>">
+            aria-label="<?= htmlspecialchars(t('nav.main')) ?>">
             <div class="header-nav-links">
                 <a href="index.php" class="header-nav-link <?= $_headerActivePage === 'rates' ? 'active' : '' ?>"
                     <?= $_headerActivePage === 'rates' ? ' aria-current="page"' : '' ?>>

@@ -1,6 +1,8 @@
 <?php
 
 return [
+    'nav.main' => 'Ana menü',
+    'nav.menu' => 'Menü',
     'nav.rates' => 'Kurlar',
     'nav.portfolio' => 'Portföy',
     'nav.language' => 'Dil',
@@ -268,6 +270,7 @@ return [
     'portfolio.groups.name' => 'Grup Adı',
     'portfolio.groups.color' => 'Renk',
     'portfolio.groups.icon' => 'İkon',
+    'portfolio.groups.icon_placeholder' => 'İkon (emoji)',
     'portfolio.groups.items' => '{{count}} öğe',
     'portfolio.groups.no_group' => 'Grupsuz',
     'portfolio.groups.all' => 'Tümü',
@@ -301,6 +304,10 @@ return [
     'portfolio.tags.removed' => 'Etiket kaldırıldı.',
     'portfolio.table.tags' => 'Etiketler',
     'portfolio.filter.tag' => 'Etiket',
+    'portfolio.filter.currency_type' => 'Tür',
+    'portfolio.filter.all_types' => 'Tümü',
+    'portfolio.filter.precious_metals' => 'Altın & Kıymetli Madenler',
+    'portfolio.filter.fiat_only' => 'Sadece Dövizler',
 
     'portfolio.bulk.selected' => '{{count}} öğe seçili',
     'portfolio.bulk.assign_group' => 'Gruba Ata',
@@ -335,4 +342,27 @@ return [
     'csv.tags' => 'Etiketler',
     'portfolio.bulk.group_actions' => 'Grup İşlemleri',
     'portfolio.bulk.tag_actions' => 'Etiket İşlemleri',
+
+    'portfolio.manage.tab_goals' => 'Hedefler',
+    'portfolio.goals.add' => 'Yeni Hedef',
+    'portfolio.goals.name' => 'Hedef Adı',
+    'portfolio.goals.name_placeholder' => 'ör: Altın Hedefim, Döviz Birikimi...',
+    'portfolio.goals.target_value' => 'Hedef Değer (₺)',
+    'portfolio.goals.target_type' => 'Takip Türü',
+    'portfolio.goals.type_value' => 'Güncel Değer',
+    'portfolio.goals.type_cost' => 'Toplam Maliyet',
+    'portfolio.goals.sources' => 'Kaynaklar (Grup, Etiket veya Öğe)',
+    'portfolio.goals.source_item' => 'Tekil Öğe',
+    'portfolio.goals.items' => 'öğe',
+    'portfolio.goals.delete_confirm' => 'Bu hedefi silmek istediğinize emin misiniz?',
+    'portfolio.goals.empty' => 'Henüz hedef oluşturulmadı.',
+    'portfolio.goals.added' => 'Hedef oluşturuldu.',
+    'portfolio.goals.updated' => 'Hedef güncellendi.',
+    'portfolio.goals.deleted' => 'Hedef silindi.',
+    'portfolio.goals.error' => 'Hedef işlemi başarısız.',
+    'portfolio.goals.source_added' => 'Kaynak hedefe eklendi.',
+    'portfolio.goals.source_removed' => 'Kaynak hedeften kaldırıldı.',
+
+    'common.add' => 'Ekle',
+    'common.select_all' => 'Tümünü seç',
 ];

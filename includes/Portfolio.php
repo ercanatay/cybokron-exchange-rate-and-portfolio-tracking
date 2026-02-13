@@ -740,4 +740,224 @@ class Portfolio
         $slug = trim($slug, '-');
         return $slug !== '' ? mb_substr($slug, 0, 100, 'UTF-8') : 'group-' . time();
     }
+
+    // ──────────────────────────────────────────────────────────────────────
+    // Goals
+    // ──────────────────────────────────────────────────────────────────────
+
+    /**
+     * Get all goals for the current user.
+     */
+    public static function getGoals(): array
+    {
+        $where = '1=1';
+        $params = [];
+
+        if (class_exists('Auth') && Auth::check() && !Auth::isAdmin()) {
+            $userId = Auth::id();
+            if ($userId !== null) {
+                $where .= ' AND (g.user_id IS NULL OR g.user_id = ?)';
+                $params[] = $userId;
+            }
+        }
+
+        return Database::query(
+            "SELECT g.* FROM portfolio_goals g WHERE {$where} ORDER BY g.created_at DESC",
+            $params
+        );
+    }
+
+    /**
+     * Get a single goal by ID.
+     */
+    public static function getGoal(int $id): ?array
+    {
+        return Database::queryOne('SELECT * FROM portfolio_goals WHERE id = ?', [$id]) ?: null;
+    }
+
+    /**
+     * Add a new goal.
+     */
+    public static function addGoal(array $data): int
+    {
+        $name = trim($data['name'] ?? '');
+        if ($name === '') {
+            throw new InvalidArgumentException('Goal name is required.');
+        }
+        $targetValue = (float) ($data['target_value'] ?? 0);
+        if ($targetValue <= 0) {
+            throw new InvalidArgumentException('Target value must be positive.');
+        }
+        $targetType = in_array($data['target_type'] ?? '', ['value', 'cost']) ? $data['target_type'] : 'value';
+
+        $goalId = Database::insert('portfolio_goals', [
+            'user_id' => (class_exists('Auth') && Auth::check()) ? Auth::id() : null,
+            'name' => $name,
+            'target_value' => $targetValue,
+            'target_type' => $targetType,
+        ]);
+
+        return (int) $goalId;
+    }
+
+    /**
+     * Update an existing goal.
+     */
+    public static function updateGoal(int $id, array $data): bool
+    {
+        $name = trim($data['name'] ?? '');
+        if ($name === '') {
+            throw new InvalidArgumentException('Goal name is required.');
+        }
+        $targetValue = (float) ($data['target_value'] ?? 0);
+        if ($targetValue <= 0) {
+            throw new InvalidArgumentException('Target value must be positive.');
+        }
+        $targetType = in_array($data['target_type'] ?? '', ['value', 'cost']) ? $data['target_type'] : 'value';
+
+        return Database::execute(
+            'UPDATE portfolio_goals SET name = ?, target_value = ?, target_type = ? WHERE id = ?',
+            [$name, $targetValue, $targetType, $id]
+        ) >= 0;
+    }
+
+    /**
+     * Delete a goal and all its sources.
+     */
+    public static function deleteGoal(int $id): bool
+    {
+        return Database::execute('DELETE FROM portfolio_goals WHERE id = ?', [$id]) > 0;
+    }
+
+    /**
+     * Get all sources for a goal.
+     */
+    public static function getGoalSources(int $goalId): array
+    {
+        return Database::query(
+            'SELECT * FROM portfolio_goal_sources WHERE goal_id = ? ORDER BY source_type, source_id',
+            [$goalId]
+        );
+    }
+
+    /**
+     * Get all sources for all goals, keyed by goal_id.
+     */
+    public static function getAllGoalSources(): array
+    {
+        $rows = Database::query('SELECT * FROM portfolio_goal_sources ORDER BY source_type, source_id');
+        $result = [];
+        foreach ($rows as $row) {
+            $gid = (int) $row['goal_id'];
+            $result[$gid][] = $row;
+        }
+        return $result;
+    }
+
+    /**
+     * Add a source to a goal.
+     */
+    public static function addGoalSource(int $goalId, string $sourceType, int $sourceId): bool
+    {
+        if (!in_array($sourceType, ['group', 'tag', 'item'])) {
+            return false;
+        }
+        // Check for duplicate
+        $existing = Database::queryOne(
+            'SELECT id FROM portfolio_goal_sources WHERE goal_id = ? AND source_type = ? AND source_id = ?',
+            [$goalId, $sourceType, $sourceId]
+        );
+        if ($existing) {
+            return true; // already exists
+        }
+        Database::insert('portfolio_goal_sources', [
+            'goal_id' => $goalId,
+            'source_type' => $sourceType,
+            'source_id' => $sourceId,
+        ]);
+        return true;
+    }
+
+    /**
+     * Remove a source from a goal.
+     */
+    public static function removeGoalSource(int $goalId, string $sourceType, int $sourceId): bool
+    {
+        return Database::execute(
+            'DELETE FROM portfolio_goal_sources WHERE goal_id = ? AND source_type = ? AND source_id = ?',
+            [$goalId, $sourceType, $sourceId]
+        ) > 0;
+    }
+
+    /**
+     * Compute goal progress for all goals.
+     * Deduplicates items: an item matching multiple sources is counted only once.
+     *
+     * @param array $allItems     All portfolio items from Portfolio::getAll()
+     * @param array $allItemTags  All item tags from Portfolio::getAllItemTags()
+     * @param array $allGoalSources  Goal sources keyed by goal_id
+     * @return array  Keyed by goal_id => ['current' => float, 'target' => float, 'percent' => float]
+     */
+    public static function computeGoalProgress(array $goals, array $allItems, array $allItemTags, array $allGoalSources): array
+    {
+        $result = [];
+
+        foreach ($goals as $goal) {
+            $goalId = (int) $goal['id'];
+            $targetType = $goal['target_type'] ?? 'value'; // 'value' or 'cost'
+            $sources = $allGoalSources[$goalId] ?? [];
+
+            // Collect unique item IDs matching any source
+            $matchedItemIds = [];
+
+            foreach ($sources as $src) {
+                $sType = $src['source_type'];
+                $sId = (int) $src['source_id'];
+
+                if ($sType === 'item') {
+                    $matchedItemIds[$sId] = true;
+                } elseif ($sType === 'group') {
+                    foreach ($allItems as $item) {
+                        if ((int) ($item['group_id'] ?? 0) === $sId) {
+                            $matchedItemIds[(int) $item['id']] = true;
+                        }
+                    }
+                } elseif ($sType === 'tag') {
+                    foreach ($allItems as $item) {
+                        $tags = $allItemTags[(int) $item['id']] ?? [];
+                        foreach ($tags as $t) {
+                            if ((int) $t['id'] === $sId) {
+                                $matchedItemIds[(int) $item['id']] = true;
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Sum values for matched items (deduplicated)
+            $current = 0.0;
+            foreach ($allItems as $item) {
+                if (isset($matchedItemIds[(int) $item['id']])) {
+                    if ($targetType === 'cost') {
+                        $current += (float) ($item['cost_try'] ?? 0);
+                    } else {
+                        $current += (float) ($item['value_try'] ?? 0);
+                    }
+                }
+            }
+
+            $target = (float) $goal['target_value'];
+            $percent = $target > 0 ? min(($current / $target) * 100, 100) : 0;
+
+            $result[$goalId] = [
+                'current' => $current,
+                'target' => $target,
+                'percent' => round($percent, 1),
+                'item_count' => count($matchedItemIds),
+            ];
+        }
+
+        return $result;
+    }
 }
