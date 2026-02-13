@@ -72,12 +72,12 @@ class Portfolio
         $profitPercent = $totalCost > 0 ? ($profitLoss / $totalCost * 100) : 0;
 
         return [
-            'items'          => $items,
-            'total_cost'     => round($totalCost, 2),
-            'total_value'    => round($totalValue, 2),
-            'profit_loss'    => round($profitLoss, 2),
+            'items' => $items,
+            'total_cost' => round($totalCost, 2),
+            'total_value' => round($totalValue, 2),
+            'profit_loss' => round($profitLoss, 2),
             'profit_percent' => round($profitPercent, 2),
-            'item_count'     => count($items),
+            'item_count' => count($items),
         ];
     }
 
@@ -134,13 +134,13 @@ class Portfolio
         }
 
         return Database::insert('portfolio', [
-            'user_id'     => $userId,
+            'user_id' => $userId,
             'currency_id' => (int) $currency['id'],
-            'bank_id'     => $bankId,
-            'amount'      => $amount,
-            'buy_rate'    => $buyRate,
-            'buy_date'    => $buyDate,
-            'notes'       => $notes,
+            'bank_id' => $bankId,
+            'amount' => $amount,
+            'buy_rate' => $buyRate,
+            'buy_date' => $buyDate,
+            'notes' => $notes,
         ]);
     }
 
@@ -173,6 +173,22 @@ class Portfolio
                 throw new InvalidArgumentException('notes exceeds maximum length of 500 characters');
             }
             $update['notes'] = $notes !== '' ? $notes : null;
+        }
+
+        if (isset($data['bank_slug'])) {
+            $slug = trim((string) $data['bank_slug']);
+            if ($slug !== '') {
+                if (!preg_match('/^[a-z0-9-]{1,100}$/', $slug)) {
+                    throw new InvalidArgumentException('Invalid bank_slug format');
+                }
+                $bank = Database::queryOne('SELECT id FROM banks WHERE slug = ? AND is_active = 1', [$slug]);
+                if (!$bank) {
+                    throw new InvalidArgumentException('Invalid bank_slug');
+                }
+                $update['bank_id'] = (int) $bank['id'];
+            } else {
+                $update['bank_id'] = null;
+            }
         }
 
         if (empty($update)) {

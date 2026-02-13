@@ -43,12 +43,14 @@ $currentLocale = getAppLocale();
 ?>
 <!DOCTYPE html>
 <html lang="<?= htmlspecialchars($currentLocale) ?>">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= t('auth.login_title') ?> — <?= APP_NAME ?></title>
-    <link rel="stylesheet" href="assets/css/style.css">
+    <link rel="stylesheet" href="assets/css/style.css?v=<?= filemtime(__DIR__ . '/assets/css/style.css') ?>">
 </head>
+
 <body>
     <main class="container login-container">
         <h1><?= t('auth.login_title') ?></h1>
@@ -69,4 +71,5 @@ $currentLocale = getAppLocale();
         <p class="login-back-link"><a href="index.php"><?= t('auth.back') ?></a></p>
     </main>
 </body>
+
 </html>

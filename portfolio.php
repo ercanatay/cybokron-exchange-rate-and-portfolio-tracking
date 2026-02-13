@@ -36,11 +36,11 @@ if (isset($_GET['edit']) && is_numeric($_GET['edit'])) {
             $editItem = $item;
             $formValues = [
                 'currency_code' => (string) $item['currency_code'],
-                'bank_slug'     => (string) ($item['bank_slug'] ?? ''),
-                'amount'        => (string) $item['amount'],
-                'buy_rate'      => (string) $item['buy_rate'],
-                'buy_date'      => (string) $item['buy_date'],
-                'notes'         => (string) ($item['notes'] ?? ''),
+                'bank_slug' => (string) ($item['bank_slug'] ?? ''),
+                'amount' => (string) $item['amount'],
+                'buy_rate' => (string) $item['buy_rate'],
+                'buy_date' => (string) $item['buy_date'],
+                'notes' => (string) ($item['notes'] ?? ''),
             ];
             break;
         }
@@ -84,12 +84,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if ($action === 'add') {
         $rawBuyDate = trim((string) ($_POST['buy_date'] ?? $defaultBuyDate));
-        
+
         // Convert DD.MM.YYYY or DD/MM/YYYY to YYYY-MM-DD
         if (preg_match('/^(\d{2})[\.\/](\d{2})[\.\/](\d{4})$/', $rawBuyDate, $matches)) {
             $rawBuyDate = $matches[3] . '-' . $matches[2] . '-' . $matches[1];
         }
-        
+
         $formValues = [
             'currency_code' => trim((string) ($_POST['currency_code'] ?? '')),
             'bank_slug' => trim((string) ($_POST['bank_slug'] ?? '')),
@@ -113,11 +113,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         try {
             Portfolio::add([
                 'currency_code' => $formValues['currency_code'],
-                'bank_slug'     => $formValues['bank_slug'],
-                'amount'        => $formValues['amount'],
-                'buy_rate'      => $formValues['buy_rate'],
-                'buy_date'      => $formValues['buy_date'],
-                'notes'         => $formValues['notes'],
+                'bank_slug' => $formValues['bank_slug'],
+                'amount' => $formValues['amount'],
+                'buy_rate' => $formValues['buy_rate'],
+                'buy_date' => $formValues['buy_date'],
+                'notes' => $formValues['notes'],
             ]);
             $message = t('portfolio.message.added');
             $messageType = 'success';
@@ -162,17 +162,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         try {
             $id = (int) $_POST['id'];
             $rawBuyDate = trim((string) ($_POST['buy_date'] ?? ''));
-            
+
             // Convert DD.MM.YYYY or DD/MM/YYYY to YYYY-MM-DD
             if (preg_match('/^(\d{2})[\.\/](\d{2})[\.\/](\d{4})$/', $rawBuyDate, $matches)) {
                 $rawBuyDate = $matches[3] . '-' . $matches[2] . '-' . $matches[1];
             }
-            
+
             $updateData = [
-                'amount'   => trim((string) ($_POST['amount'] ?? '')),
+                'amount' => trim((string) ($_POST['amount'] ?? '')),
                 'buy_rate' => trim((string) ($_POST['buy_rate'] ?? '')),
                 'buy_date' => $rawBuyDate,
-                'notes'    => trim((string) ($_POST['notes'] ?? '')),
+                'notes' => trim((string) ($_POST['notes'] ?? '')),
+                'bank_slug' => trim((string) ($_POST['bank_slug'] ?? '')),
             ];
             if ($updateData['buy_date'] === '') {
                 $updateData['buy_date'] = $defaultBuyDate;
@@ -232,58 +233,24 @@ $csrfToken = getCsrfToken();
 ?>
 <!DOCTYPE html>
 <html lang="<?= htmlspecialchars($currentLocale) ?>">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= t('portfolio.page_title') ?> — <?= APP_NAME ?></title>
-    <link rel="stylesheet" href="assets/css/style.css">
+    <link rel="stylesheet" href="assets/css/style.css?v=<?= filemtime(__DIR__ . '/assets/css/style.css') ?>">
 </head>
+
 <body>
     <a href="#main-content" class="skip-link"><?= t('common.skip_to_content') ?></a>
-    <header class="header">
-        <div class="container">
-            <h1>💱 <?= APP_NAME ?></h1>
-            <nav class="header-nav">
-                <a href="index.php"><?= t('nav.rates') ?></a>
-                <a href="portfolio.php" class="active" aria-current="page"><?= t('nav.portfolio') ?></a>
-                <?php if (Auth::check() && Auth::isAdmin()): ?>
-                    <a href="observability.php"><?= t('observability.title') ?></a>
-                    <a href="admin.php"><?= t('admin.title') ?></a>
-                <?php endif; ?>
-                <?php if (Auth::check()): ?>
-                    <a href="logout.php" class="lang-link"><?= t('nav.logout') ?></a>
-                <?php else: ?>
-                    <a href="login.php" class="lang-link"><?= t('nav.login') ?></a>
-                <?php endif; ?>
-                <button type="button" id="theme-toggle" class="btn-theme" aria-label="<?= t('nav.theme_toggle') ?>" title="<?= t('nav.theme_toggle') ?>" data-label-light="<?= htmlspecialchars(t('theme.switch_to_light')) ?>" data-label-dark="<?= htmlspecialchars(t('theme.switch_to_dark')) ?>">🌙</button>
-                <span class="lang-label"><?= t('nav.language') ?>:</span>
-                <?php foreach ($availableLocales as $locale): ?>
-                    <?php
-                        $localeName = t('nav.language_name.' . $locale);
-                        if (str_contains($localeName, 'nav.language_name.')) {
-                            $localeName = strtoupper($locale);
-                        }
-                    ?>
-                    <a
-                        href="<?= htmlspecialchars(buildLocaleUrl($locale)) ?>"
-                        class="lang-link <?= $currentLocale === $locale ? 'active' : '' ?>"
-                        lang="<?= htmlspecialchars($locale) ?>"
-                        hreflang="<?= htmlspecialchars($locale) ?>"
-                        aria-label="<?= htmlspecialchars(t('nav.language_switch_to', ['language' => $localeName])) ?>"
-                        title="<?= htmlspecialchars(t('nav.language_switch_to', ['language' => $localeName])) ?>"
-                        <?= $currentLocale === $locale ? 'aria-current="page"' : '' ?>
-                    >
-                        <?= htmlspecialchars(strtoupper($locale)) ?>
-                    </a>
-                <?php endforeach; ?>
-            </nav>
-        </div>
-    </header>
+    <?php $activePage = 'portfolio';
+    include __DIR__ . '/includes/header.php'; ?>
 
     <main id="main-content" class="container">
         <?php if ($message): ?>
             <?php $isErrorMessage = $messageType === 'error'; ?>
-            <div class="alert alert-<?= $messageType ?>" role="<?= $isErrorMessage ? 'alert' : 'status' ?>" aria-live="<?= $isErrorMessage ? 'assertive' : 'polite' ?>"><?= htmlspecialchars($message) ?></div>
+            <div class="alert alert-<?= $messageType ?>" role="<?= $isErrorMessage ? 'alert' : 'status' ?>"
+                aria-live="<?= $isErrorMessage ? 'assertive' : 'polite' ?>"><?= htmlspecialchars($message) ?></div>
         <?php endif; ?>
 
         <section class="summary-cards">
@@ -320,23 +287,27 @@ $csrfToken = getCsrfToken();
                         <select name="currency_code" id="currency_code" required <?= $currencyError !== '' ? 'aria-invalid="true" aria-describedby="currency_code-error"' : '' ?> <?= $editItem ? 'disabled' : '' ?>>
                             <option value=""><?= t('portfolio.form.select') ?></option>
                             <?php foreach ($currencies as $currency): ?>
-                                <option value="<?= htmlspecialchars($currency['code']) ?>" <?= $formValues['currency_code'] === (string) $currency['code'] ? 'selected' : '' ?>>
-                                    <?= htmlspecialchars($currency['code']) ?> — <?= htmlspecialchars(localizedCurrencyName($currency)) ?>
+                                <option value="<?= htmlspecialchars($currency['code']) ?>"
+                                    <?= $formValues['currency_code'] === (string) $currency['code'] ? 'selected' : '' ?>>
+                                    <?= htmlspecialchars($currency['code']) ?> —
+                                    <?= htmlspecialchars(localizedCurrencyName($currency)) ?>
                                 </option>
                             <?php endforeach; ?>
                         </select>
                         <?php if ($currencyError !== ''): ?>
-                            <small id="currency_code-error" class="field-error"><?= htmlspecialchars($currencyError) ?></small>
+                            <small id="currency_code-error"
+                                class="field-error"><?= htmlspecialchars($currencyError) ?></small>
                         <?php endif; ?>
                     </div>
 
                     <div class="form-group">
                         <?php $bankError = $fieldErrors['bank_slug'] ?? ''; ?>
                         <label for="bank_slug"><?= t('portfolio.form.bank') ?></label>
-                        <select name="bank_slug" id="bank_slug" <?= $bankError !== '' ? 'aria-invalid="true" aria-describedby="bank_slug-error"' : '' ?> <?= $editItem ? 'disabled' : '' ?>>
+                        <select name="bank_slug" id="bank_slug" <?= $bankError !== '' ? 'aria-invalid="true" aria-describedby="bank_slug-error"' : '' ?>>
                             <option value=""><?= t('portfolio.form.select_optional') ?></option>
                             <?php foreach ($banks as $bank): ?>
-                                <option value="<?= htmlspecialchars($bank['slug']) ?>" <?= $formValues['bank_slug'] === (string) $bank['slug'] ? 'selected' : '' ?>>
+                                <option value="<?= htmlspecialchars($bank['slug']) ?>"
+                                    <?= $formValues['bank_slug'] === (string) $bank['slug'] ? 'selected' : '' ?>>
                                     <?= htmlspecialchars($bank['name']) ?>
                                 </option>
                             <?php endforeach; ?>
@@ -351,7 +322,8 @@ $csrfToken = getCsrfToken();
                     <div class="form-group">
                         <?php $amountError = $fieldErrors['amount'] ?? ''; ?>
                         <label for="amount"><?= t('portfolio.form.amount') ?></label>
-                        <input type="number" name="amount" id="amount" step="0.000001" min="0" required placeholder="1000" value="<?= htmlspecialchars($formValues['amount']) ?>" <?= $amountError !== '' ? 'aria-invalid="true" aria-describedby="amount-error"' : '' ?>>
+                        <input type="number" name="amount" id="amount" step="0.000001" min="0" required
+                            placeholder="1000" value="<?= htmlspecialchars($formValues['amount']) ?>" <?= $amountError !== '' ? 'aria-invalid="true" aria-describedby="amount-error"' : '' ?>>
                         <?php if ($amountError !== ''): ?>
                             <small id="amount-error" class="field-error"><?= htmlspecialchars($amountError) ?></small>
                         <?php endif; ?>
@@ -360,7 +332,9 @@ $csrfToken = getCsrfToken();
                     <div class="form-group">
                         <?php $buyRateError = $fieldErrors['buy_rate'] ?? ''; ?>
                         <label for="buy_rate"><?= t('portfolio.form.buy_rate') ?></label>
-                        <input type="number" name="buy_rate" id="buy_rate" step="0.000001" min="0" required placeholder="43.5865" value="<?= htmlspecialchars($formValues['buy_rate']) ?>" <?= $buyRateError !== '' ? 'aria-invalid="true" aria-describedby="buy_rate-error"' : '' ?>>
+                        <input type="number" name="buy_rate" id="buy_rate" step="0.000001" min="0" required
+                            placeholder="43.5865" value="<?= htmlspecialchars($formValues['buy_rate']) ?>"
+                            <?= $buyRateError !== '' ? 'aria-invalid="true" aria-describedby="buy_rate-error"' : '' ?>>
                         <?php if ($buyRateError !== ''): ?>
                             <small id="buy_rate-error" class="field-error"><?= htmlspecialchars($buyRateError) ?></small>
                         <?php endif; ?>
@@ -369,7 +343,8 @@ $csrfToken = getCsrfToken();
                     <div class="form-group">
                         <?php $buyDateError = $fieldErrors['buy_date'] ?? ''; ?>
                         <label for="buy_date"><?= t('portfolio.form.buy_date') ?></label>
-                        <input type="date" name="buy_date" id="buy_date" value="<?= htmlspecialchars($formValues['buy_date']) ?>" required <?= $buyDateError !== '' ? 'aria-invalid="true" aria-describedby="buy_date-error"' : '' ?>>
+                        <input type="date" name="buy_date" id="buy_date"
+                            value="<?= htmlspecialchars($formValues['buy_date']) ?>" required <?= $buyDateError !== '' ? 'aria-invalid="true" aria-describedby="buy_date-error"' : '' ?>>
                         <?php if ($buyDateError !== ''): ?>
                             <small id="buy_date-error" class="field-error"><?= htmlspecialchars($buyDateError) ?></small>
                         <?php endif; ?>
@@ -379,13 +354,16 @@ $csrfToken = getCsrfToken();
                 <div class="form-group">
                     <?php $notesError = $fieldErrors['notes'] ?? ''; ?>
                     <label for="notes"><?= t('portfolio.form.notes') ?></label>
-                    <input type="text" name="notes" id="notes" placeholder="<?= htmlspecialchars(t('portfolio.form.notes_placeholder')) ?>" maxlength="500" value="<?= htmlspecialchars($formValues['notes']) ?>" <?= $notesError !== '' ? 'aria-invalid="true" aria-describedby="notes-error"' : '' ?>>
+                    <input type="text" name="notes" id="notes"
+                        placeholder="<?= htmlspecialchars(t('portfolio.form.notes_placeholder')) ?>" maxlength="500"
+                        value="<?= htmlspecialchars($formValues['notes']) ?>" <?= $notesError !== '' ? 'aria-invalid="true" aria-describedby="notes-error"' : '' ?>>
                     <?php if ($notesError !== ''): ?>
                         <small id="notes-error" class="field-error"><?= htmlspecialchars($notesError) ?></small>
                     <?php endif; ?>
                 </div>
 
-                <button type="submit" class="btn btn-primary"><?= $editItem ? t('portfolio.form.update') : t('portfolio.form.submit') ?></button>
+                <button type="submit"
+                    class="btn btn-primary"><?= $editItem ? t('portfolio.form.update') : t('portfolio.form.submit') ?></button>
                 <?php if ($editItem): ?>
                     <a href="portfolio.php" class="btn btn-secondary"><?= t('portfolio.form.cancel') ?></a>
                 <?php endif; ?>
@@ -393,31 +371,33 @@ $csrfToken = getCsrfToken();
         </section>
 
         <?php if (!empty($distribution) || $annualizedReturn !== null): ?>
-        <section class="portfolio-analytics bank-section">
-            <h2>📊 <?= t('portfolio.analytics.title') ?></h2>
-            <div class="analytics-grid">
-                <?php if (!empty($distribution)): ?>
-                <div class="analytics-card">
-                    <h3><?= t('portfolio.analytics.distribution') ?></h3>
-                    <div class="chart-container" style="height: 220px;">
-                        <canvas id="portfolio-pie-chart" role="img" aria-label="<?= htmlspecialchars(t('portfolio.analytics.distribution')) ?>"></canvas>
-                    </div>
-                    <script>
-                        window.portfolioDistribution = <?= json_encode($distribution) ?>;
-                    </script>
+            <section class="portfolio-analytics bank-section">
+                <h2>📊 <?= t('portfolio.analytics.title') ?></h2>
+                <div class="analytics-grid">
+                    <?php if (!empty($distribution)): ?>
+                        <div class="analytics-card">
+                            <h3><?= t('portfolio.analytics.distribution') ?></h3>
+                            <div class="chart-container" style="height: 220px;">
+                                <canvas id="portfolio-pie-chart" role="img"
+                                    aria-label="<?= htmlspecialchars(t('portfolio.analytics.distribution')) ?>"></canvas>
+                            </div>
+                            <script>
+                                window.portfolioDistribution = <?= json_encode($distribution) ?>;
+                            </script>
+                        </div>
+                    <?php endif; ?>
+                    <?php if ($annualizedReturn !== null): ?>
+                        <div class="analytics-card">
+                            <h3><?= t('portfolio.analytics.annualized_return') ?></h3>
+                            <p class="analytics-value <?= changeClass($annualizedReturn * 100) ?>">
+                                <?= formatNumberLocalized($annualizedReturn * 100, 2) ?>%
+                                <?= t('portfolio.analytics.per_year') ?>
+                            </p>
+                            <p class="analytics-note"><?= t('portfolio.analytics.approximation') ?></p>
+                        </div>
+                    <?php endif; ?>
                 </div>
-                <?php endif; ?>
-                <?php if ($annualizedReturn !== null): ?>
-                <div class="analytics-card">
-                    <h3><?= t('portfolio.analytics.annualized_return') ?></h3>
-                    <p class="analytics-value <?= changeClass($annualizedReturn * 100) ?>">
-                        <?= formatNumberLocalized($annualizedReturn * 100, 2) ?>% <?= t('portfolio.analytics.per_year') ?>
-                    </p>
-                    <p class="analytics-note"><?= t('portfolio.analytics.approximation') ?></p>
-                </div>
-                <?php endif; ?>
-            </div>
-        </section>
+            </section>
         <?php endif; ?>
 
         <?php if (!empty($summary['items'])): ?>
@@ -462,13 +442,19 @@ $csrfToken = getCsrfToken();
                                     </td>
                                     <td><?= formatDate((string) $item['buy_date']) ?></td>
                                     <td>
-                                        <a href="portfolio.php?edit=<?= (int) $item['id'] ?>#form-section" class="btn btn-sm btn-secondary" aria-label="<?= htmlspecialchars(t('portfolio.table.edit_action', ['currency' => (string) $item['currency_code']])) ?>" title="<?= htmlspecialchars(t('portfolio.table.edit_action', ['currency' => (string) $item['currency_code']])) ?>">✏️</a>
-                                        <form method="POST" style="display:inline" onsubmit="return confirm(<?= $deleteConfirmText ?>)">
+                                        <a href="portfolio.php?edit=<?= (int) $item['id'] ?>#form-section"
+                                            class="btn btn-sm btn-secondary"
+                                            aria-label="<?= htmlspecialchars(t('portfolio.table.edit_action', ['currency' => (string) $item['currency_code']])) ?>"
+                                            title="<?= htmlspecialchars(t('portfolio.table.edit_action', ['currency' => (string) $item['currency_code']])) ?>">✏️</a>
+                                        <form method="POST" style="display:inline"
+                                            onsubmit="return confirm(<?= $deleteConfirmText ?>)">
                                             <input type="hidden" name="action" value="delete">
                                             <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
                                             <input type="hidden" name="id" value="<?= (int) $item['id'] ?>">
                                             <?php $deleteActionLabel = t('portfolio.table.delete_action', ['currency' => (string) $item['currency_code']]); ?>
-                                            <button type="submit" class="btn btn-sm btn-danger" aria-label="<?= htmlspecialchars($deleteActionLabel) ?>" title="<?= htmlspecialchars($deleteActionLabel) ?>">🗑</button>
+                                            <button type="submit" class="btn btn-sm btn-danger"
+                                                aria-label="<?= htmlspecialchars($deleteActionLabel) ?>"
+                                                title="<?= htmlspecialchars($deleteActionLabel) ?>">🗑</button>
                                         </form>
                                     </td>
                                 </tr>
@@ -489,16 +475,22 @@ $csrfToken = getCsrfToken();
         <div class="container">
             <p class="footer-links">
                 Cybokron v<?= htmlspecialchars($version) ?> |
-                <a href="https://github.com/ercanatay/cybokron-exchange-rate-and-portfolio-tracking" target="_blank" rel="noopener noreferrer"><?= t('footer.github') ?><span class="sr-only"> <?= htmlspecialchars($newTabText) ?></span></a> |
-                <a href="https://github.com/ercanatay/cybokron-exchange-rate-and-portfolio-tracking/blob/main/CODE_OF_CONDUCT.md" target="_blank" rel="noopener noreferrer"><?= t('footer.code_of_conduct') ?><span class="sr-only"> <?= htmlspecialchars($newTabText) ?></span></a> |
-                <a href="LICENSE" target="_blank" rel="noopener noreferrer"><?= t('footer.license') ?><span class="sr-only"> <?= htmlspecialchars($newTabText) ?></span></a>
+                <a href="https://github.com/ercanatay/cybokron-exchange-rate-and-portfolio-tracking" target="_blank"
+                    rel="noopener noreferrer"><?= t('footer.github') ?><span class="sr-only">
+                        <?= htmlspecialchars($newTabText) ?></span></a> |
+                <a href="https://github.com/ercanatay/cybokron-exchange-rate-and-portfolio-tracking/blob/main/CODE_OF_CONDUCT.md"
+                    target="_blank" rel="noopener noreferrer"><?= t('footer.code_of_conduct') ?><span class="sr-only">
+                        <?= htmlspecialchars($newTabText) ?></span></a> |
+                <a href="LICENSE" target="_blank" rel="noopener noreferrer"><?= t('footer.license') ?><span
+                        class="sr-only"> <?= htmlspecialchars($newTabText) ?></span></a>
             </p>
         </div>
     </footer>
     <script src="assets/js/theme.js"></script>
     <?php if (!empty($distribution)): ?>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" crossorigin="anonymous"></script>
-    <script src="assets/js/portfolio-analytics.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" crossorigin="anonymous"></script>
+        <script src="assets/js/portfolio-analytics.js"></script>
     <?php endif; ?>
 </body>
+
 </html>

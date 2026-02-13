@@ -235,6 +235,16 @@ return [
     'admin.filter_bank' => 'Filter by bank',
     'admin.all' => 'All',
 
+    'admin.widget_management' => 'Homepage Widgets',
+    'admin.widget_management_desc' => 'Reorder and toggle visibility of homepage sections.',
+    'admin.widget_bank_selector' => 'Bank Selector',
+    'admin.widget_converter' => 'Currency Converter',
+    'admin.widget_summary' => 'Summary',
+    'admin.widget_chart' => 'Rate Chart',
+    'admin.widget_rates' => 'Rate Tables',
+    'admin.widget_drag_desc' => 'Drag widgets to reorder. Toggle switches to show or hide sections on the homepage.',
+    'admin.widget_config_updated' => 'Widget configuration saved!',
+
     'api.endpoint.rates' => 'Latest exchange rates',
     'api.endpoint.rates_compact' => 'Compact rates payload for polling clients',
     'api.endpoint.rates_bank' => 'Rates for specific bank',

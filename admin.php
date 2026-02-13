@@ -116,7 +116,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         }
     }
 
-    if (!in_array($_POST['action'], ['update_rates', 'toggle_homepage', 'set_default_bank', 'update_rate_order', 'set_chart_defaults'], true)) {
+    if ($_POST['action'] === 'save_widget_config' && isset($_POST['widget_config'])) {
+        $widgetConfig = json_decode($_POST['widget_config'], true);
+        if (is_array($widgetConfig)) {
+            $json = json_encode($widgetConfig, JSON_UNESCAPED_UNICODE);
+            Database::query(
+                'INSERT INTO settings (`key`, value) VALUES (?, ?) ON DUPLICATE KEY UPDATE value = ?',
+                ['widget_config', $json, $json]
+            );
+            // If AJAX request, respond JSON
+            if (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest') {
+                header('Content-Type: application/json');
+                echo json_encode(['status' => 'ok', 'message' => t('admin.widget_config_updated')]);
+                exit;
+            }
+            $message = t('admin.widget_config_updated');
+            $messageType = 'success';
+        }
+    }
+
+    if (!in_array($_POST['action'], ['update_rates', 'toggle_homepage', 'set_default_bank', 'update_rate_order', 'set_chart_defaults', 'save_widget_config'], true)) {
         header('Location: admin.php');
         exit;
     }
@@ -158,6 +177,32 @@ $currentLocale = getAppLocale();
 $csrfToken = getCsrfToken();
 $version = trim(file_get_contents(__DIR__ . '/VERSION'));
 
+// Widget configuration
+$widgetConfigRaw = Database::queryOne('SELECT value FROM settings WHERE `key` = ?', ['widget_config']);
+$defaultWidgets = [
+    ['id' => 'bank_selector', 'visible' => true, 'order' => 0],
+    ['id' => 'converter', 'visible' => true, 'order' => 1],
+    ['id' => 'widgets', 'visible' => true, 'order' => 2],
+    ['id' => 'chart', 'visible' => true, 'order' => 3],
+    ['id' => 'rates', 'visible' => true, 'order' => 4],
+];
+$widgetConfig = $defaultWidgets;
+if (!empty($widgetConfigRaw['value'])) {
+    $parsed = json_decode($widgetConfigRaw['value'], true);
+    if (is_array($parsed)) {
+        $widgetConfig = $parsed;
+    }
+}
+usort($widgetConfig, fn($a, $b) => ($a['order'] ?? 0) <=> ($b['order'] ?? 0));
+
+$widgetLabels = [
+    'bank_selector' => '🏦 ' . t('admin.widget_bank_selector'),
+    'converter' => '🔄 ' . t('admin.widget_converter'),
+    'widgets' => '📊 ' . t('admin.widget_summary'),
+    'chart' => '📈 ' . t('admin.widget_chart'),
+    'rates' => '📋 ' . t('admin.widget_rates'),
+];
+
 // Collect unique bank names for filter
 $bankNames = [];
 foreach ($allRates as $r) {
@@ -171,23 +216,13 @@ foreach ($allRates as $r) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= t('admin.title') ?> — <?= APP_NAME ?></title>
-    <link rel="stylesheet" href="assets/css/style.css">
+    <link rel="stylesheet" href="assets/css/style.css?v=<?= filemtime(__DIR__ . '/assets/css/style.css') ?>">
     <link rel="stylesheet" href="assets/css/admin.css">
 </head>
 
 <body>
-    <header class="header">
-        <div class="container">
-            <h1>⚙️ <?= t('admin.title') ?></h1>
-            <nav class="header-nav">
-                <a href="index.php"><?= t('nav.rates') ?></a>
-                <a href="portfolio.php"><?= t('nav.portfolio') ?></a>
-                <a href="observability.php"><?= t('observability.title') ?></a>
-                <a href="admin.php" class="active" aria-current="page"><?= t('admin.title') ?></a>
-                <a href="logout.php"><?= t('nav.logout') ?></a>
-            </nav>
-        </div>
-    </header>
+    <?php $activePage = 'admin';
+    include __DIR__ . '/includes/header.php'; ?>
 
     <div id="toast-container" class="toast-container"></div>
 
@@ -242,7 +277,8 @@ foreach ($allRates as $r) {
                                 <label for="default_bank"><?= t('admin.default_bank') ?></label>
                                 <select id="default_bank" name="default_bank">
                                     <option value="all" <?= $defaultBankValue === 'all' ? 'selected' : '' ?>>
-                                        <?= t('admin.all_banks') ?></option>
+                                        <?= t('admin.all_banks') ?>
+                                    </option>
                                     <?php foreach ($banks as $bank): ?>
                                         <?php if ($bank['is_active']): ?>
                                             <option value="<?= htmlspecialchars($bank['slug']) ?>"
@@ -291,12 +327,52 @@ foreach ($allRates as $r) {
                             <select id="chart_days" name="chart_days">
                                 <?php foreach ([7, 30, 90, 180, 365] as $d): ?>
                                     <option value="<?= $d ?>" <?= $chartDefaultDaysValue === $d ? 'selected' : '' ?>><?= $d ?>
-                                        <?= t('index.chart.days_unit') ?></option>
+                                        <?= t('index.chart.days_unit') ?>
+                                    </option>
                                 <?php endforeach; ?>
                             </select>
                         </div>
                         <button type="submit" class="btn btn-primary"><?= t('admin.save') ?></button>
                     </form>
+                </div>
+            </div>
+
+            <!-- Widget Management -->
+            <div class="admin-card">
+                <div class="admin-card-header">
+                    <div class="admin-card-header-left">
+                        <div class="admin-card-icon" style="background: linear-gradient(135deg, #06b6d420, #0891b220);">
+                            🧩</div>
+                        <div>
+                            <h2><?= t('admin.widget_management') ?></h2>
+                            <p><?= t('admin.widget_management_desc') ?></p>
+                        </div>
+                    </div>
+                    <div class="save-status" id="widget-save-status"></div>
+                </div>
+                <div class="admin-card-body">
+                    <div class="hint-box">
+                        <strong>💡 <?= t('admin.drag_drop_hint') ?>:</strong>
+                        <?= t('admin.widget_drag_desc') ?>
+                    </div>
+                    <ul id="widget-sortable-list" class="widget-config-list">
+                        <?php foreach ($widgetConfig as $i => $w): ?>
+                            <li class="widget-config-item sortable-row" draggable="true"
+                                data-widget-id="<?= htmlspecialchars($w['id']) ?>">
+                                <span class="drag-handle">⠿</span>
+                                <span class="order-num"><?= $i + 1 ?></span>
+                                <span
+                                    class="widget-config-label"><?= $widgetLabels[$w['id']] ?? htmlspecialchars($w['id']) ?></span>
+                                <label class="widget-toggle">
+                                    <input type="checkbox" <?= ($w['visible'] ?? true) ? 'checked' : '' ?>
+                                        data-widget-id="<?= htmlspecialchars($w['id']) ?>">
+                                    <span class="widget-toggle-slider"></span>
+                                    <span
+                                        class="widget-toggle-text"><?= ($w['visible'] ?? true) ? t('admin.visible') : t('admin.hidden') ?></span>
+                                </label>
+                            </li>
+                        <?php endforeach; ?>
+                    </ul>
                 </div>
             </div>
 
@@ -505,7 +581,8 @@ foreach ($allRates as $r) {
                                                 class="badge <?= $u['is_active'] ? 'badge-success' : 'badge-muted' ?>"><?= $u['is_active'] ? '● ' . t('admin.active') : '○ ' . t('admin.inactive') ?></span>
                                         </td>
                                         <td style="font-size: 0.8rem; color: var(--text-muted);">
-                                            <?= formatDateTime($u['created_at']) ?></td>
+                                            <?= formatDateTime($u['created_at']) ?>
+                                        </td>
                                     </tr>
                                 <?php endforeach; ?>
                             </tbody>
@@ -720,6 +797,174 @@ foreach ($allRates as $r) {
                 updateOrderNumbers();
                 scheduleSave();
                 touchRow = null;
+            });
+        })();
+
+        // ─── Widget Management ──────────────────────────────────────────────────
+        (function () {
+            var list = document.getElementById('widget-sortable-list');
+            if (!list) return;
+
+            var statusEl = document.getElementById('widget-save-status');
+            var saveTimeout = null;
+            var draggedItem = null;
+            var visibleText = <?= json_encode(t('admin.visible')) ?>;
+            var hiddenText = <?= json_encode(t('admin.hidden')) ?>;
+
+            function getWidgetConfig() {
+                var items = list.querySelectorAll('.widget-config-item');
+                var config = [];
+                items.forEach(function (item, i) {
+                    config.push({
+                        id: item.dataset.widgetId,
+                        visible: item.querySelector('input[type="checkbox"]').checked,
+                        order: i
+                    });
+                });
+                return config;
+            }
+
+            function updateOrderNumbers() {
+                list.querySelectorAll('.order-num').forEach(function (el, i) {
+                    el.textContent = i + 1;
+                });
+            }
+
+            function showStatus(type, text) {
+                if (!statusEl) return;
+                statusEl.className = 'save-status visible ' + type;
+                statusEl.innerHTML = type === 'saving'
+                    ? '<div class="save-spinner"></div> ' + text
+                    : text;
+                if (type !== 'saving') {
+                    setTimeout(function () {
+                        statusEl.classList.remove('visible');
+                    }, 2000);
+                }
+            }
+
+            function saveWidgetConfig() {
+                var config = getWidgetConfig();
+                showStatus('saving', <?= json_encode(t('admin.order_saving')) ?>);
+
+                var xhr = new XMLHttpRequest();
+                xhr.open('POST', 'admin.php', true);
+                xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+                xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+                xhr.onload = function () {
+                    if (xhr.status === 200) {
+                        showStatus('saved', <?= json_encode(t('admin.order_saved')) ?>);
+                    } else {
+                        showStatus('error', <?= json_encode(t('admin.order_save_error')) ?>);
+                    }
+                };
+                xhr.onerror = function () {
+                    showStatus('error', <?= json_encode(t('admin.order_save_error')) ?>);
+                };
+                var params = 'action=save_widget_config&csrf_token=' + encodeURIComponent(csrfToken) +
+                    '&widget_config=' + encodeURIComponent(JSON.stringify(config));
+                xhr.send(params);
+            }
+
+            function scheduleSave() {
+                if (saveTimeout) clearTimeout(saveTimeout);
+                saveTimeout = setTimeout(saveWidgetConfig, 400);
+            }
+
+            // Toggle visibility
+            list.addEventListener('change', function (e) {
+                if (e.target.type === 'checkbox') {
+                    var textEl = e.target.closest('.widget-toggle').querySelector('.widget-toggle-text');
+                    if (textEl) {
+                        textEl.textContent = e.target.checked ? visibleText : hiddenText;
+                    }
+                    scheduleSave();
+                }
+            });
+
+            // Drag & drop
+            var items = list.querySelectorAll('.widget-config-item');
+            items.forEach(function (item) {
+                item.addEventListener('dragstart', function (e) {
+                    draggedItem = this;
+                    this.classList.add('dragging');
+                    e.dataTransfer.effectAllowed = 'move';
+                    e.dataTransfer.setData('text/plain', '');
+                });
+
+                item.addEventListener('dragend', function () {
+                    this.classList.remove('dragging');
+                    draggedItem = null;
+                    list.querySelectorAll('.drag-over').forEach(function (r) { r.classList.remove('drag-over'); });
+                });
+
+                item.addEventListener('dragover', function (e) {
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = 'move';
+                    if (draggedItem && draggedItem !== this) {
+                        list.querySelectorAll('.drag-over').forEach(function (r) { r.classList.remove('drag-over'); });
+                        this.classList.add('drag-over');
+                    }
+                });
+
+                item.addEventListener('dragleave', function () {
+                    this.classList.remove('drag-over');
+                });
+
+                item.addEventListener('drop', function (e) {
+                    e.preventDefault();
+                    this.classList.remove('drag-over');
+                    if (draggedItem && draggedItem !== this) {
+                        var rect = this.getBoundingClientRect();
+                        var mid = rect.top + rect.height / 2;
+                        if (e.clientY < mid) {
+                            list.insertBefore(draggedItem, this);
+                        } else {
+                            list.insertBefore(draggedItem, this.nextSibling);
+                        }
+                        updateOrderNumbers();
+                        scheduleSave();
+                    }
+                });
+            });
+
+            // Touch support
+            var touchItem = null;
+            list.addEventListener('touchstart', function (e) {
+                var handle = e.target.closest('.drag-handle');
+                if (!handle) return;
+                touchItem = handle.closest('.widget-config-item');
+                if (touchItem) touchItem.classList.add('dragging');
+            }, { passive: true });
+
+            list.addEventListener('touchmove', function (e) {
+                if (!touchItem) return;
+                e.preventDefault();
+                var y = e.touches[0].clientY;
+                var allItems = Array.from(list.querySelectorAll('.widget-config-item:not(.dragging)'));
+                allItems.forEach(function (r) { r.classList.remove('drag-over'); });
+                for (var i = 0; i < allItems.length; i++) {
+                    var rect = allItems[i].getBoundingClientRect();
+                    if (y > rect.top && y < rect.bottom) {
+                        allItems[i].classList.add('drag-over');
+                        var mid = rect.top + rect.height / 2;
+                        if (y < mid) {
+                            list.insertBefore(touchItem, allItems[i]);
+                        } else {
+                            list.insertBefore(touchItem, allItems[i].nextSibling);
+                        }
+                        break;
+                    }
+                }
+            }, { passive: false });
+
+            list.addEventListener('touchend', function () {
+                if (!touchItem) return;
+                touchItem.classList.remove('dragging');
+                list.querySelectorAll('.drag-over').forEach(function (r) { r.classList.remove('drag-over'); });
+                updateOrderNumbers();
+                scheduleSave();
+                touchItem = null;
             });
         })();
     </script>
