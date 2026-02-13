@@ -189,9 +189,15 @@ jobs:
         run: |
           if [ -n "${ADMIN_HASH}" ]; then
             echo "Updating admin password..."
+            # Write hash to temp file to avoid shell escaping issues with bcrypt $ signs
+            printf '%s' "${ADMIN_HASH}" > /tmp/admin_hash.txt
+            scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \
+              /tmp/admin_hash.txt \
+              ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:~/public_html/.admin_hash.tmp
             ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \
               ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} \
-              "cd ~/public_html && ADMIN_HASH='${ADMIN_HASH}' php database/update_admin_password.php"
+              'cd ~/public_html && php database/update_admin_password.php && rm -f .admin_hash.tmp'
+            rm -f /tmp/admin_hash.txt
           else
             echo "ADMIN_PASSWORD_HASH secret not set, skipping password update."
           fi

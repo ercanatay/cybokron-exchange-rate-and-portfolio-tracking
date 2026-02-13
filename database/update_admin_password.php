@@ -10,7 +10,13 @@ if (PHP_SAPI !== 'cli') {
     die('CLI only.');
 }
 
-$hash = getenv('ADMIN_HASH');
+// Read hash from file (preferred) or env variable
+$hashFile = __DIR__ . '/../.admin_hash.tmp';
+if (file_exists($hashFile)) {
+    $hash = trim(file_get_contents($hashFile));
+} else {
+    $hash = getenv('ADMIN_HASH');
+}
 if (empty($hash)) {
     echo "ADMIN_HASH not set, skipping.\n";
     exit(0);
