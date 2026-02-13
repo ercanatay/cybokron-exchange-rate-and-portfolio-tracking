@@ -478,6 +478,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
+    if ($action === 'toggle_goal_favorite') {
+        $goalId = (int) ($_POST['goal_id'] ?? 0);
+        if ($goalId > 0 && Portfolio::toggleGoalFavorite($goalId)) {
+            $message = t('portfolio.goals.favorite_toggled');
+            $messageType = 'success';
+        } else {
+            $message = t('portfolio.goals.error');
+            $messageType = 'error';
+        }
+    }
+
     if ($action === 'add_goal_source') {
         $goalId = (int) ($_POST['goal_id'] ?? 0);
         $srcType = $_POST['source_type'] ?? '';
@@ -966,7 +977,36 @@ $annualizedReturn = ($oldestDate && $analyticsCost > 0)
                         </form>
                     </div>
 
-                    <?php if (!empty($goals)): ?>
+                    <?php if (!empty($goals)):
+                        // Collect unique currencies used in goals for the filter dropdown
+                        $goalCurrenciesUsed = [];
+                        foreach ($goals as $g) {
+                            $tc = $g['target_currency'] ?? '';
+                            if ($tc !== '') $goalCurrenciesUsed[$tc] = true;
+                        }
+                        ksort($goalCurrenciesUsed);
+                    ?>
+                        <div class="goal-filter-bar">
+                            <button type="button" class="goal-filter-btn" data-filter="favorites" onclick="toggleGoalFilter('favorites')">
+                                ⭐ <?= t('portfolio.goals.favorites') ?>
+                            </button>
+                            <button type="button" class="goal-filter-btn" data-filter="group" onclick="toggleGoalFilter('group')">
+                                📦 <?= t('portfolio.goals.filter_group') ?>
+                            </button>
+                            <button type="button" class="goal-filter-btn" data-filter="tag" onclick="toggleGoalFilter('tag')">
+                                🏷️ <?= t('portfolio.goals.filter_tag') ?>
+                            </button>
+                            <select class="goal-filter-select" onchange="filterGoalsByCurrency(this.value)">
+                                <option value=""><?= t('portfolio.goals.filter_all_currencies') ?></option>
+                                <?php foreach ($goalCurrenciesUsed as $cur => $_): ?>
+                                    <option value="<?= htmlspecialchars($cur) ?>"><?= htmlspecialchars($cur) ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                            <button type="button" class="goal-filter-btn goal-filter-clear hidden" onclick="clearGoalFilters()">
+                                ✕ <?= t('portfolio.goals.filter_clear') ?>
+                            </button>
+                        </div>
+
                         <div class="goals-list">
                             <?php foreach ($goals as $goal):
                                 $gp = $goalProgress[(int)$goal['id']] ?? ['current' => 0, 'target' => 0, 'percent' => 0, 'item_count' => 0, 'unit' => '₺', 'target_type' => 'value', 'target_currency' => null];
@@ -992,9 +1032,22 @@ $annualizedReturn = ($oldestDate && $analyticsCost > 0)
                                     }
                                 }
                             ?>
-                                <div class="goal-card<?= $isDrawdownGoal ? ' goal-card-drawdown' : '' ?>">
+                                <div class="goal-card<?= $isDrawdownGoal ? ' goal-card-drawdown' : '' ?>"
+                                     data-favorite="<?= !empty($goal['is_favorite']) ? '1' : '0' ?>"
+                                     data-source-types="<?= htmlspecialchars(implode(',', array_unique(array_column($gSources, 'source_type')))) ?>"
+                                     data-currencies="<?= htmlspecialchars($goal['target_currency'] ?? '') ?>"
+                                     data-goal-type="<?= htmlspecialchars($goal['target_type'] ?? 'value') ?>">
                                     <div class="goal-card-header">
                                         <div class="goal-card-info">
+                                            <form method="POST" style="display:inline">
+                                                <input type="hidden" name="action" value="toggle_goal_favorite">
+                                                <input type="hidden" name="goal_id" value="<?= (int)$goal['id'] ?>">
+                                                <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
+                                                <button type="submit" class="goal-favorite-btn<?= !empty($goal['is_favorite']) ? ' active' : '' ?>"
+                                                    title="<?= !empty($goal['is_favorite']) ? t('portfolio.goals.favorite_remove') : t('portfolio.goals.favorite_add') ?>">
+                                                    <?= !empty($goal['is_favorite']) ? '★' : '☆' ?>
+                                                </button>
+                                            </form>
                                             <span class="goal-name">🎯 <?= htmlspecialchars($goal['name']) ?></span>
                                             <span class="goal-meta">
                                                 <?= t('portfolio.goals.type_' . ($goal['target_type'] ?? 'value')) ?>
@@ -1784,6 +1837,53 @@ $annualizedReturn = ($oldestDate && $analyticsCost > 0)
         function toggleEditGoal(id) {
             var el = document.getElementById('edit-goal-' + id);
             if (el) el.classList.toggle('hidden');
+        }
+
+        /* ─── Goal Filtering ──────────────────────────────────────────────── */
+        var activeGoalFilters = { favorites: false, group: false, tag: false, currency: '' };
+
+        function toggleGoalFilter(filterName) {
+            activeGoalFilters[filterName] = !activeGoalFilters[filterName];
+            applyGoalFilters();
+        }
+
+        function filterGoalsByCurrency(currency) {
+            activeGoalFilters.currency = currency;
+            applyGoalFilters();
+        }
+
+        function applyGoalFilters() {
+            var cards = document.querySelectorAll('.goal-card');
+            var anyFilter = activeGoalFilters.favorites || activeGoalFilters.group || activeGoalFilters.tag || activeGoalFilters.currency !== '';
+
+            cards.forEach(function(card) {
+                var show = true;
+                if (activeGoalFilters.favorites && card.dataset.favorite !== '1') show = false;
+                if (activeGoalFilters.group && (card.dataset.sourceTypes || '').indexOf('group') === -1) show = false;
+                if (activeGoalFilters.tag && (card.dataset.sourceTypes || '').indexOf('tag') === -1) show = false;
+                if (activeGoalFilters.currency && card.dataset.currencies !== activeGoalFilters.currency) show = false;
+                card.style.display = show ? '' : 'none';
+            });
+
+            var clearBtn = document.querySelector('.goal-filter-clear');
+            if (clearBtn) clearBtn.classList.toggle('hidden', !anyFilter);
+            updateFilterButtons();
+        }
+
+        function updateFilterButtons() {
+            document.querySelectorAll('.goal-filter-btn[data-filter]').forEach(function(btn) {
+                var f = btn.dataset.filter;
+                if (f && f in activeGoalFilters) {
+                    btn.classList.toggle('active', !!activeGoalFilters[f]);
+                }
+            });
+        }
+
+        function clearGoalFilters() {
+            activeGoalFilters = { favorites: false, group: false, tag: false, currency: '' };
+            var sel = document.querySelector('.goal-filter-select');
+            if (sel) sel.value = '';
+            applyGoalFilters();
         }
 
         /* ─── Goal Type → Currency Field Toggle ────────────────────────────── */

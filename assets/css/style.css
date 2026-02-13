@@ -2564,6 +2564,64 @@ button:focus-visible,
     align-items: center;
 }
 
+/* Favori Yıldız Butonu */
+.goal-favorite-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 1.1rem;
+    padding: 2px 4px;
+    color: var(--text-muted);
+    transition: color 0.2s, transform 0.2s;
+}
+.goal-favorite-btn:hover { transform: scale(1.2); }
+.goal-favorite-btn.active { color: #f59e0b; }
+
+/* Filtre Bar */
+.goal-filter-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+    margin-bottom: 12px;
+    padding: 8px 0;
+}
+
+.goal-filter-btn {
+    padding: 6px 12px;
+    border-radius: 20px;
+    border: 1px solid var(--border-color);
+    background: var(--surface-color);
+    color: var(--text-secondary);
+    font-size: 0.78rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    min-height: 36px;
+}
+.goal-filter-btn:hover { border-color: var(--primary); }
+.goal-filter-btn.active {
+    background: var(--primary);
+    color: white;
+    border-color: var(--primary);
+}
+.goal-filter-clear { color: var(--danger); border-color: var(--danger); }
+.goal-filter-clear:hover { background: var(--danger); color: white; }
+
+.goal-filter-select {
+    padding: 6px 10px;
+    border-radius: 20px;
+    border: 1px solid var(--border-color);
+    background: var(--surface-color);
+    color: var(--text-secondary);
+    font-size: 0.78rem;
+    min-height: 36px;
+}
+
+@media (max-width: 768px) {
+    .goal-filter-bar { gap: 6px; }
+    .goal-filter-btn { font-size: 0.72rem; padding: 4px 10px; }
+}
+
 /* Progress Bar */
 .goal-progress {
     height: 10px;
