@@ -63,6 +63,24 @@ if ($row) {
     $testResult = password_verify('Cyb0kr0n!2026xQ', $row['password_hash']);
     echo "  password_verify test: " . ($testResult ? 'PASS' : 'FAIL') . "\n";
     echo "  PHP version: " . PHP_VERSION . "\n";
+    // Test via Database class (same path as web login)
+    $helpersFile = __DIR__ . '/../includes/helpers.php';
+    if (file_exists($helpersFile)) {
+        require_once $helpersFile;
+        if (function_exists('cybokron_init')) {
+            cybokron_init();
+        }
+        if (class_exists('Database')) {
+            $dbUser = Database::queryOne('SELECT id, username, password_hash, is_active FROM users WHERE username = ? AND is_active = 1', ['admin']);
+            if ($dbUser) {
+                echo "  Database class: admin found, id={$dbUser['id']}\n";
+                echo "  Database class hash == PDO hash: " . ($dbUser['password_hash'] === $row['password_hash'] ? 'YES' : 'NO') . "\n";
+                echo "  Database class password_verify: " . (password_verify('Cyb0kr0n!2026xQ', (string)$dbUser['password_hash']) ? 'PASS' : 'FAIL') . "\n";
+            } else {
+                echo "  Database class: admin NOT FOUND\n";
+            }
+        }
+    }
 } else {
     echo "  WARNING: admin user NOT FOUND after insert!\n";
 }
