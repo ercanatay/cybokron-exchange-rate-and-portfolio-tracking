@@ -487,4 +487,13 @@ return [
     'seo.observability_description' => 'Banka scraping istatistikleri, sistem sağlığı ve performans logları.',
     'seo.login_description' => 'Cybokron Exchange Rate & Portfolio Tracking giriş sayfası.',
     'seo.openrouter_description' => 'OpenRouter AI yapılandırması ve kur onarım istatistikleri.',
+
+    // Data Retention
+    'admin.retention_title' => 'Veri Saklama Süresi',
+    'admin.retention_desc' => 'Kur geçmişi verilerinin ne kadar süre saklanacağını ayarlayın.',
+    'admin.retention_label' => 'Saklama Süresi',
+    'admin.retention_month' => 'ay',
+    'admin.retention_year' => 'yıl',
+    'admin.retention_hint' => 'Bu süreyi aşan kur geçmişi verileri temizlik cron görevi tarafından otomatik olarak silinir.',
+    'admin.retention_updated' => 'Veri saklama süresi güncellendi.',
 ];

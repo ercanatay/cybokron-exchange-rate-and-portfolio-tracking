@@ -27,6 +27,7 @@ return [
     'auth.error_rate_limit' => 'محاولات كثيرة جدًا. يرجى المحاولة بعد بضع دقائق.',
     'auth.error_captcha' => 'فشل التحقق الأمني. يرجى المحاولة مرة أخرى.',
 
+    'index.page_title' => 'أسعار الصرف',
     'index.last_update' => 'آخر تحديث: {{datetime}}',
     'index.table.currency' => 'العملة',
     'index.table.code' => 'الرمز',
@@ -382,4 +383,122 @@ return [
     'portfolio.goals.source_removed' => 'تمت إزالة المصدر من الهدف.',
     'common.add' => 'إضافة',
     'common.select_all' => 'تحديد الكل',
+
+    // System Config
+    'admin.system_config' => 'تكوين النظام',
+    'admin.system_config_desc' => 'إعدادات التكوين النشطة من config.php (للقراءة فقط).',
+    'admin.config_section_security' => 'الأمان',
+    'admin.config_section_scraping' => 'جلب البيانات',
+    'admin.config_section_market' => 'ساعات السوق',
+    'admin.config_section_alerts' => 'الإشعارات',
+    'admin.config_section_api' => 'حدود API',
+    'admin.config_section_system' => 'النظام',
+    'admin.config_enabled' => 'مفعّل',
+    'admin.config_disabled' => 'معطّل',
+    'admin.config_not_set' => 'غير محدد',
+    'admin.config_set' => 'محدد',
+
+    'admin.cfg_security_headers' => 'رؤوس الأمان',
+    'admin.cfg_cli_cron' => 'CLI Cron فقط',
+    'admin.cfg_login_limit' => 'حد تسجيل الدخول',
+    'admin.cfg_portfolio_auth' => 'مصادقة المحفظة',
+    'admin.cfg_scrape_timeout' => 'مهلة',
+    'admin.cfg_retry_count' => 'عدد المحاولات',
+    'admin.cfg_ai_repair' => 'إصلاح AI',
+    'admin.cfg_ai_model' => 'نموذج AI',
+    'admin.cfg_update_interval' => 'فترة التحديث',
+    'admin.cfg_market_open' => 'الافتتاح',
+    'admin.cfg_market_close' => 'الإغلاق',
+    'admin.cfg_market_days' => 'أيام التداول',
+    'admin.cfg_history_retention' => 'الاحتفاظ بالسجل',
+    'admin.cfg_alert_cooldown' => 'فترة الانتظار',
+    'admin.cfg_rate_webhook' => 'Webhook الأسعار',
+    'admin.cfg_read_limit' => 'حد القراءة',
+    'admin.cfg_write_limit' => 'حد الكتابة',
+    'admin.cfg_timezone' => 'المنطقة الزمنية',
+    'admin.cfg_locale' => 'اللغة',
+    'admin.cfg_auto_update' => 'التحديث التلقائي',
+    'admin.cfg_logging' => 'السجلات',
+    'admin.cfg_db_persistent' => 'اتصال DB دائم',
+    'admin.day_mon' => 'إثنين',
+    'admin.day_tue' => 'ثلاثاء',
+    'admin.day_wed' => 'أربعاء',
+    'admin.day_thu' => 'خميس',
+    'admin.day_fri' => 'جمعة',
+    'admin.day_sat' => 'سبت',
+    'admin.day_sun' => 'أحد',
+
+    // OpenRouter AI
+    'nav.openrouter' => 'OpenRouter AI',
+    'openrouter.title' => 'إدارة OpenRouter AI',
+    'openrouter.connection_status' => 'حالة الاتصال',
+    'openrouter.test_connection' => 'اختبار الاتصال',
+    'openrouter.test_success' => 'الاتصال ناجح',
+    'openrouter.test_error' => 'خطأ في الاتصال',
+    'openrouter.model_active' => 'النموذج النشط',
+    'openrouter.model_default' => 'النموذج الافتراضي (config)',
+    'openrouter.model_change' => 'تغيير النموذج',
+    'openrouter.model_updated' => 'تم تحديث النموذج.',
+    'openrouter.model_placeholder' => 'مثال: z-ai/glm-5',
+    'openrouter.key_status' => 'حالة مفتاح API',
+    'openrouter.key_set' => 'محدد',
+    'openrouter.key_not_set' => 'غير محدد',
+    'openrouter.key_last_chars' => 'آخر 4 أحرف',
+    'openrouter.ai_repair_stats' => 'إحصائيات إصلاح AI',
+    'openrouter.last_ai_call' => 'آخر استدعاء AI',
+    'openrouter.cooldown_active' => 'فترة الانتظار نشطة',
+    'openrouter.cooldown_inactive' => 'لا فترة انتظار',
+    'openrouter.table_change_logs' => 'سجلات تغيير الجدول',
+    'openrouter.config_summary' => 'ملخص التكوين',
+    'openrouter.no_logs' => 'لا توجد سجلات بعد.',
+    'openrouter.response_time' => 'وقت الاستجابة',
+    'openrouter.rates_extracted' => 'الأسعار المستخرجة',
+    'openrouter.never' => 'أبداً',
+    'openrouter.ago' => 'مضت',
+    'openrouter.save' => 'حفظ',
+    'openrouter.bank' => 'البنك',
+    'openrouter.status' => 'الحالة',
+    'openrouter.time' => 'الوقت',
+    'openrouter.message' => 'الرسالة',
+    'openrouter.rates_count' => 'عدد الأسعار',
+    'openrouter.duration' => 'المدة',
+    'openrouter.table_changed' => '🔄 تم تغيير الجدول',
+    'openrouter.enabled' => 'مفعّل',
+    'openrouter.disabled' => 'معطّل',
+
+    'admin.openrouter_settings' => 'إعدادات OpenRouter AI',
+    'admin.openrouter_settings_desc' => 'إدارة مفتاح API وإعدادات النموذج. يتم الحفظ في قاعدة البيانات.',
+    'admin.openrouter_settings_saved' => 'تم حفظ إعدادات OpenRouter.',
+    'admin.openrouter_api_key_label' => 'مفتاح API',
+    'admin.openrouter_model_label' => 'النموذج',
+    'admin.openrouter_model_hint' => 'معرّف نموذج OpenRouter (مثال: z-ai/glm-5)',
+    'admin.openrouter_toggle_key' => 'إظهار/إخفاء المفتاح',
+    'admin.openrouter_key_source_db' => 'يتم القراءة من قاعدة البيانات (تم التعيين من لوحة الإدارة)',
+    'admin.openrouter_key_source_config' => 'يتم القراءة من config.php',
+    'admin.openrouter_key_not_configured' => 'لم يتم تعيين مفتاح API بعد',
+    'admin.openrouter_panel_link' => 'لوحة OpenRouter',
+
+    // SEO & Noindex
+    'admin.seo_settings' => 'إعدادات SEO',
+    'admin.seo_settings_desc' => 'إدارة فهرسة محركات البحث وإعدادات SEO.',
+    'admin.noindex_label' => 'إخفاء من محركات البحث (noindex)',
+    'admin.noindex_desc' => 'عند التفعيل، يتم إضافة علامة noindex إلى جميع الصفحات لمنع محركات البحث من فهرسة الموقع.',
+    'admin.noindex_enabled' => 'noindex نشط — الموقع مخفي من محركات البحث',
+    'admin.noindex_disabled' => 'noindex معطّل — الموقع مرئي في محركات البحث',
+    'admin.noindex_updated' => 'تم تحديث إعداد noindex.',
+    'seo.index_description' => 'أسعار صرف حية، أسعار الذهب والفضة والمعادن الثمينة. مقارنة البنوك ومحول العملات لمتابعة السوق.',
+    'seo.portfolio_description' => 'إدارة محفظة العملات والمعادن الثمينة. تتبع الأرباح/الخسائر والمجموعات والوسوم.',
+    'seo.admin_description' => 'لوحة إدارة Cybokron Exchange Rate & Portfolio Tracking.',
+    'seo.observability_description' => 'إحصائيات جلب البنوك، صحة النظام وسجلات الأداء.',
+    'seo.login_description' => 'صفحة تسجيل الدخول إلى Cybokron Exchange Rate & Portfolio Tracking.',
+    'seo.openrouter_description' => 'تكوين OpenRouter AI وإحصائيات إصلاح الأسعار.',
+
+    // Data Retention
+    'admin.retention_title' => 'مدة الاحتفاظ بالبيانات',
+    'admin.retention_desc' => 'تحديد مدة الاحتفاظ ببيانات سجل الأسعار.',
+    'admin.retention_label' => 'مدة الاحتفاظ',
+    'admin.retention_month' => 'شهر',
+    'admin.retention_year' => 'سنة',
+    'admin.retention_hint' => 'سيتم حذف بيانات سجل الأسعار الأقدم من هذه المدة تلقائياً بواسطة مهمة التنظيف المجدولة.',
+    'admin.retention_updated' => 'تم تحديث مدة الاحتفاظ بالبيانات.',
 ];

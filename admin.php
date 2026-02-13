@@ -135,6 +135,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         }
     }
 
+    if ($_POST['action'] === 'set_retention_days' && isset($_POST['retention_days'])) {
+        $retDays = max(30, min(3650, (int) $_POST['retention_days']));
+        Database::query(
+            'INSERT INTO settings (`key`, value) VALUES (?, ?) ON DUPLICATE KEY UPDATE value = ?',
+            ['rate_history_retention_days', (string) $retDays, (string) $retDays]
+        );
+        $message = t('admin.retention_updated');
+        $messageType = 'success';
+    }
+
     if ($_POST['action'] === 'toggle_noindex') {
         $currentNoindex = Database::queryOne('SELECT value FROM settings WHERE `key` = ?', ['site_noindex']);
         $newValue = ($currentNoindex && ($currentNoindex['value'] ?? '0') === '1') ? '0' : '1';
@@ -168,7 +178,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         $messageType = 'success';
     }
 
-    if (!in_array($_POST['action'], ['update_rates', 'toggle_homepage', 'set_default_bank', 'update_rate_order', 'set_chart_defaults', 'save_widget_config', 'toggle_noindex', 'save_openrouter_settings'], true)) {
+    if (!in_array($_POST['action'], ['update_rates', 'toggle_homepage', 'set_default_bank', 'update_rate_order', 'set_chart_defaults', 'save_widget_config', 'toggle_noindex', 'set_retention_days', 'save_openrouter_settings'], true)) {
         header('Location: admin.php');
         exit;
     }
@@ -206,6 +216,8 @@ $chartDefaultCurrency = Database::queryOne('SELECT value FROM settings WHERE `ke
 $chartDefaultCurrencyValue = $chartDefaultCurrency['value'] ?? 'USD';
 $chartDefaultDays = Database::queryOne('SELECT value FROM settings WHERE `key` = ?', ['chart_default_days']);
 $chartDefaultDaysValue = (int) ($chartDefaultDays['value'] ?? 30);
+$retentionDaysRow = Database::queryOne('SELECT value FROM settings WHERE `key` = ?', ['rate_history_retention_days']);
+$retentionDaysValue = (int) ($retentionDaysRow['value'] ?? (defined('RATE_HISTORY_RETENTION_DAYS') ? RATE_HISTORY_RETENTION_DAYS : 1825));
 $currentLocale = getAppLocale();
 $csrfToken = getCsrfToken();
 $version = trim(file_get_contents(__DIR__ . '/VERSION'));
@@ -371,6 +383,46 @@ foreach ($allRates as $r) {
                                 <?php endforeach; ?>
                             </select>
                         </div>
+                        <button type="submit" class="btn btn-primary"><?= t('admin.save') ?></button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Data Retention -->
+            <div class="admin-card">
+                <div class="admin-card-header">
+                    <div class="admin-card-header-left">
+                        <div class="admin-card-icon" style="background: linear-gradient(135deg, #f59e0b20, #d9770620);">🗄️</div>
+                        <div>
+                            <h2><?= t('admin.retention_title') ?></h2>
+                            <p><?= t('admin.retention_desc') ?></p>
+                        </div>
+                    </div>
+                </div>
+                <div class="admin-card-body">
+                    <form method="POST" class="settings-form">
+                        <input type="hidden" name="action" value="set_retention_days">
+                        <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
+                        <div class="form-field">
+                            <label for="retention_days"><?= t('admin.retention_label') ?></label>
+                            <select id="retention_days" name="retention_days">
+                                <?php foreach ([
+                                    30 => '30 ' . t('index.chart.days_unit') . ' (1 ' . t('admin.retention_month') . ')',
+                                    90 => '90 ' . t('index.chart.days_unit') . ' (3 ' . t('admin.retention_month') . ')',
+                                    180 => '180 ' . t('index.chart.days_unit') . ' (6 ' . t('admin.retention_month') . ')',
+                                    365 => '365 ' . t('index.chart.days_unit') . ' (1 ' . t('admin.retention_year') . ')',
+                                    730 => '730 ' . t('index.chart.days_unit') . ' (2 ' . t('admin.retention_year') . ')',
+                                    1095 => '1095 ' . t('index.chart.days_unit') . ' (3 ' . t('admin.retention_year') . ')',
+                                    1825 => '1825 ' . t('index.chart.days_unit') . ' (5 ' . t('admin.retention_year') . ')',
+                                    3650 => '3650 ' . t('index.chart.days_unit') . ' (10 ' . t('admin.retention_year') . ')',
+                                ] as $days => $label): ?>
+                                    <option value="<?= $days ?>" <?= $retentionDaysValue === $days ? 'selected' : '' ?>><?= $label ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        <p style="font-size:0.82rem; color:var(--text-muted); margin:0 0 12px;">
+                            <?= t('admin.retention_hint') ?>
+                        </p>
                         <button type="submit" class="btn btn-primary"><?= t('admin.save') ?></button>
                     </form>
                 </div>
