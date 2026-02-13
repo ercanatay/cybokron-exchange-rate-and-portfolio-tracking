@@ -1,0 +1,102 @@
+name: Rollback to Previous Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      backup_file:
+        description: 'Backup filename (leave empty for latest). Example: deploy-20260213-143000.tar.gz'
+        required: false
+        default: ''
+      confirm:
+        description: 'Type "ROLLBACK" to confirm'
+        required: true
+
+jobs:
+  rollback:
+    runs-on: ubuntu-latest
+    if: github.event.inputs.confirm == 'ROLLBACK'
+
+    steps:
+      - name: Setup SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY_B64 }}" | base64 -d > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: List available backups
+        run: |
+          echo "Available backups:"
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \
+            ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} \
+            'ls -lht ~/cybokron-backups/deploy-*.tar.gz 2>/dev/null || echo "No backups found"'
+
+      - name: Restore from backup
+        env:
+          BACKUP_FILE: ${{ github.event.inputs.backup_file }}
+        run: |
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \
+            ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} bash -s << 'ROLLBACK_EOF'
+          set -e
+
+          BACKUP_DIR=~/cybokron-backups
+          BACKUP_FILE="${BACKUP_FILE}"
+
+          # If no specific backup file given, use the latest
+          if [ -z "${BACKUP_FILE}" ]; then
+            BACKUP_FILE=$(ls -1t ${BACKUP_DIR}/deploy-*.tar.gz 2>/dev/null | head -1)
+            if [ -z "${BACKUP_FILE}" ]; then
+              echo "ERROR: No backup files found in ${BACKUP_DIR}"
+              exit 1
+            fi
+            BACKUP_FILE=$(basename "${BACKUP_FILE}")
+          fi
+
+          BACKUP_PATH="${BACKUP_DIR}/${BACKUP_FILE}"
+
+          if [ ! -f "${BACKUP_PATH}" ]; then
+            echo "ERROR: Backup file not found: ${BACKUP_PATH}"
+            exit 1
+          fi
+
+          echo "Restoring from: ${BACKUP_FILE}"
+          echo "Backup size: $(ls -lh "${BACKUP_PATH}" | awk '{print $5}')"
+
+          # Restore files (preserve .well-known and cgi-bin)
+          cd ~/public_html
+          tar xzf "${BACKUP_PATH}" \
+            --exclude='.well-known' \
+            --exclude='cgi-bin'
+
+          echo "File restoration complete."
+          echo ""
+          echo "NOTE: Database was NOT rolled back."
+          echo "If you need to rollback database changes:"
+          echo "  1. Check database/migrations/ for .down.sql files"
+          echo "  2. Apply them manually via SSH: mysql < file.down.sql"
+          ROLLBACK_EOF
+
+      - name: Smoke test after rollback
+        env:
+          APP_URL: ${{ secrets.APP_URL }}
+        run: |
+          echo "Running smoke test on ${APP_URL}..."
+          HTTP_STATUS=$(curl -s -o /dev/null -w '%{http_code}' --max-time 30 "${APP_URL}" || true)
+          echo "HTTP Status: ${HTTP_STATUS}"
+          if [ "${HTTP_STATUS}" -ge 200 ] && [ "${HTTP_STATUS}" -lt 400 ]; then
+            echo "Smoke test PASSED - Rollback successful"
+          else
+            echo "WARNING: Smoke test returned HTTP ${HTTP_STATUS}"
+            echo "Manual verification may be needed."
+          fi
+
+      - name: Rollback summary
+        if: always()
+        run: |
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "Rollback Summary"
+          echo "  Triggered by: ${{ github.actor }}"
+          echo "  Backup file:  ${{ github.event.inputs.backup_file || 'latest' }}"
+          echo "  Time:         $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          echo "  DB Rollback:  NOT applied (manual)"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"

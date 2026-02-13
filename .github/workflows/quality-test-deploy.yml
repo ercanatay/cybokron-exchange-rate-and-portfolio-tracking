@@ -66,36 +66,99 @@ jobs:
           set -euo pipefail
           php tests/run.php
 
-  deploy:
-    name: Deploy
-    needs: [control, test]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+  migration-check:
+    name: Migration SQL Check
+    needs: control
     runs-on: ubuntu-latest
 
     steps:
-      - name: Trigger deploy webhook (optional)
-        env:
-          DEPLOY_WEBHOOK_URL: ${{ secrets.DEPLOY_WEBHOOK_URL }}
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: pdo_mysql
+          coverage: none
+
+      - name: Validate migration SQL files
         run: |
           set -euo pipefail
+          ERRORS=0
 
-          if [ -z "${DEPLOY_WEBHOOK_URL}" ]; then
-            echo "No DEPLOY_WEBHOOK_URL configured. Deploy step skipped."
-            exit 0
+          echo "Checking migration SQL files..."
+
+          for file in database/migrations/*.sql; do
+            [ -f "$file" ] || continue
+            basename=$(basename "$file")
+
+            # Check file is not empty
+            if [ ! -s "$file" ]; then
+              echo "WARNING: Empty migration file: ${basename}"
+              continue
+            fi
+
+            # Basic SQL syntax validation via PHP
+            php -r "
+              \$sql = file_get_contents('$file');
+
+              // Check for common SQL syntax issues
+              \$errors = [];
+
+              // Unbalanced parentheses
+              \$open = substr_count(\$sql, '(');
+              \$close = substr_count(\$sql, ')');
+              if (\$open !== \$close) {
+                  \$errors[] = 'Unbalanced parentheses (open: ' . \$open . ', close: ' . \$close . ')';
+              }
+
+              // Unbalanced backticks
+              \$backticks = substr_count(\$sql, '\`');
+              if (\$backticks % 2 !== 0) {
+                  \$errors[] = 'Unbalanced backticks (count: ' . \$backticks . ')';
+              }
+
+              // Unterminated strings (simple check)
+              \$singles = substr_count(\$sql, \"'\");
+              if (\$singles % 2 !== 0) {
+                  \$errors[] = 'Possibly unterminated string literal';
+              }
+
+              if (empty(\$errors)) {
+                  echo \"  [OK] ${basename}\n\";
+              } else {
+                  echo \"  [FAIL] ${basename}\n\";
+                  foreach (\$errors as \$e) {
+                      echo \"    - \$e\n\";
+                  }
+                  exit(1);
+              }
+            "
+
+            if [ $? -ne 0 ]; then
+              ERRORS=$((ERRORS + 1))
+            fi
+          done
+
+          if [ "$ERRORS" -gt 0 ]; then
+            echo "Migration check failed with ${ERRORS} error(s)"
+            exit 1
           fi
 
-          payload=$(printf '{"repository":"%s","ref":"%s","sha":"%s"}' "${GITHUB_REPOSITORY}" "${GITHUB_REF}" "${GITHUB_SHA}")
+          echo "All migration files passed syntax check."
 
-          curl -fsSL \
-            -X POST \
-            -H "Content-Type: application/json" \
-            -d "$payload" \
-            "$DEPLOY_WEBHOOK_URL"
+  deploy:
+    name: Deploy
+    needs: [control, test, migration-check]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    uses: ./.github/workflows/deploy.yml
+    secrets: inherit
 
   auto-remediation:
     name: Auto Remediation
-    needs: [control, test, deploy]
-    if: ${{ always() && github.event_name == 'push' && github.ref == 'refs/heads/main' && (needs.control.result == 'failure' || needs.test.result == 'failure' || needs.deploy.result == 'failure') }}
+    needs: [control, test, migration-check, deploy]
+    if: ${{ always() && github.event_name == 'push' && github.ref == 'refs/heads/main' && (needs.control.result == 'failure' || needs.test.result == 'failure' || needs.migration-check.result == 'failure' || needs.deploy.result == 'failure') }}
     runs-on: ubuntu-latest
     permissions:
       issues: write
@@ -107,12 +170,23 @@ jobs:
         with:
           script: |
             const title = `CI failure on main (${context.sha.substring(0, 7)})`;
+            const results = {
+              control: '${{ needs.control.result }}',
+              test: '${{ needs.test.result }}',
+              migration_check: '${{ needs.migration-check.result }}',
+              deploy: '${{ needs.deploy.result }}'
+            };
+            const failed = Object.entries(results)
+              .filter(([_, v]) => v === 'failure')
+              .map(([k, _]) => k);
+
             const body = [
               'Automated CI failure report.',
               '',
               `- Workflow: ${context.workflow}`,
               `- Run: https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
               `- Commit: ${context.sha}`,
+              `- Failed jobs: ${failed.join(', ')}`,
               '',
               'Auto-remediation checklist:',
               '1. Inspect failing job logs.',
