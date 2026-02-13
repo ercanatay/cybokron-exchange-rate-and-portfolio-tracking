@@ -591,42 +591,283 @@ button:focus-visible,
     }
 }
 
-/* Dashboard widgets */
-.widgets-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-    gap: 1rem;
+/* ─── Premium Dashboard Widgets ────────────────────────────────────────── */
+.widgets-section {
+    padding: 0 !important;
+    overflow: hidden;
 }
 
+.widgets-section>h2 {
+    padding: 20px 24px 0 !important;
+}
+
+.widgets-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 20px;
+    padding: 16px 24px 24px;
+}
+
+/* --- Widget Card (Premium Glass) --- */
 .widget-card {
-    padding: 1rem;
+    position: relative;
+    padding: 0;
     background: var(--surface);
     border: 1px solid var(--border);
-    border-radius: var(--radius);
+    border-radius: 14px;
+    overflow: hidden;
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+.widget-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+}
+
+[data-theme="light"] .widget-card:hover {
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
+}
+
+/* Card header with gradient accent */
+.widget-card-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 16px 20px 12px;
+    border-bottom: 1px solid var(--border);
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.04), rgba(139, 92, 246, 0.04));
+}
+
+.widget-card-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    font-size: 1.1rem;
+    flex-shrink: 0;
+}
+
+.widget-card-icon.icon-movers {
+    background: linear-gradient(135deg, #f59e0b, #ef4444);
+    box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
+}
+
+.widget-card-icon.icon-portfolio {
+    background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
 }
 
 .widget-card h3 {
-    font-size: 0.9rem;
-    margin-bottom: 0.5rem;
-    color: var(--text-muted);
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--text);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin: 0;
 }
 
+.widget-card-body {
+    padding: 16px 20px 20px;
+}
+
+/* --- Top Movers List (Premium) --- */
 .widget-list {
     list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
 }
 
 .widget-list li {
-    padding: 0.25rem 0;
     display: flex;
-    justify-content: space-between;
-    gap: 0.5rem;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    border-radius: 10px;
+    background: var(--surface-hover);
+    transition: all 0.2s ease;
+    position: relative;
+    overflow: hidden;
 }
 
-.widget-portfolio-total {
-    margin: 0.25rem 0;
+.widget-list li:hover {
+    background: var(--bg);
+    transform: translateX(4px);
+}
+
+/* Background bar showing magnitude */
+.widget-list li::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: var(--change-width, 0%);
+    opacity: 0.08;
+    border-radius: 10px;
+    transition: width 0.6s ease;
+}
+
+.widget-list li.text-success::before {
+    background: linear-gradient(90deg, var(--success), transparent);
+}
+
+.widget-list li.text-danger::before {
+    background: linear-gradient(90deg, var(--danger), transparent);
+}
+
+.widget-list li.text-warning::before {
+    background: linear-gradient(90deg, var(--warning), transparent);
+}
+
+.widget-list li .currency-code {
+    font-size: 0.82rem;
+    font-weight: 700;
+    padding: 3px 10px;
+    border-radius: 6px;
+    min-width: 48px;
+    text-align: center;
+}
+
+.widget-list li .mover-change {
+    margin-left: auto;
+    font-family: var(--mono);
+    font-weight: 700;
     font-size: 0.9rem;
+    letter-spacing: -0.01em;
 }
 
+.widget-list li .mover-rank {
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    min-width: 16px;
+}
+
+/* --- Portfolio Summary (Premium) --- */
+.portfolio-metrics {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.portfolio-metric {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    border-radius: 10px;
+    background: var(--surface-hover);
+    transition: all 0.2s ease;
+}
+
+.portfolio-metric:hover {
+    background: var(--bg);
+}
+
+.portfolio-metric-label {
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.portfolio-metric-value {
+    font-family: var(--mono);
+    font-weight: 700;
+    font-size: 1rem;
+    color: var(--text);
+}
+
+/* Profit/Loss highlight metric */
+.portfolio-metric.metric-highlight {
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.08), rgba(139, 92, 246, 0.08));
+    border: 1px solid rgba(59, 130, 246, 0.15);
+}
+
+.portfolio-metric.metric-profit {
+    background: linear-gradient(135deg, rgba(34, 197, 94, 0.08), rgba(34, 197, 94, 0.04));
+    border: 1px solid rgba(34, 197, 94, 0.2);
+}
+
+.portfolio-metric.metric-profit .portfolio-metric-value {
+    color: var(--success);
+}
+
+.portfolio-metric.metric-loss {
+    background: linear-gradient(135deg, rgba(239, 68, 68, 0.08), rgba(239, 68, 68, 0.04));
+    border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+.portfolio-metric.metric-loss .portfolio-metric-value {
+    color: var(--danger);
+}
+
+/* Profit badge */
+.portfolio-profit-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 16px;
+    padding: 10px 18px;
+    border-radius: 12px;
+    font-family: var(--mono);
+    font-weight: 800;
+    font-size: 1.15rem;
+    letter-spacing: -0.02em;
+}
+
+.portfolio-profit-badge.badge-profit {
+    background: linear-gradient(135deg, rgba(34, 197, 94, 0.12), rgba(34, 197, 94, 0.04));
+    color: var(--success);
+    border: 1px solid rgba(34, 197, 94, 0.25);
+}
+
+.portfolio-profit-badge.badge-loss {
+    background: linear-gradient(135deg, rgba(239, 68, 68, 0.12), rgba(239, 68, 68, 0.04));
+    color: var(--danger);
+    border: 1px solid rgba(239, 68, 68, 0.25);
+}
+
+.portfolio-profit-badge .badge-arrow {
+    font-size: 0.85rem;
+}
+
+/* Portfolio action button */
+.widget-card .btn-portfolio {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 16px;
+    padding: 10px 20px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+    color: white;
+    border-radius: 10px;
+    text-decoration: none;
+    transition: all 0.25s ease;
+    box-shadow: 0 4px 14px rgba(59, 130, 246, 0.25);
+}
+
+.widget-card .btn-portfolio:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 20px rgba(59, 130, 246, 0.35);
+    text-decoration: none;
+}
+
+.widget-card .btn-portfolio .btn-arrow {
+    transition: transform 0.2s ease;
+}
+
+.widget-card .btn-portfolio:hover .btn-arrow {
+    transform: translateX(3px);
+}
+
+/* Legacy compat: keep .btn-sm working */
 .widget-card .btn-sm {
     display: inline-block;
     margin-top: 0.5rem;
@@ -641,6 +882,22 @@ button:focus-visible,
 .widget-card .btn-sm:hover {
     background: var(--primary-strong);
     text-decoration: none;
+}
+
+/* Responsive: stack on small screens */
+@media (max-width: 700px) {
+    .widgets-grid {
+        grid-template-columns: 1fr;
+        padding: 12px 16px 16px;
+    }
+
+    .widget-list li {
+        padding: 8px 12px;
+    }
+
+    .portfolio-profit-badge {
+        font-size: 1rem;
+    }
 }
 
 /* Portfolio analytics */
@@ -1040,4 +1297,336 @@ button:focus-visible,
     .rates-table th {
         padding: 8px 10px;
     }
+}
+
+/* ─── Portfolio Groups Section ──────────────────────────────────────── */
+
+.hidden {
+    display: none !important;
+}
+
+.groups-section {
+    margin-top: 24px;
+    padding: 20px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    position: relative;
+    overflow: hidden;
+}
+
+.groups-section::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, #f59e0b, #f97316, #ef4444);
+}
+
+.groups-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+}
+
+.groups-header h2 {
+    margin: 0;
+    font-size: 1.15rem;
+    font-weight: 600;
+}
+
+.group-form-panel {
+    margin-bottom: 16px;
+    padding: 16px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+}
+
+.group-form-row {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.group-name-input {
+    flex: 1;
+    min-width: 150px;
+    padding: 8px 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--bg);
+    color: var(--text);
+    font-size: 0.9rem;
+}
+
+.group-color-input {
+    width: 40px;
+    height: 38px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 2px;
+    cursor: pointer;
+    background: var(--bg);
+}
+
+.group-icon-input {
+    width: 100px;
+    padding: 8px 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--bg);
+    color: var(--text);
+    font-size: 0.9rem;
+    text-align: center;
+}
+
+.groups-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 12px;
+}
+
+.group-card {
+    position: relative;
+    padding: 14px 16px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    border-left: 4px solid var(--group-color, var(--primary));
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.group-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+}
+
+.group-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.group-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 12px;
+    border-radius: 20px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: #fff;
+    white-space: nowrap;
+}
+
+.group-icon {
+    font-size: 1rem;
+}
+
+.group-count {
+    font-size: 0.78rem;
+    color: var(--text-secondary);
+    opacity: 0.7;
+}
+
+.group-card-actions {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 4px;
+}
+
+.group-edit-form {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid var(--border);
+}
+
+.btn-xs {
+    padding: 4px 8px;
+    font-size: 0.75rem;
+    border-radius: 6px;
+}
+
+/* ─── Filter Bar ────────────────────────────────────────────────────── */
+
+.filter-bar {
+    margin-bottom: 20px;
+    padding: 16px 20px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+}
+
+.filter-form {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.filter-group label {
+    display: block;
+    font-size: 0.78rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-secondary);
+    margin-bottom: 8px;
+}
+
+.filter-pills {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.filter-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 0.82rem;
+    font-weight: 500;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+    text-decoration: none;
+    transition: all 0.2s ease;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.filter-pill:hover {
+    background: rgba(59, 130, 246, 0.1);
+    border-color: rgba(59, 130, 246, 0.3);
+    transform: translateY(-1px);
+}
+
+.filter-pill.active {
+    background: var(--pill-color, var(--primary));
+    color: #fff;
+    border-color: var(--pill-color, var(--primary));
+    box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+}
+
+.filter-dates {
+    display: flex;
+    gap: 12px;
+    align-items: flex-end;
+    flex-wrap: wrap;
+}
+
+.filter-date-field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.filter-date-field label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-secondary);
+}
+
+.filter-date-field input[type="date"] {
+    padding: 7px 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--bg);
+    color: var(--text);
+    font-size: 0.85rem;
+}
+
+.filter-summary {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    font-size: 0.88rem;
+}
+
+.filter-result-count {
+    padding: 4px 10px;
+    background: var(--primary);
+    color: #fff;
+    border-radius: 12px;
+    font-weight: 600;
+    font-size: 0.8rem;
+}
+
+.filter-result-total {
+    color: var(--text-secondary);
+}
+
+/* ─── Group Badges in Table ─────────────────────────────────────────── */
+
+.group-badge-sm {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 10px;
+    border-radius: 14px;
+    font-size: 0.73rem;
+    font-weight: 600;
+    color: #fff;
+    white-space: nowrap;
+}
+
+.group-icon-sm {
+    font-size: 0.8rem;
+}
+
+.text-muted {
+    color: var(--text-secondary);
+    opacity: 0.5;
+}
+
+/* ─── Responsive for Groups & Filters ───────────────────────────────── */
+
+@media (max-width: 768px) {
+    .groups-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .group-form-row {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .group-color-input {
+        width: 100%;
+    }
+
+    .group-icon-input {
+        width: 100%;
+    }
+
+    .filter-dates {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .filter-pills {
+        overflow-x: auto;
+        flex-wrap: nowrap;
+        padding-bottom: 4px;
+    }
+
+    .filter-summary {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+    }
+}
 }

@@ -250,31 +250,70 @@ foreach ($widgetConfig as $w) {
         <section class="bank-section widgets-section">
             <h2>📊 <?= t('index.widgets.title') ?></h2>
             <div class="widgets-grid">
+                <!-- Top Movers Card -->
                 <div class="widget-card">
-                    <h3><?= t('index.widgets.top_movers') ?></h3>
-                    <ul class="widget-list">
-                        <?php foreach ($topMovers as $code): ?>
-                            <?php $chg = $changeByCurrency[$code] ?? 0; ?>
-                            <li class="<?= changeClass($chg) ?>">
-                                <span class="currency-code"><?= htmlspecialchars($code) ?></span>
-                                <?= changeArrow($chg) ?> %<?= formatNumberLocalized(abs($chg), 2) ?>
-                            </li>
-                        <?php endforeach; ?>
-                    </ul>
+                    <div class="widget-card-header">
+                        <div class="widget-card-icon icon-movers">🔥</div>
+                        <h3><?= t('index.widgets.top_movers') ?></h3>
+                    </div>
+                    <div class="widget-card-body">
+                        <ul class="widget-list">
+                            <?php $rank = 0; foreach ($topMovers as $code): ?>
+                                <?php
+                                    $chg = $changeByCurrency[$code] ?? 0;
+                                    $rank++;
+                                    $changeWidth = min(abs($chg) * 20, 100); // Scale: 5% change = 100% bar
+                                ?>
+                                <li class="<?= changeClass($chg) ?>" style="--change-width: <?= $changeWidth ?>%">
+                                    <span class="mover-rank"><?= $rank ?></span>
+                                    <span class="currency-code"><?= htmlspecialchars($code) ?></span>
+                                    <span class="mover-change">
+                                        <?= changeArrow($chg) ?> %<?= formatNumberLocalized(abs($chg), 2) ?>
+                                    </span>
+                                </li>
+                            <?php endforeach; ?>
+                        </ul>
+                    </div>
                 </div>
+
                 <?php if ($portfolioSummary && !empty($portfolioSummary['items'])): ?>
+                <!-- Portfolio Summary Card -->
+                <?php
+                    $totalCost = (float) ($portfolioSummary['total_cost'] ?? 0);
+                    $totalValue = (float) ($portfolioSummary['total_value'] ?? 0);
+                    $profitPercent = (float) ($portfolioSummary['profit_percent'] ?? 0);
+                    $profitAmount = $totalValue - $totalCost;
+                    $isProfit = $profitPercent >= 0;
+                ?>
                 <div class="widget-card">
-                    <h3><?= t('index.widgets.portfolio_summary') ?></h3>
-                    <p class="widget-portfolio-total">
-                        <?= t('portfolio.summary.total_cost') ?>: <?= formatTRY((float) ($portfolioSummary['total_cost'] ?? 0)) ?>
-                    </p>
-                    <p class="widget-portfolio-total">
-                        <?= t('portfolio.summary.current_value') ?>: <?= formatTRY((float) ($portfolioSummary['total_value'] ?? 0)) ?>
-                    </p>
-                    <p class="widget-portfolio-total <?= changeClass((float) ($portfolioSummary['profit_percent'] ?? 0)) ?>">
-                        <?= t('portfolio.summary.profit_loss') ?>: %<?= formatNumberLocalized((float) ($portfolioSummary['profit_percent'] ?? 0), 2) ?>
-                    </p>
-                    <a href="portfolio.php" class="btn btn-sm"><?= t('nav.portfolio') ?> →</a>
+                    <div class="widget-card-header">
+                        <div class="widget-card-icon icon-portfolio">💼</div>
+                        <h3><?= t('index.widgets.portfolio_summary') ?></h3>
+                    </div>
+                    <div class="widget-card-body">
+                        <div class="portfolio-metrics">
+                            <div class="portfolio-metric">
+                                <span class="portfolio-metric-label"><?= t('portfolio.summary.total_cost') ?></span>
+                                <span class="portfolio-metric-value"><?= formatTRY($totalCost) ?></span>
+                            </div>
+                            <div class="portfolio-metric metric-highlight">
+                                <span class="portfolio-metric-label"><?= t('portfolio.summary.current_value') ?></span>
+                                <span class="portfolio-metric-value"><?= formatTRY($totalValue) ?></span>
+                            </div>
+                            <div class="portfolio-metric <?= $isProfit ? 'metric-profit' : 'metric-loss' ?>">
+                                <span class="portfolio-metric-label"><?= t('portfolio.summary.profit_loss') ?></span>
+                                <span class="portfolio-metric-value"><?= $isProfit ? '+' : '' ?><?= formatTRY($profitAmount) ?></span>
+                            </div>
+                        </div>
+                        <div class="portfolio-profit-badge <?= $isProfit ? 'badge-profit' : 'badge-loss' ?>">
+                            <span class="badge-arrow"><?= $isProfit ? '▲' : '▼' ?></span>
+                            %<?= formatNumberLocalized(abs($profitPercent), 2) ?>
+                        </div>
+                        <a href="portfolio.php" class="btn-portfolio">
+                            <?= t('nav.portfolio') ?>
+                            <span class="btn-arrow">→</span>
+                        </a>
+                    </div>
                 </div>
                 <?php endif; ?>
             </div>

@@ -30,6 +30,7 @@ class Portfolio
                 p.buy_rate,
                 p.buy_date,
                 p.notes,
+                p.group_id,
                 c.code AS currency_code,
                 c.name_tr AS currency_name_tr,
                 c.name_en AS currency_name_en,
@@ -40,6 +41,10 @@ class Portfolio
                 b.slug AS bank_slug,
                 r.sell_rate AS current_rate,
                 r.scraped_at AS rate_updated_at,
+                g.name AS group_name,
+                g.slug AS group_slug,
+                g.color AS group_color,
+                g.icon AS group_icon,
                 (p.amount * p.buy_rate) AS cost_try,
                 (p.amount * COALESCE(r.sell_rate, p.buy_rate)) AS value_try,
                 ((COALESCE(r.sell_rate, p.buy_rate) - p.buy_rate) / p.buy_rate * 100) AS profit_percent
@@ -47,6 +52,7 @@ class Portfolio
             JOIN currencies c ON c.id = p.currency_id
             LEFT JOIN banks b ON b.id = p.bank_id
             LEFT JOIN rates r ON r.currency_id = p.currency_id AND r.bank_id = p.bank_id
+            LEFT JOIN portfolio_groups g ON g.id = p.group_id
             WHERE {$where}
             ORDER BY p.buy_date DESC
         ";
@@ -133,10 +139,22 @@ class Portfolio
             $userId = Auth::id();
         }
 
+        $groupId = null;
+        if (!empty($data['group_id'])) {
+            $gid = (int) $data['group_id'];
+            if ($gid > 0) {
+                $group = Database::queryOne('SELECT id FROM portfolio_groups WHERE id = ?', [$gid]);
+                if ($group) {
+                    $groupId = $gid;
+                }
+            }
+        }
+
         return Database::insert('portfolio', [
             'user_id' => $userId,
             'currency_id' => (int) $currency['id'],
             'bank_id' => $bankId,
+            'group_id' => $groupId,
             'amount' => $amount,
             'buy_rate' => $buyRate,
             'buy_date' => $buyDate,
@@ -188,6 +206,20 @@ class Portfolio
                 $update['bank_id'] = (int) $bank['id'];
             } else {
                 $update['bank_id'] = null;
+            }
+        }
+
+        if (array_key_exists('group_id', $data)) {
+            if ($data['group_id'] === '' || $data['group_id'] === null) {
+                $update['group_id'] = null;
+            } else {
+                $gid = (int) $data['group_id'];
+                if ($gid > 0) {
+                    $group = Database::queryOne('SELECT id FROM portfolio_groups WHERE id = ?', [$gid]);
+                    if ($group) {
+                        $update['group_id'] = $gid;
+                    }
+                }
             }
         }
 
@@ -283,5 +315,165 @@ class Portfolio
         }
 
         return $date;
+    }
+
+    // ─── Group Management ─────────────────────────────────────────────────
+
+    /**
+     * Get all groups for current user.
+     */
+    public static function getGroups(): array
+    {
+        $where = '1=1';
+        $params = [];
+
+        if (class_exists('Auth') && Auth::check() && !Auth::isAdmin()) {
+            $userId = Auth::id();
+            if ($userId !== null) {
+                $where .= ' AND (user_id IS NULL OR user_id = ?)';
+                $params[] = $userId;
+            }
+        }
+
+        return Database::query(
+            "SELECT g.*, (SELECT COUNT(*) FROM portfolio p WHERE p.group_id = g.id AND p.deleted_at IS NULL) AS item_count
+             FROM portfolio_groups g WHERE {$where} ORDER BY g.name",
+            $params
+        );
+    }
+
+    /**
+     * Add a new group.
+     */
+    public static function addGroup(array $data): int
+    {
+        $name = trim((string) ($data['name'] ?? ''));
+        if ($name === '' || mb_strlen($name, 'UTF-8') > 100) {
+            throw new InvalidArgumentException('Group name is required (max 100 chars)');
+        }
+
+        $slug = self::generateSlug($name);
+
+        $color = trim((string) ($data['color'] ?? '#3b82f6'));
+        if (!preg_match('/^#[0-9a-fA-F]{6}$/', $color)) {
+            $color = '#3b82f6';
+        }
+
+        $icon = trim((string) ($data['icon'] ?? ''));
+        $icon = $icon !== '' ? mb_substr($icon, 0, 10, 'UTF-8') : null;
+
+        $userId = null;
+        if (class_exists('Auth') && Auth::check()) {
+            $userId = Auth::id();
+        }
+
+        return Database::insert('portfolio_groups', [
+            'user_id' => $userId,
+            'name' => $name,
+            'slug' => $slug,
+            'color' => $color,
+            'icon' => $icon,
+        ]);
+    }
+
+    /**
+     * Update a group.
+     */
+    public static function updateGroup(int $id, array $data): bool
+    {
+        if ($id <= 0) {
+            return false;
+        }
+
+        $update = [];
+
+        if (isset($data['name'])) {
+            $name = trim((string) $data['name']);
+            if ($name === '' || mb_strlen($name, 'UTF-8') > 100) {
+                throw new InvalidArgumentException('Group name is required (max 100 chars)');
+            }
+            $update['name'] = $name;
+            $update['slug'] = self::generateSlug($name);
+        }
+
+        if (isset($data['color'])) {
+            $color = trim((string) $data['color']);
+            if (preg_match('/^#[0-9a-fA-F]{6}$/', $color)) {
+                $update['color'] = $color;
+            }
+        }
+
+        if (array_key_exists('icon', $data)) {
+            $icon = trim((string) $data['icon']);
+            $update['icon'] = $icon !== '' ? mb_substr($icon, 0, 10, 'UTF-8') : null;
+        }
+
+        if (empty($update)) {
+            return false;
+        }
+
+        $where = 'id = ?';
+        $params = [$id];
+        if (class_exists('Auth') && Auth::check() && !Auth::isAdmin()) {
+            $userId = Auth::id();
+            if ($userId !== null) {
+                $where .= ' AND (user_id IS NULL OR user_id = ?)';
+                $params[] = $userId;
+            }
+        }
+
+        return Database::update('portfolio_groups', $update, $where, $params) > 0;
+    }
+
+    /**
+     * Delete a group. Items in the group are unlinked (group_id set to NULL).
+     */
+    public static function deleteGroup(int $id): bool
+    {
+        if ($id <= 0) {
+            return false;
+        }
+
+        $where = 'id = ?';
+        $params = [$id];
+        if (class_exists('Auth') && Auth::check() && !Auth::isAdmin()) {
+            $userId = Auth::id();
+            if ($userId !== null) {
+                $where .= ' AND (user_id IS NULL OR user_id = ?)';
+                $params[] = $userId;
+            }
+        }
+
+        // Unlink portfolio items first
+        Database::execute('UPDATE portfolio SET group_id = NULL WHERE group_id = ?', [$id]);
+
+        return Database::execute('DELETE FROM portfolio_groups WHERE ' . $where, $params) > 0;
+    }
+
+    /**
+     * Generate a URL-safe slug from a name.
+     */
+    private static function generateSlug(string $name): string
+    {
+        $slug = mb_strtolower($name, 'UTF-8');
+        // Transliterate common Turkish characters
+        $map = [
+            'ç' => 'c',
+            'ğ' => 'g',
+            'ı' => 'i',
+            'ö' => 'o',
+            'ş' => 's',
+            'ü' => 'u',
+            'Ç' => 'c',
+            'Ğ' => 'g',
+            'İ' => 'i',
+            'Ö' => 'o',
+            'Ş' => 's',
+            'Ü' => 'u'
+        ];
+        $slug = strtr($slug, $map);
+        $slug = preg_replace('/[^a-z0-9]+/', '-', $slug);
+        $slug = trim($slug, '-');
+        return $slug !== '' ? mb_substr($slug, 0, 100, 'UTF-8') : 'group-' . time();
     }
 }
