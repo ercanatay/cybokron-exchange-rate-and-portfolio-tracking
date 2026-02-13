@@ -48,13 +48,17 @@ CREATE TABLE IF NOT EXISTS `rates` (
   `buy_rate` DECIMAL(18,6) NOT NULL,
   `sell_rate` DECIMAL(18,6) NOT NULL,
   `change_percent` DECIMAL(8,4) NULL,
+  `show_on_homepage` TINYINT(1) DEFAULT 1 COMMENT 'Show this rate on homepage',
+  `display_order` INT UNSIGNED DEFAULT 0 COMMENT 'Custom display order (0 = default order)',
   `scraped_at` DATETIME NOT NULL,
   `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
   UNIQUE KEY `uk_bank_currency` (`bank_id`, `currency_id`),
   FOREIGN KEY (`bank_id`) REFERENCES `banks`(`id`) ON DELETE CASCADE,
   FOREIGN KEY (`currency_id`) REFERENCES `currencies`(`id`) ON DELETE CASCADE,
   INDEX `idx_scraped` (`scraped_at`),
-  INDEX `idx_bank_currency` (`bank_id`, `currency_id`)
+  INDEX `idx_bank_currency` (`bank_id`, `currency_id`),
+  INDEX `idx_homepage` (`show_on_homepage`),
+  INDEX `idx_display_order` (`display_order`)
 ) ENGINE=InnoDB;
 
 -- ─── Exchange Rate History ───────────────────────────────────────────────────
