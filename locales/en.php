@@ -24,6 +24,7 @@ return [
     'auth.error_empty' => 'Username and password required.',
     'auth.error_invalid' => 'Invalid username or password.',
     'auth.error_rate_limit' => 'Too many attempts. Please try again in a few minutes.',
+    'auth.error_captcha' => 'Security verification failed. Please try again.',
 
     'index.last_update' => 'Last Update: {{datetime}}',
     'index.table.currency' => 'Currency',
