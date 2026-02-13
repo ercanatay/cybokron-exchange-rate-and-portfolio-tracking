@@ -25,6 +25,7 @@ return [
     'auth.error_empty' => 'Nom d\'utilisateur et mot de passe requis.',
     'auth.error_invalid' => 'Nom d\'utilisateur ou mot de passe invalide.',
     'auth.error_rate_limit' => 'Trop de tentatives. Veuillez réessayer dans quelques minutes.',
+    'auth.error_captcha' => 'La vérification de sécurité a échoué. Veuillez réessayer.',
 
     'index.last_update' => 'Dernière mise à jour : {{datetime}}',
     'index.table.currency' => 'Devise',

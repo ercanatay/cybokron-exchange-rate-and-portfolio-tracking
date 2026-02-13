@@ -138,9 +138,10 @@ foreach ($widgetConfig as $w) {
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <meta name="theme-color" content="#3b82f6">
-        <meta name="apple-mobile-web-app-capable" content="yes">
+        <meta name="mobile-web-app-capable" content="yes">
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
         <title><?= APP_NAME ?></title>
+        <link rel="icon" type="image/svg+xml" href="favicon.svg">
         <link rel="manifest" href="manifest.json">
         <link rel="stylesheet" href="assets/css/style.css?v=<?= filemtime(__DIR__ . '/assets/css/style.css') ?>">
         <link rel="stylesheet" href="assets/css/currency-icons.css">
