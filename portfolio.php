@@ -408,6 +408,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'target_type' => $_POST['goal_target_type'] ?? 'value',
                 'target_currency' => $_POST['goal_target_currency'] ?? '',
                 'bank_slug' => $_POST['goal_bank_slug'] ?? '',
+                'percent_date_mode' => $_POST['goal_percent_date_mode'] ?? 'all',
+                'percent_date_start' => $_POST['goal_percent_date_start'] ?? '',
+                'percent_date_end' => $_POST['goal_percent_date_end'] ?? '',
+                'percent_period_months' => $_POST['goal_percent_period_months'] ?? 12,
             ]);
             // Add sources if provided
             $srcTypes = $_POST['goal_source_type'] ?? [];
@@ -436,6 +440,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'target_type' => $_POST['goal_target_type'] ?? 'value',
                 'target_currency' => $_POST['goal_target_currency'] ?? '',
                 'bank_slug' => $_POST['goal_bank_slug'] ?? '',
+                'percent_date_mode' => $_POST['goal_percent_date_mode'] ?? 'all',
+                'percent_date_start' => $_POST['goal_percent_date_start'] ?? '',
+                'percent_date_end' => $_POST['goal_percent_date_end'] ?? '',
+                'percent_period_months' => $_POST['goal_percent_period_months'] ?? 12,
             ]);
             // Re-sync sources: remove all then add
             $existingSources = Portfolio::getGoalSources($goalId);
@@ -876,6 +884,7 @@ $annualizedReturn = ($oldestDate && $analyticsCost > 0)
                                         <option value="cost"><?= t('portfolio.goals.type_cost') ?></option>
                                         <option value="amount"><?= t('portfolio.goals.type_amount') ?></option>
                                         <option value="currency_value"><?= t('portfolio.goals.type_currency_value') ?></option>
+                                        <option value="percent"><?= t('portfolio.goals.type_percent') ?></option>
                                     </select>
                                 </div>
                                 <div class="goal-form-field goal-currency-field" id="goal-currency-add" style="display:none">
@@ -886,6 +895,27 @@ $annualizedReturn = ($oldestDate && $analyticsCost > 0)
                                             <option value="<?= htmlspecialchars($c['code']) ?>"><?= htmlspecialchars($c['code']) ?> — <?= htmlspecialchars(localizedCurrencyName($c)) ?></option>
                                         <?php endforeach; ?>
                                     </select>
+                                </div>
+                                <div class="goal-form-field goal-percent-fields" id="goal-percent-add" style="display:none">
+                                    <label><?= t('portfolio.goals.percent_date_mode') ?></label>
+                                    <select name="goal_percent_date_mode" onchange="percentModeChanged(this, 'add')">
+                                        <option value="all"><?= t('portfolio.goals.percent_mode_all') ?></option>
+                                        <option value="range"><?= t('portfolio.goals.percent_mode_range') ?></option>
+                                        <option value="since_first"><?= t('portfolio.goals.percent_mode_since_first') ?></option>
+                                        <option value="weighted"><?= t('portfolio.goals.percent_mode_weighted') ?></option>
+                                    </select>
+                                </div>
+                                <div class="goal-form-field goal-percent-range" id="goal-percent-range-add" style="display:none">
+                                    <label><?= t('portfolio.goals.percent_date_start') ?></label>
+                                    <input type="date" name="goal_percent_date_start">
+                                </div>
+                                <div class="goal-form-field goal-percent-range" id="goal-percent-range-end-add" style="display:none">
+                                    <label><?= t('portfolio.goals.percent_date_end') ?></label>
+                                    <input type="date" name="goal_percent_date_end">
+                                </div>
+                                <div class="goal-form-field goal-percent-period" id="goal-percent-period-add" style="display:none">
+                                    <label><?= t('portfolio.goals.percent_period') ?></label>
+                                    <input type="number" name="goal_percent_period_months" value="12" min="1" max="120">
                                 </div>
                                 <div class="goal-form-field">
                                     <label><?= t('portfolio.goals.bank') ?></label>
@@ -944,6 +974,7 @@ $annualizedReturn = ($oldestDate && $analyticsCost > 0)
                                 $goalTargetType = $goal['target_type'] ?? 'value';
                                 $isAmountGoal = $goalTargetType === 'amount';
                                 $isCurrencyValueGoal = $goalTargetType === 'currency_value';
+                                $isPercentGoal = $goalTargetType === 'percent';
                                 $hasCurrencyUnit = ($isAmountGoal || $isCurrencyValueGoal);
                                 $goalCurrency = $goal['target_currency'] ?? '';
                                 $goalBankSlug = $goal['bank_slug'] ?? '';
@@ -963,6 +994,9 @@ $annualizedReturn = ($oldestDate && $analyticsCost > 0)
                                             <span class="goal-name">🎯 <?= htmlspecialchars($goal['name']) ?></span>
                                             <span class="goal-meta">
                                                 <?= t('portfolio.goals.type_' . ($goal['target_type'] ?? 'value')) ?>
+                                                <?php if ($isPercentGoal && !empty($goal['percent_date_mode'])): ?>
+                                                    <span class="goal-percent-mode-badge"><?= t('portfolio.goals.percent_mode_' . $goal['percent_date_mode']) ?></span>
+                                                <?php endif; ?>
                                                 <?php if ($hasCurrencyUnit && $goalCurrency): ?>
                                                     <span class="goal-currency-badge"><?= htmlspecialchars($goalCurrency) ?></span>
                                                 <?php endif; ?>
@@ -989,7 +1023,9 @@ $annualizedReturn = ($oldestDate && $analyticsCost > 0)
                                     </div>
                                     <div class="goal-progress-stats">
                                         <span class="goal-current<?= $pct >= 100 ? ' goal-complete' : '' ?>">
-                                            <?php if ($isAmountGoal): ?>
+                                            <?php if ($isPercentGoal): ?>
+                                                %<?= formatNumberLocalized($gp['current'], 2) ?>
+                                            <?php elseif ($isAmountGoal): ?>
                                                 <?= formatNumberLocalized($gp['current'], 4) ?> <?= htmlspecialchars($goalCurrency) ?>
                                             <?php elseif ($isCurrencyValueGoal): ?>
                                                 <?= formatNumberLocalized($gp['current'], 2) ?> <?= htmlspecialchars($goalCurrency) ?>
@@ -1001,7 +1037,9 @@ $annualizedReturn = ($oldestDate && $analyticsCost > 0)
                                             <?= formatNumberLocalized($pct, 1) ?>%
                                         </span>
                                         <span class="goal-target">
-                                            <?php if ($isAmountGoal): ?>
+                                            <?php if ($isPercentGoal): ?>
+                                                %<?= formatNumberLocalized($gp['target'], 2) ?>
+                                            <?php elseif ($isAmountGoal): ?>
                                                 <?= formatNumberLocalized($gp['target'], 4) ?> <?= htmlspecialchars($goalCurrency) ?>
                                             <?php elseif ($isCurrencyValueGoal): ?>
                                                 <?= formatNumberLocalized($gp['target'], 2) ?> <?= htmlspecialchars($goalCurrency) ?>
@@ -1069,6 +1107,7 @@ $annualizedReturn = ($oldestDate && $analyticsCost > 0)
                                                     <option value="cost" <?= ($goal['target_type'] ?? 'value') === 'cost' ? 'selected' : '' ?>><?= t('portfolio.goals.type_cost') ?></option>
                                                     <option value="amount" <?= ($goal['target_type'] ?? 'value') === 'amount' ? 'selected' : '' ?>><?= t('portfolio.goals.type_amount') ?></option>
                                                     <option value="currency_value" <?= ($goal['target_type'] ?? 'value') === 'currency_value' ? 'selected' : '' ?>><?= t('portfolio.goals.type_currency_value') ?></option>
+                                                    <option value="percent" <?= ($goal['target_type'] ?? 'value') === 'percent' ? 'selected' : '' ?>><?= t('portfolio.goals.type_percent') ?></option>
                                                 </select>
                                             </div>
                                             <div class="goal-form-field goal-currency-field" id="goal-currency-edit-<?= (int)$goal['id'] ?>" style="<?= $hasCurrencyUnit ? '' : 'display:none' ?>">
@@ -1090,8 +1129,35 @@ $annualizedReturn = ($oldestDate && $analyticsCost > 0)
                                                 </select>
                                             </div>
                                             <div class="goal-form-field">
-                                                <label id="goal-target-label-edit-<?= (int)$goal['id'] ?>"><?= $isAmountGoal ? t('portfolio.goals.target_amount') : ($isCurrencyValueGoal ? t('portfolio.goals.target_currency_value_label') : t('portfolio.goals.target_value')) ?></label>
+                                                <label id="goal-target-label-edit-<?= (int)$goal['id'] ?>"><?= $isPercentGoal ? t('portfolio.goals.target_percent') : ($isAmountGoal ? t('portfolio.goals.target_amount') : ($isCurrencyValueGoal ? t('portfolio.goals.target_currency_value_label') : t('portfolio.goals.target_value'))) ?></label>
                                                 <input type="number" name="goal_target_value" step="0.000001" value="<?= (float)$goal['target_value'] ?>" required>
+                                            </div>
+                                            <?php
+                                                $editPercentMode = $goal['percent_date_mode'] ?? 'all';
+                                                $editPercentStart = $goal['percent_date_start'] ?? '';
+                                                $editPercentEnd = $goal['percent_date_end'] ?? '';
+                                                $editPercentPeriod = (int) ($goal['percent_period_months'] ?? 12);
+                                            ?>
+                                            <div class="goal-form-field goal-percent-fields" id="goal-percent-edit-<?= (int)$goal['id'] ?>" style="<?= $isPercentGoal ? '' : 'display:none' ?>">
+                                                <label><?= t('portfolio.goals.percent_date_mode') ?></label>
+                                                <select name="goal_percent_date_mode" onchange="percentModeChanged(this, 'edit-<?= (int)$goal['id'] ?>')">
+                                                    <option value="all" <?= $editPercentMode === 'all' ? 'selected' : '' ?>><?= t('portfolio.goals.percent_mode_all') ?></option>
+                                                    <option value="range" <?= $editPercentMode === 'range' ? 'selected' : '' ?>><?= t('portfolio.goals.percent_mode_range') ?></option>
+                                                    <option value="since_first" <?= $editPercentMode === 'since_first' ? 'selected' : '' ?>><?= t('portfolio.goals.percent_mode_since_first') ?></option>
+                                                    <option value="weighted" <?= $editPercentMode === 'weighted' ? 'selected' : '' ?>><?= t('portfolio.goals.percent_mode_weighted') ?></option>
+                                                </select>
+                                            </div>
+                                            <div class="goal-form-field goal-percent-range" id="goal-percent-range-edit-<?= (int)$goal['id'] ?>" style="<?= ($isPercentGoal && $editPercentMode === 'range') ? '' : 'display:none' ?>">
+                                                <label><?= t('portfolio.goals.percent_date_start') ?></label>
+                                                <input type="date" name="goal_percent_date_start" value="<?= htmlspecialchars($editPercentStart) ?>">
+                                            </div>
+                                            <div class="goal-form-field goal-percent-range" id="goal-percent-range-end-edit-<?= (int)$goal['id'] ?>" style="<?= ($isPercentGoal && $editPercentMode === 'range') ? '' : 'display:none' ?>">
+                                                <label><?= t('portfolio.goals.percent_date_end') ?></label>
+                                                <input type="date" name="goal_percent_date_end" value="<?= htmlspecialchars($editPercentEnd) ?>">
+                                            </div>
+                                            <div class="goal-form-field goal-percent-period" id="goal-percent-period-edit-<?= (int)$goal['id'] ?>" style="<?= ($isPercentGoal && $editPercentMode === 'since_first') ? '' : 'display:none' ?>">
+                                                <label><?= t('portfolio.goals.percent_period') ?></label>
+                                                <input type="number" name="goal_percent_period_months" value="<?= $editPercentPeriod ?>" min="1" max="120">
                                             </div>
                                         </div>
                                         <!-- Sources re-sync for edit -->
@@ -1714,14 +1780,28 @@ $annualizedReturn = ($oldestDate && $analyticsCost > 0)
         function goalTypeChanged(select, formId) {
             var val = select.value;
             var needsCurrency = (val === 'amount' || val === 'currency_value');
+            var isPercent = (val === 'percent');
             var currField = document.getElementById('goal-currency-' + formId);
+            var percentField = document.getElementById('goal-percent-' + formId);
             var label = document.getElementById('goal-target-label-' + formId);
             if (currField) currField.style.display = needsCurrency ? '' : 'none';
+            if (percentField) percentField.style.display = isPercent ? '' : 'none';
+            // Hide percent sub-fields when switching away from percent
+            if (!isPercent) {
+                var rangeStart = document.getElementById('goal-percent-range-' + formId);
+                var rangeEnd = document.getElementById('goal-percent-range-end-' + formId);
+                var period = document.getElementById('goal-percent-period-' + formId);
+                if (rangeStart) rangeStart.style.display = 'none';
+                if (rangeEnd) rangeEnd.style.display = 'none';
+                if (period) period.style.display = 'none';
+            }
             if (label) {
                 if (val === 'amount') {
                     label.textContent = <?= json_encode(t('portfolio.goals.target_amount'), JSON_UNESCAPED_UNICODE) ?>;
                 } else if (val === 'currency_value') {
                     label.textContent = <?= json_encode(t('portfolio.goals.target_currency_value_label'), JSON_UNESCAPED_UNICODE) ?>;
+                } else if (val === 'percent') {
+                    label.textContent = <?= json_encode(t('portfolio.goals.target_percent'), JSON_UNESCAPED_UNICODE) ?>;
                 } else {
                     label.textContent = <?= json_encode(t('portfolio.goals.target_value'), JSON_UNESCAPED_UNICODE) ?>;
                 }
@@ -1731,6 +1811,17 @@ $annualizedReturn = ($oldestDate && $analyticsCost > 0)
                 var sel = currField.querySelector('select');
                 if (sel) sel.required = needsCurrency;
             }
+        }
+
+        /* ─── Percent Date Mode Toggle ─────────────────────────────────────── */
+        function percentModeChanged(select, formId) {
+            var mode = select.value;
+            var rangeStart = document.getElementById('goal-percent-range-' + formId);
+            var rangeEnd = document.getElementById('goal-percent-range-end-' + formId);
+            var period = document.getElementById('goal-percent-period-' + formId);
+            if (rangeStart) rangeStart.style.display = (mode === 'range') ? '' : 'none';
+            if (rangeEnd) rangeEnd.style.display = (mode === 'range') ? '' : 'none';
+            if (period) period.style.display = (mode === 'since_first') ? '' : 'none';
         }
 
         /* ─── Goal Source Management ────────────────────────────────────────── */

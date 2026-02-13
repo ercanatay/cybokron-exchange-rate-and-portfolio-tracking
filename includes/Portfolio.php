@@ -778,7 +778,8 @@ class Portfolio
     /**
      * Valid target types for goals.
      */
-    private const GOAL_TARGET_TYPES = ['value', 'cost', 'amount', 'currency_value'];
+    private const GOAL_TARGET_TYPES = ['value', 'cost', 'amount', 'currency_value', 'percent'];
+    private const PERCENT_DATE_MODES = ['all', 'range', 'since_first', 'weighted'];
 
     /**
      * Add a new goal.
@@ -813,6 +814,25 @@ class Portfolio
             $bankSlug = $bs;
         }
 
+        // Percent goal fields
+        $percentDateMode = null;
+        $percentDateStart = null;
+        $percentDateEnd = null;
+        $percentPeriodMonths = 12;
+        if ($targetType === 'percent') {
+            $pdm = $data['percent_date_mode'] ?? 'all';
+            $percentDateMode = in_array($pdm, self::PERCENT_DATE_MODES) ? $pdm : 'all';
+            if ($percentDateMode === 'range') {
+                $ds = trim($data['percent_date_start'] ?? '');
+                $de = trim($data['percent_date_end'] ?? '');
+                if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $ds)) $percentDateStart = $ds;
+                if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $de)) $percentDateEnd = $de;
+            } elseif ($percentDateMode === 'since_first') {
+                $pm = (int) ($data['percent_period_months'] ?? 12);
+                $percentPeriodMonths = max(1, min(120, $pm));
+            }
+        }
+
         $goalId = Database::insert('portfolio_goals', [
             'user_id' => (class_exists('Auth') && Auth::check()) ? Auth::id() : null,
             'name' => $name,
@@ -820,6 +840,10 @@ class Portfolio
             'target_type' => $targetType,
             'target_currency' => $targetCurrency,
             'bank_slug' => $bankSlug,
+            'percent_date_mode' => $percentDateMode,
+            'percent_date_start' => $percentDateStart,
+            'percent_date_end' => $percentDateEnd,
+            'percent_period_months' => $targetType === 'percent' ? $percentPeriodMonths : null,
         ]);
 
         return (int) $goalId;
@@ -857,9 +881,28 @@ class Portfolio
             $bankSlug = $bs;
         }
 
+        // Percent goal fields
+        $percentDateMode = null;
+        $percentDateStart = null;
+        $percentDateEnd = null;
+        $percentPeriodMonths = 12;
+        if ($targetType === 'percent') {
+            $pdm = $data['percent_date_mode'] ?? 'all';
+            $percentDateMode = in_array($pdm, self::PERCENT_DATE_MODES) ? $pdm : 'all';
+            if ($percentDateMode === 'range') {
+                $ds = trim($data['percent_date_start'] ?? '');
+                $de = trim($data['percent_date_end'] ?? '');
+                if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $ds)) $percentDateStart = $ds;
+                if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $de)) $percentDateEnd = $de;
+            } elseif ($percentDateMode === 'since_first') {
+                $pm = (int) ($data['percent_period_months'] ?? 12);
+                $percentPeriodMonths = max(1, min(120, $pm));
+            }
+        }
+
         return Database::execute(
-            'UPDATE portfolio_goals SET name = ?, target_value = ?, target_type = ?, target_currency = ?, bank_slug = ? WHERE id = ?',
-            [$name, $targetValue, $targetType, $targetCurrency, $bankSlug, $id]
+            'UPDATE portfolio_goals SET name = ?, target_value = ?, target_type = ?, target_currency = ?, bank_slug = ?, percent_date_mode = ?, percent_date_start = ?, percent_date_end = ?, percent_period_months = ? WHERE id = ?',
+            [$name, $targetValue, $targetType, $targetCurrency, $bankSlug, $percentDateMode, $percentDateStart, $percentDateEnd, $targetType === 'percent' ? $percentPeriodMonths : null, $id]
         ) >= 0;
     }
 
@@ -991,6 +1034,86 @@ class Portfolio
             // If bank_slug is set, additionally filter items by bank
             $current = 0.0;
             $countedItems = 0;
+
+            // Percent goal: compute profit percentage
+            if ($targetType === 'percent') {
+                $dateMode = $goal['percent_date_mode'] ?? 'all';
+                $dateStart = $goal['percent_date_start'] ?? null;
+                $dateEnd = $goal['percent_date_end'] ?? null;
+                $periodMonths = (int) ($goal['percent_period_months'] ?? 12);
+
+                // For since_first mode: find earliest buy_date among matched items
+                $earliestDate = null;
+                if ($dateMode === 'since_first') {
+                    foreach ($allItems as $item) {
+                        if (!isset($matchedItemIds[(int) $item['id']])) continue;
+                        if ($goalBankSlug !== null && ($item['bank_slug'] ?? '') !== $goalBankSlug) continue;
+                        $bd = $item['buy_date'] ?? null;
+                        if ($bd && ($earliestDate === null || $bd < $earliestDate)) {
+                            $earliestDate = $bd;
+                        }
+                    }
+                    if ($earliestDate) {
+                        $dateStart = $earliestDate;
+                        $dt = new DateTime($earliestDate);
+                        $dt->modify("+{$periodMonths} months");
+                        $dateEnd = $dt->format('Y-m-d');
+                    }
+                }
+
+                $totalCost = 0.0;
+                $totalValue = 0.0;
+                $weightedSum = 0.0;
+
+                foreach ($allItems as $item) {
+                    if (!isset($matchedItemIds[(int) $item['id']])) continue;
+                    if ($goalBankSlug !== null && ($item['bank_slug'] ?? '') !== $goalBankSlug) continue;
+
+                    // Date filter for range and since_first modes
+                    if (($dateMode === 'range' || $dateMode === 'since_first') && $dateStart && $dateEnd) {
+                        $bd = $item['buy_date'] ?? '';
+                        if ($bd < $dateStart || $bd > $dateEnd) continue;
+                    }
+
+                    $itemCost = (float) ($item['cost_try'] ?? 0);
+                    $itemValue = (float) ($item['value_try'] ?? 0);
+
+                    if ($itemCost <= 0) continue;
+
+                    $totalCost += $itemCost;
+                    $totalValue += $itemValue;
+                    $countedItems++;
+
+                    if ($dateMode === 'weighted') {
+                        $itemReturn = ($itemValue - $itemCost) / $itemCost;
+                        $weightedSum += $itemReturn * $itemCost;
+                    }
+                }
+
+                if ($dateMode === 'weighted' && $totalCost > 0) {
+                    $current = ($weightedSum / $totalCost) * 100;
+                } elseif ($totalCost > 0) {
+                    $current = (($totalValue - $totalCost) / $totalCost) * 100;
+                }
+
+                $target = (float) $goal['target_value'];
+                $percent = $target != 0 ? min(($current / $target) * 100, 999) : 0;
+                if ($percent < 0) $percent = 0;
+
+                $result[$goalId] = [
+                    'current' => round($current, 2),
+                    'target' => $target,
+                    'percent' => round($percent, 1),
+                    'item_count' => $countedItems,
+                    'unit' => '%',
+                    'target_type' => $targetType,
+                    'target_currency' => $targetCurrency,
+                    'bank_slug' => $goalBankSlug,
+                    'percent_date_mode' => $dateMode,
+                ];
+                continue;
+            }
+
             foreach ($allItems as $item) {
                 if (!isset($matchedItemIds[(int) $item['id']])) {
                     continue;
