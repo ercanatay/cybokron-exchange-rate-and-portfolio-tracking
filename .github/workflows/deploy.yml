@@ -172,6 +172,13 @@ jobs:
             ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} \
             'mkdir -p ~/cybokron-logs ~/cybokron-backups && chmod 600 ~/public_html/config.php && rm -rf /tmp/cybokron_rate_limits && echo "Deploy OK at $(date)"'
 
+      - name: Check PHP error log
+        if: always()
+        run: |
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \
+            ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} \
+            "tail -50 ~/public_html/error_log 2>/dev/null || tail -50 ~/error_log 2>/dev/null || echo '(no error log found)'"
+
       - name: Run migrations, update password and version
         env:
           ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
