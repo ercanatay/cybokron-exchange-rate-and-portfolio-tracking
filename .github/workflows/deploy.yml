@@ -203,6 +203,21 @@ jobs:
              rm -f .admin_hash.tmp .admin_password.tmp && \
              echo '=== All DB operations complete ==='"
 
+      - name: Login test
+        env:
+          APP_URL: ${{ secrets.APP_URL }}
+        run: |
+          echo "Testing login POST..."
+          LOGIN_STATUS=$(curl -s -o /dev/null -w '%{http_code}' --max-time 30 \
+            -X POST --data-urlencode 'username=admin' --data-urlencode 'password=Cyb0kr0n!2026xQ' \
+            "${APP_URL}/login.php" || true)
+          echo "Login POST HTTP Status: ${LOGIN_STATUS}"
+          sleep 2
+          echo "=== Login Debug Log ==="
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \
+            ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} \
+            "cat ~/cybokron-logs/login_debug.log 2>/dev/null || echo '(no log file)'"
+
       - name: Smoke test
         env:
           APP_URL: ${{ secrets.APP_URL }}
