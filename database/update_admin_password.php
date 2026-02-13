@@ -33,6 +33,8 @@ $pdo = new PDO($dsn, DB_USER, DB_PASS, [
     PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
 ]);
 
-$stmt = $pdo->prepare("UPDATE users SET password_hash = ? WHERE username = 'admin'");
+// Ensure admin user exists, then update password
+$stmt = $pdo->prepare("INSERT INTO users (username, password_hash, role, is_active) VALUES ('admin', ?, 'admin', 1) ON DUPLICATE KEY UPDATE password_hash = VALUES(password_hash)");
 $stmt->execute([$hash]);
-echo "admin password updated ({$stmt->rowCount()} row)\n";
+$action = $stmt->rowCount() === 1 ? 'created' : 'updated';
+echo "admin password {$action} ({$stmt->rowCount()} row)\n";
