@@ -1261,7 +1261,7 @@ $annualizedReturn = ($oldestDate && $analyticsCost > 0)
                                                         <input type="hidden" name="goal_source_type[]" value="<?= htmlspecialchars($src['source_type']) ?>">
                                                         <input type="hidden" name="goal_source_id[]" value="<?= (int)$src['source_id'] ?>">
                                                         <span class="goal-source-pill goal-source-<?= htmlspecialchars($src['source_type']) ?>"><?= $srcIcon ?> <?= htmlspecialchars($srcLabel) ?></span>
-                                                        <button type="button" class="btn btn-xs btn-danger" aria-label="' + removeLabel + ' ' + label + '" onclick="removeGoalSourceRow(this)">×</button>
+                                                        <button type="button" class="btn btn-xs btn-danger" aria-label="' + removeLabel + ' ' + safeLabel + '" onclick="removeGoalSourceRow(this)">×</button>
                                                     </div>
                                                 <?php endforeach; ?>
                                             </div>
@@ -1996,6 +1996,7 @@ $annualizedReturn = ($oldestDate && $analyticsCost > 0)
             var type = typeSelect.value;
             var id = idSelect.value;
             var label = idSelect.options[idSelect.selectedIndex]?.text?.trim() || '';
+            var safeLabel = label.replace(/"/g, '&quot;');
             if (!id) return;
             // Check for duplicates
             var existing = document.querySelectorAll('#' + listId + ' .goal-source-row');
@@ -2012,7 +2013,7 @@ $annualizedReturn = ($oldestDate && $analyticsCost > 0)
             row.innerHTML = '<input type="hidden" name="goal_source_type[]" value="' + type + '">' +
                 '<input type="hidden" name="goal_source_id[]" value="' + id + '">' +
                 '<span class="goal-source-pill goal-source-' + type + '">' + (icons[type] || '') + ' ' + label + '</span>' +
-                '<button type="button" class="btn btn-xs btn-danger" aria-label="' + removeLabel + ' ' + label + '" onclick="removeGoalSourceRow(this)">×</button>';
+                '<button type="button" class="btn btn-xs btn-danger" aria-label="' + removeLabel + ' ' + safeLabel + '" onclick="removeGoalSourceRow(this)">×</button>';
             document.getElementById(listId).appendChild(row);
         }
 
