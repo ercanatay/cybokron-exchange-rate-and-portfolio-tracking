@@ -254,6 +254,32 @@ To add a new bank source later:
 
 ## Changelog
 
+### v1.5.0 (2026-02-13)
+
+Release focused on OpenRouter AI management, model tuning, and admin observability.
+
+**OpenRouter AI Management Panel**
+- New `openrouter.php` admin page with connection testing, model management, per-bank AI repair statistics, and table change logs
+- Live connection test with response time measurement against OpenRouter API
+- Model switching from admin UI (DB-backed, no code edits needed)
+- Per-bank AI repair cards showing last call time, cooldown status, and extracted rate counts
+
+**AI Repair Tuning**
+- Increased `OPENROUTER_AI_MAX_TOKENS` from 600 to 4000 for GLM-5 reasoning model compatibility
+- Increased `OPENROUTER_AI_TIMEOUT_SECONDS` from 25 to 60 to accommodate reasoning token generation
+- GLM-5 now successfully extracts 14/14 currency rates from Dünya Katılım
+
+**Pipeline & Deployment**
+- Added `OPENROUTER_API_KEY` to GitHub Actions deploy pipeline with secret injection
+- Config template placeholder + sed replacement for production API key
+
+**Navigation & UI**
+- Added OpenRouter AI link in header navigation and admin footer
+- New `assets/css/openrouter.css` with responsive card layout and status indicators
+
+**Localization**
+- Added 36 OpenRouter-related translation keys for Turkish and English
+
 ### v1.4.0 (2026-02-13)
 
 Release focused on admin UX, homepage configurability, expanded bank coverage, and production deployment automation.
