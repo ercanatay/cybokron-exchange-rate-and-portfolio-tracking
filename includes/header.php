@@ -24,6 +24,19 @@ $_headerActivePage = $activePage ?? '';
             </span>
         </a>
 
+        <!-- Mobile: Auth button visible outside hamburger -->
+        <?php if (Auth::check()): ?>
+            <a href="logout.php" class="header-auth-btn header-auth-btn--logout header-auth-btn--mobile" title="<?= t('nav.logout') ?>">
+                <span class="auth-icon">🚪</span>
+                <span class="auth-text"><?= t('nav.logout') ?></span>
+            </a>
+        <?php else: ?>
+            <a href="login.php" class="header-auth-btn header-auth-btn--login header-auth-btn--mobile" title="<?= t('nav.login') ?>">
+                <span class="auth-icon">🔑</span>
+                <span class="auth-text"><?= t('nav.login') ?></span>
+            </a>
+        <?php endif; ?>
+
         <!-- Mobile menu toggle -->
         <button type="button" class="header-menu-toggle" id="header-menu-toggle" aria-label="<?= htmlspecialchars(t('nav.menu')) ?>" aria-expanded="false"
             aria-controls="header-nav">
@@ -93,14 +106,14 @@ $_headerActivePage = $activePage ?? '';
 
                 <!-- Auth -->
                 <?php if (Auth::check()): ?>
-                    <a href="logout.php" class="header-auth-btn" title="<?= t('nav.logout') ?>">
+                    <a href="logout.php" class="header-auth-btn header-auth-btn--logout" title="<?= t('nav.logout') ?>">
                         <span class="auth-icon">🚪</span>
                         <span class="auth-text">
                             <?= t('nav.logout') ?>
                         </span>
                     </a>
                 <?php else: ?>
-                    <a href="login.php" class="header-auth-btn" title="<?= t('nav.login') ?>">
+                    <a href="login.php" class="header-auth-btn header-auth-btn--login" title="<?= t('nav.login') ?>">
                         <span class="auth-icon">🔑</span>
                         <span class="auth-text">
                             <?= t('nav.login') ?>
