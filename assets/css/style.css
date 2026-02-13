@@ -2397,6 +2397,32 @@ button:focus-visible,
 .goal-meta {
     font-size: 0.75rem;
     color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    flex-wrap: wrap;
+}
+.goal-currency-badge {
+    display: inline-block;
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    color: #fff;
+    font-size: 0.65rem;
+    font-weight: 700;
+    padding: 1px 6px;
+    border-radius: 4px;
+    letter-spacing: 0.5px;
+    vertical-align: middle;
+}
+.goal-form-grid-4 {
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+}
+.goal-currency-field select {
+    min-width: 180px;
+}
+.goal-edit-actions {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 0.75rem;
 }
 
 .goal-card-actions {

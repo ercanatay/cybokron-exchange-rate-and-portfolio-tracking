@@ -138,14 +138,14 @@ $version = trim(file_get_contents(__DIR__ . '/VERSION'));
                                 <td>
                                     <span
                                         class="rate-change <?= $log['status'] === 'success' ? 'text-success' : ($log['status'] === 'warning' ? 'text-warning' : 'text-danger') ?>">
-                                        <?= htmlspecialchars($log['status']) ?>
+                                        <?= htmlspecialchars(t('observability.status_' . ($log['status'] === 'success' ? 'success' : ($log['status'] === 'warning' ? 'warning' : 'error')))) ?>
                                     </span>
                                 </td>
                                 <td><?= (int) $log['rates_count'] ?></td>
                                 <td><?= $log['duration_ms'] !== null ? (int) $log['duration_ms'] . ' ms' : '—' ?></td>
                                 <td class="message-cell">
                                     <?= htmlspecialchars($log['message'] ?? '') ?>
-                                    <?= $log['table_changed'] ? ' [TABLE CHANGED]' : '' ?>
+                                    <?= $log['table_changed'] ? ' ' . t('observability.table_changed') : '' ?>
                                 </td>
                             </tr>
                         <?php endforeach; ?>
