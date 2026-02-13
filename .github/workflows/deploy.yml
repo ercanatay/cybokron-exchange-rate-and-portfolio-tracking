@@ -170,7 +170,7 @@ jobs:
         run: |
           ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \
             ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} \
-            'mkdir -p ~/cybokron-logs ~/cybokron-backups && chmod 600 ~/public_html/config.php && echo "Deploy OK at $(date)"'
+            'mkdir -p ~/cybokron-logs ~/cybokron-backups && chmod 600 ~/public_html/config.php && rm -rf /tmp/cybokron_rate_limits && echo "Deploy OK at $(date)"'
 
       - name: Run migrations, update password and version
         env:
