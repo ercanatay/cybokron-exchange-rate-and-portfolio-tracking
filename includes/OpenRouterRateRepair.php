@@ -157,9 +157,20 @@ class OpenRouterRateRepair
             return false;
         }
 
-        $apiKey = trim((string) (defined('OPENROUTER_API_KEY') ? OPENROUTER_API_KEY : ''));
+        return $this->resolveApiKey() !== '';
+    }
 
-        return $apiKey !== '';
+    /**
+     * Resolve API key from DB setting or config fallback.
+     */
+    private function resolveApiKey(): string
+    {
+        $dbKey = $this->getSetting('openrouter_api_key');
+        if ($dbKey !== null && trim($dbKey) !== '') {
+            return trim($dbKey);
+        }
+
+        return trim((string) (defined('OPENROUTER_API_KEY') ? OPENROUTER_API_KEY : ''));
     }
 
     /**
@@ -249,7 +260,7 @@ class OpenRouterRateRepair
     {
         $model = $this->resolveModel();
         $apiUrl = (string) (defined('OPENROUTER_API_URL') ? OPENROUTER_API_URL : 'https://openrouter.ai/api/v1/chat/completions');
-        $apiKey = trim((string) OPENROUTER_API_KEY);
+        $apiKey = $this->resolveApiKey();
         $timeout = defined('OPENROUTER_AI_TIMEOUT_SECONDS') ? max(5, (int) OPENROUTER_AI_TIMEOUT_SECONDS) : 25;
         $maxTokens = defined('OPENROUTER_AI_MAX_TOKENS') ? max(100, (int) OPENROUTER_AI_MAX_TOKENS) : 600;
 
