@@ -785,6 +785,13 @@ button:focus-visible,
     background: linear-gradient(90deg, var(--warning), transparent);
 }
 
+.widget-list li .mover-currency {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+}
+
 .widget-list li .currency-code {
     font-size: 0.82rem;
     font-weight: 700;
@@ -792,6 +799,16 @@ button:focus-visible,
     border-radius: 6px;
     min-width: 48px;
     text-align: center;
+    flex-shrink: 0;
+}
+
+.widget-list li .currency-label {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .widget-list li .mover-change {
@@ -800,6 +817,7 @@ button:focus-visible,
     font-weight: 700;
     font-size: 0.9rem;
     letter-spacing: -0.01em;
+    flex-shrink: 0;
 }
 
 .widget-list li .mover-rank {
