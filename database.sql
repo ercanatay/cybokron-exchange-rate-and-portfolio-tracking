@@ -1,6 +1,6 @@
 -- =============================================
 -- Cybokron Exchange Rate & Portfolio Tracking
--- Database Schema v1.3.1
+-- Database Schema v1.4.0
 -- =============================================
 
 CREATE DATABASE IF NOT EXISTS `cybokron`
@@ -158,7 +158,8 @@ CREATE TABLE IF NOT EXISTS `settings` (
 -- Insert banks
 INSERT INTO `banks` (`name`, `slug`, `url`, `scraper_class`) VALUES
 ('Dünya Katılım', 'dunya-katilim', 'https://dunyakatilim.com.tr/gunluk-kurlar', 'DunyaKatilim'),
-('TCMB', 'tcmb', 'https://www.tcmb.gov.tr/kurlar/today.xml', 'TCMB');
+('TCMB', 'tcmb', 'https://www.tcmb.gov.tr/kurlar/today.xml', 'TCMB'),
+('İş Bankası', 'is-bankasi', 'https://kur.doviz.com/isbankasi', 'IsBank');
 
 -- Insert Currencies
 INSERT INTO `currencies` (`code`, `name_tr`, `name_en`, `symbol`, `type`, `decimal_places`) VALUES
@@ -195,7 +196,7 @@ INSERT INTO `users` (`username`, `password_hash`, `role`) VALUES
 
 -- Insert default settings
 INSERT INTO `settings` (`key`, `value`) VALUES
-('app_version', '1.3.1'),
+('app_version', '1.4.0'),
 ('last_update_check', NULL),
 ('last_rate_update', NULL),
 ('openrouter_model', 'z-ai/glm-5');
