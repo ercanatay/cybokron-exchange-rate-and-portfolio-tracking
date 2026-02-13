@@ -24,6 +24,7 @@ return [
     'auth.error_empty' => 'Kullanıcı adı ve şifre gerekli.',
     'auth.error_invalid' => 'Geçersiz kullanıcı adı veya şifre.',
     'auth.error_rate_limit' => 'Çok fazla deneme. Lütfen birkaç dakika sonra tekrar deneyin.',
+    'auth.error_captcha' => 'Güvenlik doğrulaması başarısız. Lütfen tekrar deneyin.',
 
     'index.last_update' => 'Son Güncelleme: {{datetime}}',
     'index.table.currency' => 'Döviz',

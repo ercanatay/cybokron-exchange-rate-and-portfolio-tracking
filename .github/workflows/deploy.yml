@@ -23,6 +23,8 @@ jobs:
           DB_USER: ${{ secrets.DB_USER }}
           DB_PASS: ${{ secrets.DB_PASS }}
           APP_URL: ${{ secrets.APP_URL }}
+          TURNSTILE_SITE_KEY: ${{ secrets.TURNSTILE_SITE_KEY }}
+          TURNSTILE_SECRET_KEY: ${{ secrets.TURNSTILE_SECRET_KEY }}
         run: |
           cat > config.php << 'PHPEOF'
           <?php
@@ -36,7 +38,7 @@ jobs:
           define('APP_TIMEZONE', 'Europe/Istanbul');
           define('APP_DEBUG', false);
           define('ENABLE_SECURITY_HEADERS', true);
-          define('CSP_POLICY', "default-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'; object-src 'none'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data:");
+          define('CSP_POLICY', "default-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'; object-src 'none'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline'; img-src 'self' data:; frame-src https://challenges.cloudflare.com");
           define('HSTS_MAX_AGE_SECONDS', 31536000);
           define('DEFAULT_LOCALE', 'tr');
           define('FALLBACK_LOCALE', 'en');
@@ -80,6 +82,9 @@ jobs:
           define('LOGIN_RATE_WINDOW_SECONDS', 300);
           define('AUTH_BASIC_USER', 'admin');
           define('AUTH_BASIC_PASSWORD_HASH', '');
+          define('TURNSTILE_ENABLED', true);
+          define('TURNSTILE_SITE_KEY', '__TURNSTILE_SITE_KEY__');
+          define('TURNSTILE_SECRET_KEY', '__TURNSTILE_SECRET_KEY__');
           $ACTIVE_BANKS = ['DunyaKatilim', 'TCMB', 'IsBank'];
           define('UPDATE_INTERVAL_MINUTES', 15);
           define('MARKET_OPEN_HOUR', 9);
@@ -106,6 +111,8 @@ jobs:
           sed -i "s|__DB_USER__|${DB_USER}|g" config.php
           sed -i "s|__DB_PASS__|${DB_PASS}|g" config.php
           sed -i "s|__APP_URL__|${APP_URL}|g" config.php
+          sed -i "s|__TURNSTILE_SITE_KEY__|${TURNSTILE_SITE_KEY}|g" config.php
+          sed -i "s|__TURNSTILE_SECRET_KEY__|${TURNSTILE_SECRET_KEY}|g" config.php
 
       - name: Setup SSH key
         run: |

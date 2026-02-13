@@ -325,6 +325,31 @@ function getRateLimitClientKey(): string
 /**
  * Enforce login rate limit (brute-force protection).
  */
+function verifyTurnstile(string $token): bool
+{
+    if ($token === '') {
+        return false;
+    }
+    $ch = curl_init('https://challenges.cloudflare.com/turnstile/v0/siteverify');
+    curl_setopt_array($ch, [
+        CURLOPT_POST           => true,
+        CURLOPT_POSTFIELDS     => http_build_query([
+            'secret'   => TURNSTILE_SECRET_KEY,
+            'response' => $token,
+            'remoteip' => $_SERVER['HTTP_CF_CONNECTING_IP'] ?? $_SERVER['REMOTE_ADDR'] ?? '',
+        ]),
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_TIMEOUT        => 5,
+    ]);
+    $body = curl_exec($ch);
+    curl_close($ch);
+    if (!is_string($body)) {
+        return false;
+    }
+    $data = json_decode($body, true);
+    return is_array($data) && ($data['success'] ?? false) === true;
+}
+
 function enforceLoginRateLimit(): bool
 {
     $maxAttempts = defined('LOGIN_RATE_LIMIT') ? max(1, (int) LOGIN_RATE_LIMIT) : 5;
