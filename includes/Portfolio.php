@@ -776,6 +776,11 @@ class Portfolio
     }
 
     /**
+     * Valid target types for goals.
+     */
+    private const GOAL_TARGET_TYPES = ['value', 'cost', 'amount'];
+
+    /**
      * Add a new goal.
      */
     public static function addGoal(array $data): int
@@ -788,13 +793,25 @@ class Portfolio
         if ($targetValue <= 0) {
             throw new InvalidArgumentException('Target value must be positive.');
         }
-        $targetType = in_array($data['target_type'] ?? '', ['value', 'cost']) ? $data['target_type'] : 'value';
+        $targetType = in_array($data['target_type'] ?? '', self::GOAL_TARGET_TYPES)
+            ? $data['target_type'] : 'value';
+
+        // target_currency is required for 'amount' type
+        $targetCurrency = null;
+        if ($targetType === 'amount') {
+            $tc = strtoupper(trim((string) ($data['target_currency'] ?? '')));
+            if ($tc === '' || !preg_match('/^[A-Z0-9]{3,10}$/', $tc)) {
+                throw new InvalidArgumentException('Currency is required for amount goals.');
+            }
+            $targetCurrency = $tc;
+        }
 
         $goalId = Database::insert('portfolio_goals', [
             'user_id' => (class_exists('Auth') && Auth::check()) ? Auth::id() : null,
             'name' => $name,
             'target_value' => $targetValue,
             'target_type' => $targetType,
+            'target_currency' => $targetCurrency,
         ]);
 
         return (int) $goalId;
@@ -813,11 +830,21 @@ class Portfolio
         if ($targetValue <= 0) {
             throw new InvalidArgumentException('Target value must be positive.');
         }
-        $targetType = in_array($data['target_type'] ?? '', ['value', 'cost']) ? $data['target_type'] : 'value';
+        $targetType = in_array($data['target_type'] ?? '', self::GOAL_TARGET_TYPES)
+            ? $data['target_type'] : 'value';
+
+        $targetCurrency = null;
+        if ($targetType === 'amount') {
+            $tc = strtoupper(trim((string) ($data['target_currency'] ?? '')));
+            if ($tc === '' || !preg_match('/^[A-Z0-9]{3,10}$/', $tc)) {
+                throw new InvalidArgumentException('Currency is required for amount goals.');
+            }
+            $targetCurrency = $tc;
+        }
 
         return Database::execute(
-            'UPDATE portfolio_goals SET name = ?, target_value = ?, target_type = ? WHERE id = ?',
-            [$name, $targetValue, $targetType, $id]
+            'UPDATE portfolio_goals SET name = ?, target_value = ?, target_type = ?, target_currency = ? WHERE id = ?',
+            [$name, $targetValue, $targetType, $targetCurrency, $id]
         ) >= 0;
     }
 
@@ -893,10 +920,16 @@ class Portfolio
      * Compute goal progress for all goals.
      * Deduplicates items: an item matching multiple sources is counted only once.
      *
-     * @param array $allItems     All portfolio items from Portfolio::getAll()
-     * @param array $allItemTags  All item tags from Portfolio::getAllItemTags()
-     * @param array $allGoalSources  Goal sources keyed by goal_id
-     * @return array  Keyed by goal_id => ['current' => float, 'target' => float, 'percent' => float]
+     * Target types:
+     *   'value'  — sum current TRY value (value_try)
+     *   'cost'   — sum TRY cost (cost_try)
+     *   'amount' — sum raw amount of a specific currency (target_currency)
+     *
+     * @param array $goals          All goals
+     * @param array $allItems       All portfolio items from Portfolio::getAll()
+     * @param array $allItemTags    All item tags from Portfolio::getAllItemTags()
+     * @param array $allGoalSources Goal sources keyed by goal_id
+     * @return array Keyed by goal_id => ['current' => float, 'target' => float, 'percent' => float, 'item_count' => int, 'unit' => string]
      */
     public static function computeGoalProgress(array $goals, array $allItems, array $allItemTags, array $allGoalSources): array
     {
@@ -904,7 +937,8 @@ class Portfolio
 
         foreach ($goals as $goal) {
             $goalId = (int) $goal['id'];
-            $targetType = $goal['target_type'] ?? 'value'; // 'value' or 'cost'
+            $targetType = $goal['target_type'] ?? 'value';
+            $targetCurrency = $goal['target_currency'] ?? null;
             $sources = $allGoalSources[$goalId] ?? [];
 
             // Collect unique item IDs matching any source
@@ -937,24 +971,45 @@ class Portfolio
 
             // Sum values for matched items (deduplicated)
             $current = 0.0;
+            $countedItems = 0;
             foreach ($allItems as $item) {
-                if (isset($matchedItemIds[(int) $item['id']])) {
-                    if ($targetType === 'cost') {
-                        $current += (float) ($item['cost_try'] ?? 0);
-                    } else {
-                        $current += (float) ($item['value_try'] ?? 0);
+                if (!isset($matchedItemIds[(int) $item['id']])) {
+                    continue;
+                }
+
+                if ($targetType === 'amount') {
+                    // Only count items with the matching currency
+                    if ($targetCurrency !== null && strtoupper($item['currency_code'] ?? '') === strtoupper($targetCurrency)) {
+                        $current += (float) ($item['amount'] ?? 0);
+                        $countedItems++;
                     }
+                } elseif ($targetType === 'cost') {
+                    $current += (float) ($item['cost_try'] ?? 0);
+                    $countedItems++;
+                } else {
+                    // 'value' (default)
+                    $current += (float) ($item['value_try'] ?? 0);
+                    $countedItems++;
                 }
             }
 
             $target = (float) $goal['target_value'];
             $percent = $target > 0 ? min(($current / $target) * 100, 100) : 0;
 
+            // Determine unit for display
+            $unit = '₺';
+            if ($targetType === 'amount' && $targetCurrency) {
+                $unit = $targetCurrency;
+            }
+
             $result[$goalId] = [
                 'current' => $current,
                 'target' => $target,
                 'percent' => round($percent, 1),
-                'item_count' => count($matchedItemIds),
+                'item_count' => $countedItems,
+                'unit' => $unit,
+                'target_type' => $targetType,
+                'target_currency' => $targetCurrency,
             ];
         }
 

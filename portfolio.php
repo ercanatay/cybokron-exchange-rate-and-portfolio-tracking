@@ -406,6 +406,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'name' => $_POST['goal_name'] ?? '',
                 'target_value' => $_POST['goal_target_value'] ?? 0,
                 'target_type' => $_POST['goal_target_type'] ?? 'value',
+                'target_currency' => $_POST['goal_target_currency'] ?? '',
             ]);
             // Add sources if provided
             $srcTypes = $_POST['goal_source_type'] ?? [];
@@ -432,6 +433,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'name' => $_POST['goal_name'] ?? '',
                 'target_value' => $_POST['goal_target_value'] ?? 0,
                 'target_type' => $_POST['goal_target_type'] ?? 'value',
+                'target_currency' => $_POST['goal_target_currency'] ?? '',
             ]);
             // Re-sync sources: remove all then add
             $existingSources = Portfolio::getGoalSources($goalId);
@@ -840,24 +842,34 @@ $annualizedReturn = ($oldestDate && $analyticsCost > 0)
                         </button>
                     </div>
                     <div id="goal-form-panel" class="group-form-panel hidden">
-                        <form method="POST" class="goal-form">
+                        <form method="POST" class="goal-form" id="goal-add-form">
                             <input type="hidden" name="action" value="add_goal">
                             <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
-                            <div class="goal-form-grid">
+                            <div class="goal-form-grid goal-form-grid-4">
                                 <div class="goal-form-field">
                                     <label><?= t('portfolio.goals.name') ?></label>
                                     <input type="text" name="goal_name" placeholder="<?= htmlspecialchars(t('portfolio.goals.name_placeholder')) ?>" maxlength="100" required>
                                 </div>
                                 <div class="goal-form-field">
-                                    <label><?= t('portfolio.goals.target_value') ?></label>
-                                    <input type="number" name="goal_target_value" step="0.01" min="0.01" required placeholder="500000">
-                                </div>
-                                <div class="goal-form-field">
                                     <label><?= t('portfolio.goals.target_type') ?></label>
-                                    <select name="goal_target_type">
+                                    <select name="goal_target_type" onchange="goalTypeChanged(this, 'add')">
                                         <option value="value"><?= t('portfolio.goals.type_value') ?></option>
                                         <option value="cost"><?= t('portfolio.goals.type_cost') ?></option>
+                                        <option value="amount"><?= t('portfolio.goals.type_amount') ?></option>
                                     </select>
+                                </div>
+                                <div class="goal-form-field goal-currency-field" id="goal-currency-add" style="display:none">
+                                    <label><?= t('portfolio.goals.currency') ?></label>
+                                    <select name="goal_target_currency">
+                                        <option value=""><?= t('portfolio.goals.select_currency') ?></option>
+                                        <?php foreach ($currencies as $c): ?>
+                                            <option value="<?= htmlspecialchars($c['code']) ?>"><?= htmlspecialchars($c['code']) ?> — <?= htmlspecialchars(localizedCurrencyName($c)) ?></option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                </div>
+                                <div class="goal-form-field">
+                                    <label id="goal-target-label-add"><?= t('portfolio.goals.target_value') ?></label>
+                                    <input type="number" name="goal_target_value" step="0.000001" min="0.000001" required placeholder="500000">
                                 </div>
                             </div>
                             <div class="goal-sources-section">
@@ -896,10 +908,12 @@ $annualizedReturn = ($oldestDate && $analyticsCost > 0)
                     <?php if (!empty($goals)): ?>
                         <div class="goals-list">
                             <?php foreach ($goals as $goal):
-                                $gp = $goalProgress[(int)$goal['id']] ?? ['current' => 0, 'target' => 0, 'percent' => 0, 'item_count' => 0];
+                                $gp = $goalProgress[(int)$goal['id']] ?? ['current' => 0, 'target' => 0, 'percent' => 0, 'item_count' => 0, 'unit' => '₺', 'target_type' => 'value', 'target_currency' => null];
                                 $pct = $gp['percent'];
                                 $barColor = $pct >= 100 ? '#22c55e' : ($pct >= 50 ? '#eab308' : '#9ca3af');
                                 $gSources = $goalSources[(int)$goal['id']] ?? [];
+                                $isAmountGoal = ($goal['target_type'] ?? 'value') === 'amount';
+                                $goalCurrency = $goal['target_currency'] ?? '';
                             ?>
                                 <div class="goal-card">
                                     <div class="goal-card-header">
@@ -907,6 +921,9 @@ $annualizedReturn = ($oldestDate && $analyticsCost > 0)
                                             <span class="goal-name">🎯 <?= htmlspecialchars($goal['name']) ?></span>
                                             <span class="goal-meta">
                                                 <?= t('portfolio.goals.type_' . ($goal['target_type'] ?? 'value')) ?>
+                                                <?php if ($isAmountGoal && $goalCurrency): ?>
+                                                    <span class="goal-currency-badge"><?= htmlspecialchars($goalCurrency) ?></span>
+                                                <?php endif; ?>
                                                 · <?= $gp['item_count'] ?> <?= t('portfolio.goals.items') ?>
                                             </span>
                                         </div>
@@ -927,13 +944,21 @@ $annualizedReturn = ($oldestDate && $analyticsCost > 0)
                                     </div>
                                     <div class="goal-progress-stats">
                                         <span class="goal-current<?= $pct >= 100 ? ' goal-complete' : '' ?>">
-                                            <?= formatTRY($gp['current']) ?>
+                                            <?php if ($isAmountGoal): ?>
+                                                <?= formatNumberLocalized($gp['current'], 4) ?> <?= htmlspecialchars($goalCurrency) ?>
+                                            <?php else: ?>
+                                                <?= formatTRY($gp['current']) ?>
+                                            <?php endif; ?>
                                         </span>
                                         <span class="goal-percent<?= $pct >= 100 ? ' goal-complete' : '' ?>">
                                             <?= formatNumberLocalized($pct, 1) ?>%
                                         </span>
                                         <span class="goal-target">
-                                            <?= formatTRY($gp['target']) ?>
+                                            <?php if ($isAmountGoal): ?>
+                                                <?= formatNumberLocalized($gp['target'], 4) ?> <?= htmlspecialchars($goalCurrency) ?>
+                                            <?php else: ?>
+                                                <?= formatTRY($gp['target']) ?>
+                                            <?php endif; ?>
                                         </span>
                                     </div>
                                     <?php if (!empty($gSources)): ?>
@@ -983,22 +1008,101 @@ $annualizedReturn = ($oldestDate && $analyticsCost > 0)
                                         <input type="hidden" name="action" value="edit_goal">
                                         <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
                                         <input type="hidden" name="goal_id" value="<?= (int)$goal['id'] ?>">
-                                        <div class="goal-form-grid">
+                                        <div class="goal-form-grid goal-form-grid-4">
                                             <div class="goal-form-field">
+                                                <label><?= t('portfolio.goals.name') ?></label>
                                                 <input type="text" name="goal_name" value="<?= htmlspecialchars($goal['name']) ?>" maxlength="100" required>
                                             </div>
                                             <div class="goal-form-field">
-                                                <input type="number" name="goal_target_value" step="0.01" value="<?= (float)$goal['target_value'] ?>" required>
-                                            </div>
-                                            <div class="goal-form-field">
-                                                <select name="goal_target_type">
+                                                <label><?= t('portfolio.goals.target_type') ?></label>
+                                                <select name="goal_target_type" onchange="goalTypeChanged(this, 'edit-<?= (int)$goal['id'] ?>')">
                                                     <option value="value" <?= ($goal['target_type'] ?? 'value') === 'value' ? 'selected' : '' ?>><?= t('portfolio.goals.type_value') ?></option>
                                                     <option value="cost" <?= ($goal['target_type'] ?? 'value') === 'cost' ? 'selected' : '' ?>><?= t('portfolio.goals.type_cost') ?></option>
+                                                    <option value="amount" <?= ($goal['target_type'] ?? 'value') === 'amount' ? 'selected' : '' ?>><?= t('portfolio.goals.type_amount') ?></option>
                                                 </select>
                                             </div>
+                                            <div class="goal-form-field goal-currency-field" id="goal-currency-edit-<?= (int)$goal['id'] ?>" style="<?= $isAmountGoal ? '' : 'display:none' ?>">
+                                                <label><?= t('portfolio.goals.currency') ?></label>
+                                                <select name="goal_target_currency">
+                                                    <option value=""><?= t('portfolio.goals.select_currency') ?></option>
+                                                    <?php foreach ($currencies as $c): ?>
+                                                        <option value="<?= htmlspecialchars($c['code']) ?>" <?= $goalCurrency === $c['code'] ? 'selected' : '' ?>><?= htmlspecialchars($c['code']) ?> — <?= htmlspecialchars(localizedCurrencyName($c)) ?></option>
+                                                    <?php endforeach; ?>
+                                                </select>
+                                            </div>
+                                            <div class="goal-form-field">
+                                                <label id="goal-target-label-edit-<?= (int)$goal['id'] ?>"><?= $isAmountGoal ? t('portfolio.goals.target_amount') : t('portfolio.goals.target_value') ?></label>
+                                                <input type="number" name="goal_target_value" step="0.000001" value="<?= (float)$goal['target_value'] ?>" required>
+                                            </div>
                                         </div>
-                                        <button type="submit" class="btn btn-primary btn-xs">💾</button>
-                                        <button type="button" class="btn btn-secondary btn-xs" onclick="toggleEditGoal(<?= (int)$goal['id'] ?>)">❌</button>
+                                        <!-- Sources re-sync for edit -->
+                                        <div class="goal-sources-section">
+                                            <label><?= t('portfolio.goals.sources') ?></label>
+                                            <div id="goal-sources-list-edit-<?= (int)$goal['id'] ?>">
+                                                <?php foreach ($gSources as $src):
+                                                    $srcLabel = '';
+                                                    $srcIcon = '';
+                                                    if ($src['source_type'] === 'group') {
+                                                        $srcIcon = '📦';
+                                                        foreach ($groups as $g) {
+                                                            if ((int)$g['id'] === (int)$src['source_id']) {
+                                                                $srcLabel = ($g['icon'] ? $g['icon'] . ' ' : '') . $g['name'];
+                                                                break;
+                                                            }
+                                                        }
+                                                    } elseif ($src['source_type'] === 'tag') {
+                                                        $srcIcon = '🏷️';
+                                                        foreach ($tags as $t2) {
+                                                            if ((int)$t2['id'] === (int)$src['source_id']) {
+                                                                $srcLabel = $t2['name'];
+                                                                break;
+                                                            }
+                                                        }
+                                                    } else {
+                                                        $srcIcon = '📋';
+                                                        foreach ($summary['items'] ?? [] as $si) {
+                                                            if ((int)$si['id'] === (int)$src['source_id']) {
+                                                                $srcLabel = $si['currency_code'] . ' ' . formatNumberLocalized((float)$si['amount'], 4);
+                                                                break;
+                                                            }
+                                                        }
+                                                        if (!$srcLabel) $srcLabel = '#' . $src['source_id'];
+                                                    }
+                                                ?>
+                                                    <div class="goal-source-row">
+                                                        <input type="hidden" name="goal_source_type[]" value="<?= htmlspecialchars($src['source_type']) ?>">
+                                                        <input type="hidden" name="goal_source_id[]" value="<?= (int)$src['source_id'] ?>">
+                                                        <span class="goal-source-pill goal-source-<?= htmlspecialchars($src['source_type']) ?>"><?= $srcIcon ?> <?= htmlspecialchars($srcLabel) ?></span>
+                                                        <button type="button" class="btn btn-xs btn-danger" onclick="removeGoalSourceRow(this)">×</button>
+                                                    </div>
+                                                <?php endforeach; ?>
+                                            </div>
+                                            <div class="goal-source-add">
+                                                <select class="goal-source-select goal-edit-source-type" data-edit-id="<?= (int)$goal['id'] ?>">
+                                                    <option value="group">📦 <?= t('portfolio.manage.tab_groups') ?></option>
+                                                    <option value="tag">🏷️ <?= t('portfolio.manage.tab_tags') ?></option>
+                                                    <option value="item">📋 <?= t('portfolio.goals.source_item') ?></option>
+                                                </select>
+                                                <select class="goal-source-select goal-edit-source-id" data-edit-id="<?= (int)$goal['id'] ?>">
+                                                    <?php foreach ($groups as $g): ?>
+                                                        <option value="<?= (int)$g['id'] ?>" data-type="group"><?= htmlspecialchars($g['icon'] ? $g['icon'] . ' ' : '') ?><?= htmlspecialchars($g['name']) ?></option>
+                                                    <?php endforeach; ?>
+                                                    <?php foreach ($tags as $tag): ?>
+                                                        <option value="<?= (int)$tag['id'] ?>" data-type="tag" style="display:none"><?= htmlspecialchars($tag['name']) ?></option>
+                                                    <?php endforeach; ?>
+                                                    <?php foreach ($summary['items'] ?? [] as $pItem): ?>
+                                                        <option value="<?= (int)$pItem['id'] ?>" data-type="item" style="display:none">
+                                                            <?= htmlspecialchars($pItem['currency_code']) ?> — <?= formatNumberLocalized((float)$pItem['amount'], 4) ?> (<?= $pItem['buy_date'] ?>)
+                                                        </option>
+                                                    <?php endforeach; ?>
+                                                </select>
+                                                <button type="button" class="btn btn-sm btn-primary" onclick="addGoalSourceEdit(<?= (int)$goal['id'] ?>)">➕</button>
+                                            </div>
+                                        </div>
+                                        <div class="goal-edit-actions">
+                                            <button type="submit" class="btn btn-primary btn-xs">💾 <?= t('portfolio.form.update') ?></button>
+                                            <button type="button" class="btn btn-secondary btn-xs" onclick="toggleEditGoal(<?= (int)$goal['id'] ?>)">❌</button>
+                                        </div>
                                     </form>
                                 </div>
                             <?php endforeach; ?>
@@ -1548,46 +1652,87 @@ $annualizedReturn = ($oldestDate && $analyticsCost > 0)
             if (el) el.classList.toggle('hidden');
         }
 
+        /* ─── Goal Type → Currency Field Toggle ────────────────────────────── */
+        function goalTypeChanged(select, formId) {
+            var isAmount = select.value === 'amount';
+            var currField = document.getElementById('goal-currency-' + formId);
+            var label = document.getElementById('goal-target-label-' + formId);
+            if (currField) currField.style.display = isAmount ? '' : 'none';
+            if (label) {
+                label.textContent = isAmount
+                    ? <?= json_encode(t('portfolio.goals.target_amount'), JSON_UNESCAPED_UNICODE) ?>
+                    : <?= json_encode(t('portfolio.goals.target_value'), JSON_UNESCAPED_UNICODE) ?>;
+            }
+            // Toggle required on currency select
+            if (currField) {
+                var sel = currField.querySelector('select');
+                if (sel) sel.required = isAmount;
+            }
+        }
+
         /* ─── Goal Source Management ────────────────────────────────────────── */
         var goalSourceCounter = 0;
-        // Filter source ID options based on type selection
+
+        // Generic source filter function
+        function filterSourceOptions(typeSelect, idSelect) {
+            var type = typeSelect.value;
+            var opts = idSelect.querySelectorAll('option');
+            var firstVisible = null;
+            opts.forEach(function(opt) {
+                if (opt.getAttribute('data-type') === type) {
+                    opt.style.display = '';
+                    if (!firstVisible) firstVisible = opt;
+                } else {
+                    opt.style.display = 'none';
+                    opt.selected = false;
+                }
+            });
+            if (firstVisible) firstVisible.selected = true;
+        }
+
+        // Init add form source filter
         (function() {
             var typeSelect = document.getElementById('goal-source-type-select');
             var idSelect = document.getElementById('goal-source-id-select');
             if (!typeSelect || !idSelect) return;
-            function filterOptions() {
-                var type = typeSelect.value;
-                var opts = idSelect.querySelectorAll('option');
-                var firstVisible = null;
-                opts.forEach(function(opt) {
-                    if (opt.getAttribute('data-type') === type) {
-                        opt.style.display = '';
-                        if (!firstVisible) firstVisible = opt;
-                    } else {
-                        opt.style.display = 'none';
-                        opt.selected = false;
-                    }
-                });
-                if (firstVisible) firstVisible.selected = true;
-            }
-            typeSelect.addEventListener('change', filterOptions);
-            filterOptions();
+            typeSelect.addEventListener('change', function() { filterSourceOptions(typeSelect, idSelect); });
+            filterSourceOptions(typeSelect, idSelect);
         })();
+
+        // Init edit form source filters
+        document.querySelectorAll('.goal-edit-source-type').forEach(function(ts) {
+            var editId = ts.getAttribute('data-edit-id');
+            var is = document.querySelector('.goal-edit-source-id[data-edit-id="' + editId + '"]');
+            if (!is) return;
+            ts.addEventListener('change', function() { filterSourceOptions(ts, is); });
+            filterSourceOptions(ts, is);
+        });
 
         function addGoalSource() {
             var typeSelect = document.getElementById('goal-source-type-select');
             var idSelect = document.getElementById('goal-source-id-select');
             if (!typeSelect || !idSelect) return;
+            _addGoalSourceToList(typeSelect, idSelect, 'goal-sources-list');
+        }
+
+        function addGoalSourceEdit(goalId) {
+            var typeSelect = document.querySelector('.goal-edit-source-type[data-edit-id="' + goalId + '"]');
+            var idSelect = document.querySelector('.goal-edit-source-id[data-edit-id="' + goalId + '"]');
+            if (!typeSelect || !idSelect) return;
+            _addGoalSourceToList(typeSelect, idSelect, 'goal-sources-list-edit-' + goalId);
+        }
+
+        function _addGoalSourceToList(typeSelect, idSelect, listId) {
             var type = typeSelect.value;
             var id = idSelect.value;
             var label = idSelect.options[idSelect.selectedIndex]?.text?.trim() || '';
             if (!id) return;
             // Check for duplicates
-            var existing = document.querySelectorAll('#goal-sources-list .goal-source-row');
+            var existing = document.querySelectorAll('#' + listId + ' .goal-source-row');
             for (var i = 0; i < existing.length; i++) {
                 var et = existing[i].querySelector('input[name="goal_source_type[]"]');
                 var ei = existing[i].querySelector('input[name="goal_source_id[]"]');
-                if (et && ei && et.value === type && ei.value === id) return; // duplicate
+                if (et && ei && et.value === type && ei.value === id) return;
             }
             goalSourceCounter++;
             var icons = {group: '📦', tag: '🏷️', item: '📋'};
@@ -1597,8 +1742,9 @@ $annualizedReturn = ($oldestDate && $analyticsCost > 0)
                 '<input type="hidden" name="goal_source_id[]" value="' + id + '">' +
                 '<span class="goal-source-pill goal-source-' + type + '">' + (icons[type] || '') + ' ' + label + '</span>' +
                 '<button type="button" class="btn btn-xs btn-danger" onclick="removeGoalSourceRow(this)">×</button>';
-            document.getElementById('goal-sources-list').appendChild(row);
+            document.getElementById(listId).appendChild(row);
         }
+
         function removeGoalSourceRow(btn) {
             btn.parentElement.remove();
         }
