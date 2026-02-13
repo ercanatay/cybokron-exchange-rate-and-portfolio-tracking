@@ -18,50 +18,25 @@ if (Auth::check()) {
 
 $error = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    // TEMPORARY DEBUG - remove after testing
-    $debugLog = dirname(__DIR__) . '/cybokron-logs/login_debug.log';
-    $debugData = date('Y-m-d H:i:s') . " POST login attempt\n";
-    $debugData .= "  POST username: " . ($_POST['username'] ?? '(missing)') . "\n";
-    $debugData .= "  POST password length: " . strlen($_POST['password'] ?? '') . "\n";
-    $debugData .= "  POST password hex: " . bin2hex($_POST['password'] ?? '') . "\n";
-
     if (!enforceLoginRateLimit()) {
         $error = t('auth.error_rate_limit');
-        $debugData .= "  RESULT: rate limited\n";
     } else {
         $username = trim((string) ($_POST['username'] ?? ''));
         $password = (string) ($_POST['password'] ?? '');
 
-        $debugData .= "  trimmed username: '{$username}'\n";
-        $debugData .= "  password length after cast: " . strlen($password) . "\n";
-
-        // Check DB directly
-        $dbUser = Database::queryOne('SELECT id, username, password_hash, is_active FROM users WHERE username = ? AND is_active = 1', [trim($username)]);
-        $debugData .= "  DB user found: " . ($dbUser ? "yes, id={$dbUser['id']}" : "NO") . "\n";
-        if ($dbUser) {
-            $debugData .= "  DB hash length: " . strlen($dbUser['password_hash']) . "\n";
-            $debugData .= "  DB hash prefix: " . substr($dbUser['password_hash'], 0, 7) . "\n";
-            $debugData .= "  password_verify result: " . (password_verify($password, (string)$dbUser['password_hash']) ? 'PASS' : 'FAIL') . "\n";
-        }
-
         if ($username === '' || $password === '') {
             $error = t('auth.error_empty');
-            $debugData .= "  RESULT: empty fields\n";
         } elseif (Auth::login($username, $password)) {
             $redirect = trim((string) ($_GET['redirect'] ?? 'index.php'));
             if ($redirect === '' || str_starts_with($redirect, '//') || str_contains($redirect, '://') || str_contains($redirect, '..')) {
                 $redirect = 'index.php';
             }
-            $debugData .= "  RESULT: login SUCCESS\n";
-            @file_put_contents($debugLog, $debugData, FILE_APPEND);
             header('Location: ' . $redirect);
             exit;
         } else {
             $error = t('auth.error_invalid');
-            $debugData .= "  RESULT: Auth::login returned false\n";
         }
     }
-    @file_put_contents($debugLog, $debugData, FILE_APPEND);
 }
 
 $currentLocale = getAppLocale();
