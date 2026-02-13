@@ -15,7 +15,7 @@ Cybokron is an open-source PHP/MySQL application for tracking Turkish bank excha
 
 ## Features
 
-- **Multi-bank architecture** — Dünya Katılım, TCMB (Central Bank of Turkey)
+- **Multi-bank architecture** — Dünya Katılım, TCMB (Central Bank of Turkey), İş Bankası
 - **Exchange rate scraping** with table-structure change detection
 - **OpenRouter AI fallback** for automatic table-change recovery (cost-guarded)
 - **Portfolio tracking** with profit/loss, soft delete, user-scoped RBAC
@@ -24,6 +24,10 @@ Cybokron is an open-source PHP/MySQL application for tracking Turkish bank excha
 - **Rate history** with retention policy and cleanup cron
 - **Chart.js dashboard** — rate trends, portfolio distribution pie chart
 - **Currency converter** — bidirectional conversion, cross-rates
+- **Bank selector + homepage controls** — default bank, homepage visibility, drag-drop order
+- **Manual rate refresh** from dashboard and admin with CSRF protection
+- **Widget layout controls** — show/hide + ordering persisted in settings
+- **Currency icons** for major fiat currencies and precious metal badges
 - **PWA support** — manifest, service worker, offline cache
 - **Webhook dispatch** on rate updates (Zapier, IFTTT, Slack, Discord)
 - **Admin dashboard** — bank/currency toggle, user list, system health
@@ -53,6 +57,7 @@ Cybokron is an open-source PHP/MySQL application for tracking Turkish bank excha
 |------|-----|--------|
 | Dünya Katılım | [gunluk-kurlar](https://dunyakatilim.com.tr/gunluk-kurlar) | Active |
 | TCMB | [today.xml](https://www.tcmb.gov.tr/kurlar/today.xml) | Active |
+| İş Bankası | [kur.doviz.com/isbankasi](https://kur.doviz.com/isbankasi) | Active |
 
 ## Requirements
 
@@ -128,6 +133,12 @@ php -r "echo password_hash('your-strong-password', PASSWORD_DEFAULT), PHP_EOL;"
 ```bash
 php database/migrate.php
 ```
+
+If upgrading from `v1.3.1` or older, also apply:
+
+- `database/migrations/add_homepage_visibility.sql`
+- `database/migrations/add_display_order.sql`
+- `database/migrations/add_isbank_bank.sql`
 
 ### 5. Configure cron
 
@@ -230,6 +241,31 @@ To add a new bank source later:
 5. Insert bank metadata: `php database/migrate.php` or run migration SQL
 
 ## Changelog
+
+### v1.4.0 (2026-02-13)
+
+Release focused on admin UX, homepage configurability, and expanded bank coverage.
+
+**Highlights**
+- Added İş Bankası scraper (`banks/IsBank.php`) and integrated additional currency icon assets
+- Added manual "Update Rates Now" action on both `admin.php` and `index.php`
+- Added homepage visibility toggle and drag-drop custom ordering for rates (`show_on_homepage`, `display_order`)
+- Added default bank and chart default settings managed in admin and consumed by homepage widgets
+- Added widget layout persistence (visibility + order) through settings-backed configuration
+- Added shared header include and broader UI refresh across rates, portfolio, login, and observability screens
+
+**API / Portfolio**
+- Extended portfolio update endpoint to accept `bank_slug` updates
+- Expanded portfolio model capabilities around grouping metadata and edit flows
+
+**Database**
+- Added `rates.show_on_homepage` and `rates.display_order` columns with indexes
+- Added migration scripts:
+  `database/migrations/add_homepage_visibility.sql`,
+  `database/migrations/add_display_order.sql`,
+  `database/migrations/add_isbank_bank.sql`
+
+Detailed notes: `CHANGELOG_v1.4.0.md`.
 
 ### v1.3.1 (2026)
 
