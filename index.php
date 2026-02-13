@@ -107,6 +107,30 @@ $portfolioSummary = null;
 if (Auth::check()) {
     $portfolioSummary = Portfolio::getSummary();
 }
+
+// Load widget configuration
+$widgetConfigRaw = Database::queryOne('SELECT value FROM settings WHERE `key` = ?', ['widget_config']);
+$defaultWidgets = [
+    ['id' => 'bank_selector', 'visible' => true, 'order' => 0],
+    ['id' => 'converter',     'visible' => true, 'order' => 1],
+    ['id' => 'widgets',       'visible' => true, 'order' => 2],
+    ['id' => 'chart',         'visible' => true, 'order' => 3],
+    ['id' => 'rates',         'visible' => true, 'order' => 4],
+];
+$widgetConfig = $defaultWidgets;
+if (!empty($widgetConfigRaw['value'])) {
+    $parsed = json_decode($widgetConfigRaw['value'], true);
+    if (is_array($parsed)) {
+        $widgetConfig = $parsed;
+    }
+}
+// Sort by order
+usort($widgetConfig, fn($a, $b) => ($a['order'] ?? 0) <=> ($b['order'] ?? 0));
+// Create a quick lookup map
+$widgetVisible = [];
+foreach ($widgetConfig as $w) {
+    $widgetVisible[$w['id']] = $w['visible'] ?? true;
+}
 ?>
 <!DOCTYPE html>
 <html lang="<?= htmlspecialchars($currentLocale) ?>">
@@ -118,50 +142,12 @@ if (Auth::check()) {
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
         <title><?= APP_NAME ?></title>
         <link rel="manifest" href="manifest.json">
-        <link rel="stylesheet" href="assets/css/style.css">
+        <link rel="stylesheet" href="assets/css/style.css?v=<?= filemtime(__DIR__ . '/assets/css/style.css') ?>">
         <link rel="stylesheet" href="assets/css/currency-icons.css">
 </head>
 <body>
     <a href="#main-content" class="skip-link"><?= t('common.skip_to_content') ?></a>
-    <header class="header">
-        <div class="container">
-            <h1>💱 <?= APP_NAME ?></h1>
-            <nav class="header-nav">
-                <a href="index.php" class="active" aria-current="page"><?= t('nav.rates') ?></a>
-                <a href="portfolio.php"><?= t('nav.portfolio') ?></a>
-                <?php if (Auth::check() && Auth::isAdmin()): ?>
-                    <a href="observability.php"><?= t('observability.title') ?></a>
-                    <a href="admin.php"><?= t('admin.title') ?></a>
-                <?php endif; ?>
-                <?php if (Auth::check()): ?>
-                    <a href="logout.php" class="lang-link"><?= t('nav.logout') ?></a>
-                <?php else: ?>
-                    <a href="login.php" class="lang-link"><?= t('nav.login') ?></a>
-                <?php endif; ?>
-                <button type="button" id="theme-toggle" class="btn-theme" aria-label="<?= t('nav.theme_toggle') ?>" title="<?= t('nav.theme_toggle') ?>" data-label-light="<?= htmlspecialchars(t('theme.switch_to_light')) ?>" data-label-dark="<?= htmlspecialchars(t('theme.switch_to_dark')) ?>">🌙</button>
-                <span class="lang-label"><?= t('nav.language') ?>:</span>
-                <?php foreach ($availableLocales as $locale): ?>
-                    <?php
-                        $localeName = t('nav.language_name.' . $locale);
-                        if (str_contains($localeName, 'nav.language_name.')) {
-                            $localeName = strtoupper($locale);
-                        }
-                    ?>
-                    <a
-                        href="<?= htmlspecialchars(buildLocaleUrl($locale)) ?>"
-                        class="lang-link <?= $currentLocale === $locale ? 'active' : '' ?>"
-                        lang="<?= htmlspecialchars($locale) ?>"
-                        hreflang="<?= htmlspecialchars($locale) ?>"
-                        aria-label="<?= htmlspecialchars(t('nav.language_switch_to', ['language' => $localeName])) ?>"
-                        title="<?= htmlspecialchars(t('nav.language_switch_to', ['language' => $localeName])) ?>"
-                        <?= $currentLocale === $locale ? 'aria-current="page"' : '' ?>
-                    >
-                        <?= htmlspecialchars(strtoupper($locale)) ?>
-                    </a>
-                <?php endforeach; ?>
-            </nav>
-        </div>
-    </header>
+    <?php $activePage = 'rates'; include __DIR__ . '/includes/header.php'; ?>
 
     <main id="main-content" class="container">
         <?php if ($message): ?>
@@ -170,6 +156,11 @@ if (Auth::check()) {
             </div>
         <?php endif; ?>
         
+        
+        <?php foreach ($widgetConfig as $widget): ?>
+        <?php $wid = $widget['id']; $wVisible = $widget['visible'] ?? true; ?>
+
+        <?php if ($wid === 'bank_selector' && $wVisible): ?>
         <!-- Bank Selector -->
         <section class="bank-section" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 1.5rem; border-radius: 12px; margin-bottom: 2rem;">
             <div style="display: flex; gap: 1rem; align-items: center; flex-wrap: wrap; justify-content: space-between;">
@@ -205,8 +196,9 @@ if (Auth::check()) {
         >
             <?= t('index.refresh.status_ready') ?>
         </p>
+        <?php endif; ?>
 
-        <?php if (!empty($converterRates) && !empty($converterCurrencies)): ?>
+        <?php if ($wid === 'converter' && $wVisible && !empty($converterRates) && !empty($converterCurrencies)): ?>
         <section class="bank-section converter-section">
             <h2>🔄 <?= t('converter.title') ?></h2>
             <div class="converter-grid">
@@ -222,6 +214,7 @@ if (Auth::check()) {
                         <?php endforeach; ?>
                     </select>
                 </div>
+                <button type="button" class="converter-swap-btn" id="converter-swap" title="<?= t('converter.from') ?> ⇄ <?= t('converter.to') ?>">⇄</button>
                 <div class="converter-field">
                     <label for="converter-to"><?= t('converter.to') ?></label>
                     <select id="converter-to">
@@ -253,7 +246,7 @@ if (Auth::check()) {
         </section>
         <?php endif; ?>
 
-        <?php if (!empty($topMovers)): ?>
+        <?php if ($wid === 'widgets' && $wVisible && !empty($topMovers)): ?>
         <section class="bank-section widgets-section">
             <h2>📊 <?= t('index.widgets.title') ?></h2>
             <div class="widgets-grid">
@@ -288,7 +281,7 @@ if (Auth::check()) {
         </section>
         <?php endif; ?>
 
-        <?php if (!empty($chartCurrencies)): ?>
+        <?php if ($wid === 'chart' && $wVisible && !empty($chartCurrencies)): ?>
         <section class="chart-section bank-section">
             <h2>📈 <?= t('index.chart.title') ?></h2>
             <div class="chart-controls">
@@ -315,6 +308,7 @@ if (Auth::check()) {
         </section>
         <?php endif; ?>
 
+        <?php if ($wid === 'rates' && $wVisible): ?>
         <?php foreach ($ratesByBank as $bankSlug => $bankRates): ?>
             <?php $bankName = $bankRates[0]['bank_name'] ?? $bankSlug; ?>
             <section class="bank-section">
@@ -395,6 +389,9 @@ if (Auth::check()) {
                 <code>php cron/update_rates.php</code>
             </div>
         <?php endif; ?>
+        <?php endif; ?>
+
+        <?php endforeach; ?>
     </main>
 
     <footer class="footer">

@@ -57,25 +57,17 @@ $version = trim(file_get_contents(__DIR__ . '/VERSION'));
 ?>
 <!DOCTYPE html>
 <html lang="<?= htmlspecialchars($currentLocale) ?>">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= t('observability.title') ?> — <?= APP_NAME ?></title>
-    <link rel="stylesheet" href="assets/css/style.css">
+    <link rel="stylesheet" href="assets/css/style.css?v=<?= filemtime(__DIR__ . '/assets/css/style.css') ?>">
 </head>
+
 <body>
-    <header class="header">
-        <div class="container">
-            <h1>📊 <?= t('observability.title') ?></h1>
-            <nav class="header-nav">
-                <a href="index.php"><?= t('nav.rates') ?></a>
-                <a href="portfolio.php"><?= t('nav.portfolio') ?></a>
-                <a href="observability.php" class="active" aria-current="page"><?= t('observability.title') ?></a>
-                <a href="admin.php"><?= t('admin.title') ?></a>
-                <a href="logout.php"><?= t('nav.logout') ?></a>
-            </nav>
-        </div>
-    </header>
+    <?php $activePage = 'observability';
+    include __DIR__ . '/includes/header.php'; ?>
 
     <main id="main-content" class="container">
         <section class="bank-section">
@@ -103,14 +95,17 @@ $version = trim(file_get_contents(__DIR__ . '/VERSION'));
                             ?>
                             <tr>
                                 <td><?= htmlspecialchars($row['name']) ?></td>
-                                <td><?= $row['last_scraped_at'] ? formatDateTime($row['last_scraped_at']) : t('common.not_available') ?></td>
+                                <td><?= $row['last_scraped_at'] ? formatDateTime($row['last_scraped_at']) : t('common.not_available') ?>
+                                </td>
                                 <td><?= $total ?></td>
                                 <td>
-                                    <span class="rate-change <?= $successRate >= 90 ? 'text-success' : ($successRate >= 70 ? 'text-warning' : 'text-danger') ?>">
+                                    <span
+                                        class="rate-change <?= $successRate >= 90 ? 'text-success' : ($successRate >= 70 ? 'text-warning' : 'text-danger') ?>">
                                         <?= $successRate ?>%
                                     </span>
                                     <?php if ((int) $row['error_count'] > 0): ?>
-                                        <span class="text-danger" title="<?= t('observability.errors') ?>">(<?= (int) $row['error_count'] ?>)</span>
+                                        <span class="text-danger"
+                                            title="<?= t('observability.errors') ?>">(<?= (int) $row['error_count'] ?>)</span>
                                     <?php endif; ?>
                                 </td>
                                 <td><?= $avgDuration ?> ms</td>
@@ -141,13 +136,17 @@ $version = trim(file_get_contents(__DIR__ . '/VERSION'));
                                 <td><?= formatDateTime($log['created_at']) ?></td>
                                 <td><?= htmlspecialchars($log['bank_name']) ?></td>
                                 <td>
-                                    <span class="rate-change <?= $log['status'] === 'success' ? 'text-success' : ($log['status'] === 'warning' ? 'text-warning' : 'text-danger') ?>">
+                                    <span
+                                        class="rate-change <?= $log['status'] === 'success' ? 'text-success' : ($log['status'] === 'warning' ? 'text-warning' : 'text-danger') ?>">
                                         <?= htmlspecialchars($log['status']) ?>
                                     </span>
                                 </td>
                                 <td><?= (int) $log['rates_count'] ?></td>
                                 <td><?= $log['duration_ms'] !== null ? (int) $log['duration_ms'] . ' ms' : '—' ?></td>
-                                <td class="message-cell"><?= htmlspecialchars($log['message'] ?? '') ?><?= $log['table_changed'] ? ' [TABLE CHANGED]' : '' ?></td>
+                                <td class="message-cell">
+                                    <?= htmlspecialchars($log['message'] ?? '') ?>
+                                    <?= $log['table_changed'] ? ' [TABLE CHANGED]' : '' ?>
+                                </td>
                             </tr>
                         <?php endforeach; ?>
                     </tbody>
@@ -162,4 +161,5 @@ $version = trim(file_get_contents(__DIR__ . '/VERSION'));
         </div>
     </footer>
 </body>
+
 </html>

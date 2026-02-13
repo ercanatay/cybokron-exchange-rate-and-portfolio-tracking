@@ -77,7 +77,7 @@ function applySecurityHeaders(string $context = 'html'): void
 
     $cspPolicy = defined('CSP_POLICY')
         ? trim((string) CSP_POLICY)
-        : "default-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'; object-src 'none'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data:";
+        : "default-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'; object-src 'none'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://cdn.jsdelivr.net";
     if ($cspPolicy !== '') {
         header('Content-Security-Policy: ' . $cspPolicy);
     }
@@ -493,9 +493,9 @@ function initializeLocale(): void
         if (!headers_sent()) {
             $isSecure = !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off';
             setcookie('cybokron_locale', $locale, [
-                'expires'  => time() + 31536000,
-                'path'     => '/',
-                'secure'   => $isSecure,
+                'expires' => time() + 31536000,
+                'path' => '/',
+                'secure' => $isSecure,
                 'httponly' => true,
                 'samesite' => 'Lax',
             ]);
@@ -768,8 +768,7 @@ function getRateHistory(
     ?string $bankSlug = null,
     int $limit = 1000,
     ?string $before = null
-): array
-{
+): array {
     $normalizedCurrencyCode = normalizeCurrencyCode($currencyCode);
     if ($normalizedCurrencyCode === null) {
         throw new InvalidArgumentException('currency parameter required');
@@ -897,8 +896,10 @@ function formatDate(string $date): string
  */
 function changeClass(float $change): string
 {
-    if ($change > 0) return 'text-success';
-    if ($change < 0) return 'text-danger';
+    if ($change > 0)
+        return 'text-success';
+    if ($change < 0)
+        return 'text-danger';
     return 'text-muted';
 }
 
@@ -907,8 +908,10 @@ function changeClass(float $change): string
  */
 function changeArrow(float $change): string
 {
-    if ($change > 0) return '▲';
-    if ($change < 0) return '▼';
+    if ($change > 0)
+        return '▲';
+    if ($change < 0)
+        return '▼';
     return '–';
 }
 
@@ -940,7 +943,8 @@ function jsonResponse(array $data, int $statusCode = 200): void
  */
 function cybokron_log(string $message, string $level = 'INFO'): void
 {
-    if (!defined('LOG_ENABLED') || !LOG_ENABLED) return;
+    if (!defined('LOG_ENABLED') || !LOG_ENABLED)
+        return;
 
     $logFile = defined('LOG_FILE')
         ? LOG_FILE

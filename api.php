@@ -181,11 +181,12 @@ try {
             }
 
             $updateData = array_filter([
-                'amount'   => $input['amount'] ?? null,
+                'amount' => $input['amount'] ?? null,
                 'buy_rate' => $input['buy_rate'] ?? null,
                 'buy_date' => $input['buy_date'] ?? null,
-                'notes'    => $input['notes'] ?? null,
-            ], fn ($v) => $v !== null);
+                'notes' => $input['notes'] ?? null,
+                'bank_slug' => $input['bank_slug'] ?? null,
+            ], fn($v) => $v !== null);
 
             if (empty($updateData)) {
                 jsonResponse(['status' => 'error', 'message' => t('api.error.no_fields_to_update')], 400);
@@ -193,7 +194,7 @@ try {
 
             $updated = Portfolio::update($id, $updateData);
             jsonResponse([
-                'status'  => $updated ? 'ok' : 'error',
+                'status' => $updated ? 'ok' : 'error',
                 'message' => $updated ? t('api.message.updated') : t('api.message.not_found'),
             ], $updated ? 200 : 404);
             break;

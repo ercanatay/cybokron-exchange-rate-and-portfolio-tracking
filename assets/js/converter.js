@@ -84,5 +84,16 @@
         el.addEventListener('input', calculate);
     });
 
+    // Swap button
+    var swapBtn = document.getElementById('converter-swap');
+    if (swapBtn) {
+        swapBtn.addEventListener('click', function () {
+            var tmp = fromEl.value;
+            fromEl.value = toEl.value;
+            toEl.value = tmp;
+            calculate();
+        });
+    }
+
     calculate();
 })();

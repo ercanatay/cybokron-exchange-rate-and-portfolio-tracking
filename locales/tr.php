@@ -235,6 +235,16 @@ return [
     'admin.filter_bank' => 'Bankaya göre filtrele',
     'admin.all' => 'Tümü',
 
+    'admin.widget_management' => 'Anasayfa Widget\'ları',
+    'admin.widget_management_desc' => 'Anasayfa bölümlerinin sırasını ve görünürlüğünü yönetin.',
+    'admin.widget_bank_selector' => 'Banka Seçici',
+    'admin.widget_converter' => 'Döviz Çevirici',
+    'admin.widget_summary' => 'Özet',
+    'admin.widget_chart' => 'Kur Grafiği',
+    'admin.widget_rates' => 'Kur Tabloları',
+    'admin.widget_drag_desc' => 'Sıralamayı değiştirmek için widget\'ları sürükleyin. Anasayfada gösterip gizlemek için anahtarları kullanın.',
+    'admin.widget_config_updated' => 'Widget yapılandırması kaydedildi!',
+
     'api.endpoint.rates' => 'Son döviz kurları',
     'api.endpoint.rates_compact' => 'Polling istemcileri için kompakt kur verisi',
     'api.endpoint.rates_bank' => 'Belirli bankaya ait kurlar',
