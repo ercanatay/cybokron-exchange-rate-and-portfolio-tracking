@@ -2,7 +2,7 @@
 /**
  * Update app_version in settings table.
  *
- * Usage: APP_VERSION='1.4.0' php database/update_version.php
+ * Usage: php database/update_version.php 1.4.0
  */
 
 if (PHP_SAPI !== 'cli') {
@@ -10,23 +10,29 @@ if (PHP_SAPI !== 'cli') {
     die('CLI only.');
 }
 
-$version = getenv('APP_VERSION');
+$version = $argv[1] ?? getenv('APP_VERSION') ?: '';
 if (empty($version)) {
-    echo "APP_VERSION not set, skipping.\n";
+    echo "Usage: php database/update_version.php <version>\n";
     exit(0);
 }
 
 $configFile = __DIR__ . '/../config.php';
 if (!file_exists($configFile)) {
-    die("Config not found.\n");
+    fwrite(STDERR, "Config not found: {$configFile}\n");
+    exit(1);
 }
 require_once $configFile;
 
-$dsn = sprintf('mysql:host=%s;dbname=%s;charset=%s', DB_HOST, DB_NAME, DB_CHARSET);
-$pdo = new PDO($dsn, DB_USER, DB_PASS, [
-    PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-]);
+try {
+    $dsn = sprintf('mysql:host=%s;dbname=%s;charset=%s', DB_HOST, DB_NAME, DB_CHARSET);
+    $pdo = new PDO($dsn, DB_USER, DB_PASS, [
+        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+    ]);
 
-$stmt = $pdo->prepare("INSERT INTO settings (`key`, value) VALUES ('app_version', ?) ON DUPLICATE KEY UPDATE value = ?");
-$stmt->execute([$version, $version]);
-echo "app_version updated to {$version}\n";
+    $stmt = $pdo->prepare("INSERT INTO settings (`key`, value) VALUES ('app_version', ?) ON DUPLICATE KEY UPDATE value = ?");
+    $stmt->execute([$version, $version]);
+    echo "app_version updated to {$version}\n";
+} catch (Throwable $e) {
+    fwrite(STDERR, "Error: {$e->getMessage()}\n");
+    exit(1);
+}
