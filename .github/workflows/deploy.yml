@@ -42,7 +42,7 @@ jobs:
           define('APP_TIMEZONE', 'Europe/Istanbul');
           define('APP_DEBUG', false);
           define('ENABLE_SECURITY_HEADERS', true);
-          define('CSP_POLICY', "default-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'; object-src 'none'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline'; img-src 'self' data:; frame-src https://challenges.cloudflare.com");
+          define('CSP_POLICY', "default-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'; object-src 'none'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://cdn.jsdelivr.net; frame-src https://challenges.cloudflare.com");
           define('HSTS_MAX_AGE_SECONDS', 31536000);
           define('DEFAULT_LOCALE', 'tr');
           define('FALLBACK_LOCALE', 'en');
