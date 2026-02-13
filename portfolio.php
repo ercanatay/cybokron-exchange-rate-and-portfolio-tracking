@@ -83,17 +83,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
 
     if ($action === 'add') {
+        $rawBuyDate = trim((string) ($_POST['buy_date'] ?? $defaultBuyDate));
+        
+        // Convert DD.MM.YYYY or DD/MM/YYYY to YYYY-MM-DD
+        if (preg_match('/^(\d{2})[\.\/](\d{2})[\.\/](\d{4})$/', $rawBuyDate, $matches)) {
+            $rawBuyDate = $matches[3] . '-' . $matches[2] . '-' . $matches[1];
+        }
+        
         $formValues = [
             'currency_code' => trim((string) ($_POST['currency_code'] ?? '')),
             'bank_slug' => trim((string) ($_POST['bank_slug'] ?? '')),
             'amount' => trim((string) ($_POST['amount'] ?? '')),
             'buy_rate' => trim((string) ($_POST['buy_rate'] ?? '')),
-            'buy_date' => trim((string) ($_POST['buy_date'] ?? $defaultBuyDate)),
+            'buy_date' => $rawBuyDate,
             'notes' => trim((string) ($_POST['notes'] ?? '')),
         ];
-
-        // Debug: Log the received date
-        cybokron_log("DEBUG: Received buy_date = '{$formValues['buy_date']}'", 'INFO');
 
         if ($formValues['buy_date'] === '') {
             $formValues['buy_date'] = $defaultBuyDate;
@@ -157,10 +161,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($messageType === '' && $action === 'edit' && !empty($_POST['id'])) {
         try {
             $id = (int) $_POST['id'];
+            $rawBuyDate = trim((string) ($_POST['buy_date'] ?? ''));
+            
+            // Convert DD.MM.YYYY or DD/MM/YYYY to YYYY-MM-DD
+            if (preg_match('/^(\d{2})[\.\/](\d{2})[\.\/](\d{4})$/', $rawBuyDate, $matches)) {
+                $rawBuyDate = $matches[3] . '-' . $matches[2] . '-' . $matches[1];
+            }
+            
             $updateData = [
                 'amount'   => trim((string) ($_POST['amount'] ?? '')),
                 'buy_rate' => trim((string) ($_POST['buy_rate'] ?? '')),
-                'buy_date' => trim((string) ($_POST['buy_date'] ?? '')),
+                'buy_date' => $rawBuyDate,
                 'notes'    => trim((string) ($_POST['notes'] ?? '')),
             ];
             if ($updateData['buy_date'] === '') {

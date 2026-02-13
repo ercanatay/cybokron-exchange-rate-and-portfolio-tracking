@@ -77,7 +77,7 @@ function applySecurityHeaders(string $context = 'html'): void
 
     $cspPolicy = defined('CSP_POLICY')
         ? trim((string) CSP_POLICY)
-        : "default-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'; object-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:";
+        : "default-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'; object-src 'none'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data:";
     if ($cspPolicy !== '') {
         header('Content-Security-Policy: ' . $cspPolicy);
     }
@@ -690,7 +690,7 @@ function loadBankScraper(string $className): Scraper
 /**
  * Get latest rates from database.
  */
-function getLatestRates(?string $bankSlug = null, ?string $currencyCode = null, bool $compact = false): array
+function getLatestRates(?string $bankSlug = null, ?string $currencyCode = null, bool $compact = false, bool $homepageOnly = false): array
 {
     $normalizedBankSlug = normalizeBankSlug($bankSlug);
     $normalizedCurrencyCode = normalizeCurrencyCode($currencyCode);
@@ -739,6 +739,11 @@ function getLatestRates(?string $bankSlug = null, ?string $currencyCode = null, 
     }
     $params = [];
 
+    // Homepage filter
+    if ($homepageOnly) {
+        $sql .= ' AND r.show_on_homepage = 1';
+    }
+
     if ($normalizedBankSlug !== null) {
         $sql .= ' AND b.slug = ?';
         $params[] = $normalizedBankSlug;
@@ -749,7 +754,7 @@ function getLatestRates(?string $bankSlug = null, ?string $currencyCode = null, 
         $params[] = $normalizedCurrencyCode;
     }
 
-    $sql .= ' ORDER BY c.code ASC';
+    $sql .= ' ORDER BY r.display_order ASC, b.name ASC, c.code ASC';
 
     return Database::query($sql, $params);
 }

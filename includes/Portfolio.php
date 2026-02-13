@@ -255,14 +255,15 @@ class Portfolio
             throw new InvalidArgumentException('buy_date is required');
         }
 
-        $parsed = DateTime::createFromFormat('Y-m-d', $date);
-        $errors = DateTime::getLastErrors();
-
-        // Debug logging
-        cybokron_log("DEBUG normalizeDate: date='$date', parsed=" . ($parsed ? $parsed->format('Y-m-d') : 'NULL') . ", errors=" . json_encode($errors), 'INFO');
-
-        if (!$parsed || !is_array($errors) || $errors['warning_count'] > 0 || $errors['error_count'] > 0 || $parsed->format('Y-m-d') !== $date) {
+        // Validate format with regex first
+        if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
             throw new InvalidArgumentException('buy_date must be in Y-m-d format');
+        }
+
+        // Validate it's a real date
+        $parsed = DateTime::createFromFormat('Y-m-d', $date);
+        if (!$parsed || $parsed->format('Y-m-d') !== $date) {
+            throw new InvalidArgumentException('buy_date must be a valid date');
         }
 
         return $date;

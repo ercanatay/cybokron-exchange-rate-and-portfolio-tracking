@@ -1,0 +1,86 @@
+/* Currency Icon Styles */
+.currency-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    flex-shrink: 0;
+    background: #f0f0f0;
+    border: 2px solid #e0e0e0;
+}
+
+.currency-icon img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.currency-icon-sm {
+    width: 32px;
+    height: 32px;
+    border-width: 1px;
+}
+
+/* Fallback colors for currencies without images */
+.currency-icon-fallback {
+    font-weight: bold;
+    font-size: 14px;
+    color: white;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.currency-icon-sm .currency-icon-fallback {
+    font-size: 11px;
+}
+
+/* Precious Metals - Gradient Backgrounds */
+.currency-icon-XAU {
+    background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%);
+    border-color: #DAA520;
+}
+
+.currency-icon-XAU .currency-icon-fallback {
+    color: #8B4513;
+    font-weight: 900;
+    text-shadow: 0 1px 2px rgba(255,255,255,0.3);
+}
+
+.currency-icon-XAG {
+    background: linear-gradient(135deg, #E8E8E8 0%, #C0C0C0 100%);
+    border-color: #A9A9A9;
+}
+
+.currency-icon-XAG .currency-icon-fallback {
+    color: #505050;
+    font-weight: 900;
+    text-shadow: 0 1px 2px rgba(255,255,255,0.5);
+}
+
+.currency-icon-XPT {
+    background: linear-gradient(135deg, #E5E4E2 0%, #BCC6CC 100%);
+    border-color: #9BA4AA;
+}
+
+.currency-icon-XPT .currency-icon-fallback {
+    color: #4A5568;
+    font-weight: 900;
+    text-shadow: 0 1px 2px rgba(255,255,255,0.4);
+}
+
+.currency-icon-XPD {
+    background: linear-gradient(135deg, #CED0D4 0%, #A8ACB0 100%);
+    border-color: #8B8F93;
+}
+
+.currency-icon-XPD .currency-icon-fallback {
+    color: #3A3D40;
+    font-weight: 900;
+    text-shadow: 0 1px 2px rgba(255,255,255,0.3);
+}
