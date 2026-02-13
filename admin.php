@@ -15,7 +15,7 @@ if (!Auth::check() || !Auth::isAdmin()) {
     exit;
 }
 
-// Handle bank toggle
+// Handle POST actions
 $message = '';
 $messageType = '';
 
@@ -24,20 +24,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         header('Location: admin.php');
         exit;
     }
-    
+
     if ($_POST['action'] === 'update_rates') {
-        // Manuel kur güncelleme
         $output = [];
         $returnCode = 0;
-        
-        // ServBay için doğru PHP CLI binary'sini kullan
         $phpBinary = '/Applications/ServBay/bin/php';
         if (!file_exists($phpBinary)) {
-            $phpBinary = 'php'; // Fallback to system PHP
+            $phpBinary = 'php';
         }
-        
         exec('cd ' . escapeshellarg(__DIR__) . ' && ' . escapeshellarg($phpBinary) . ' cron/update_rates.php 2>&1', $output, $returnCode);
-        
         if ($returnCode === 0) {
             $message = t('admin.rates_updated_success');
             $messageType = 'success';
@@ -46,7 +41,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             $messageType = 'error';
         }
     }
-    
+
     if ($_POST['action'] === 'toggle_bank' && isset($_POST['id'])) {
         $id = (int) $_POST['id'];
         $bank = Database::queryOne('SELECT is_active FROM banks WHERE id = ?', [$id]);
@@ -63,7 +58,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             Database::update('currencies', ['is_active' => $new], 'id = ?', [$id]);
         }
     }
-    
+
     if ($_POST['action'] === 'toggle_homepage' && isset($_POST['rate_id'])) {
         $rateId = (int) $_POST['rate_id'];
         $rate = Database::queryOne('SELECT show_on_homepage FROM rates WHERE id = ?', [$rateId]);
@@ -74,10 +69,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             $messageType = 'success';
         }
     }
-    
+
     if ($_POST['action'] === 'set_default_bank' && isset($_POST['default_bank'])) {
         $defaultBank = $_POST['default_bank'];
-        // Validate bank slug
         if ($defaultBank === 'all' || Database::queryOne('SELECT id FROM banks WHERE slug = ? AND is_active = 1', [$defaultBank])) {
             Database::query(
                 'INSERT INTO settings (`key`, value) VALUES (?, ?) ON DUPLICATE KEY UPDATE value = ?',
@@ -87,24 +81,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             $messageType = 'success';
         }
     }
-    
+
     if ($_POST['action'] === 'update_rate_order' && isset($_POST['rate_orders'])) {
-        // Update display order for rates
         $rateOrders = json_decode($_POST['rate_orders'], true);
         if (is_array($rateOrders)) {
             foreach ($rateOrders as $rateId => $order) {
                 Database::update('rates', ['display_order' => (int) $order], 'id = ?', [(int) $rateId]);
             }
+            // If AJAX request, respond JSON
+            if (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest') {
+                header('Content-Type: application/json');
+                echo json_encode(['status' => 'ok', 'message' => t('admin.rate_order_updated')]);
+                exit;
+            }
             $message = t('admin.rate_order_updated');
             $messageType = 'success';
         }
     }
-    
+
     if ($_POST['action'] === 'set_chart_defaults' && isset($_POST['chart_currency']) && isset($_POST['chart_days'])) {
         $chartCurrency = trim($_POST['chart_currency']);
         $chartDays = (int) $_POST['chart_days'];
-        
-        // Validate currency exists
         if (Database::queryOne('SELECT id FROM currencies WHERE code = ? AND is_active = 1', [$chartCurrency])) {
             Database::query(
                 'INSERT INTO settings (`key`, value) VALUES (?, ?) ON DUPLICATE KEY UPDATE value = ?',
@@ -118,8 +115,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             $messageType = 'success';
         }
     }
-    
-    if ($_POST['action'] !== 'update_rates' && $_POST['action'] !== 'toggle_homepage' && $_POST['action'] !== 'set_default_bank' && $_POST['action'] !== 'update_rate_order' && $_POST['action'] !== 'set_chart_defaults') {
+
+    if (!in_array($_POST['action'], ['update_rates', 'toggle_homepage', 'set_default_bank', 'update_rate_order', 'set_chart_defaults'], true)) {
         header('Location: admin.php');
         exit;
     }
@@ -129,7 +126,6 @@ $banks = Database::query('SELECT id, name, slug, is_active, last_scraped_at FROM
 $currencies = Database::query('SELECT id, code, name_tr, name_en, is_active, type FROM currencies ORDER BY code');
 $users = Database::query('SELECT id, username, role, is_active, created_at FROM users ORDER BY username');
 
-// Get all rates with homepage visibility (ordered by display_order)
 $allRates = Database::query('
     SELECT 
         r.id,
@@ -150,30 +146,35 @@ $allRates = Database::query('
     ORDER BY r.display_order ASC, b.name, c.code
 ');
 
-// Get active currencies for chart defaults
 $activeCurrencies = Database::query('SELECT code, name_tr, name_en FROM currencies WHERE is_active = 1 ORDER BY code');
-
 $lastRateUpdate = Database::queryOne('SELECT value FROM settings WHERE `key` = ?', ['last_rate_update']);
 $defaultBank = Database::queryOne('SELECT value FROM settings WHERE `key` = ?', ['default_bank']);
 $defaultBankValue = $defaultBank['value'] ?? 'all';
-
 $chartDefaultCurrency = Database::queryOne('SELECT value FROM settings WHERE `key` = ?', ['chart_default_currency']);
 $chartDefaultCurrencyValue = $chartDefaultCurrency['value'] ?? 'USD';
-
 $chartDefaultDays = Database::queryOne('SELECT value FROM settings WHERE `key` = ?', ['chart_default_days']);
 $chartDefaultDaysValue = (int) ($chartDefaultDays['value'] ?? 30);
 $currentLocale = getAppLocale();
 $csrfToken = getCsrfToken();
 $version = trim(file_get_contents(__DIR__ . '/VERSION'));
+
+// Collect unique bank names for filter
+$bankNames = [];
+foreach ($allRates as $r) {
+    $bankNames[$r['bank_slug']] = $r['bank_name'];
+}
 ?>
 <!DOCTYPE html>
 <html lang="<?= htmlspecialchars($currentLocale) ?>">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= t('admin.title') ?> — <?= APP_NAME ?></title>
     <link rel="stylesheet" href="assets/css/style.css">
+    <link rel="stylesheet" href="assets/css/admin.css">
 </head>
+
 <body>
     <header class="header">
         <div class="container">
@@ -188,346 +189,540 @@ $version = trim(file_get_contents(__DIR__ . '/VERSION'));
         </div>
     </header>
 
+    <div id="toast-container" class="toast-container"></div>
+
     <main id="main-content" class="container">
         <?php if ($message): ?>
             <div class="alert alert-<?= $messageType ?>" role="<?= $messageType === 'error' ? 'alert' : 'status' ?>">
                 <?= htmlspecialchars($message) ?>
             </div>
         <?php endif; ?>
-        
-        <section class="bank-section">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-                <h2 style="margin: 0;"><?= t('admin.health') ?></h2>
-                <form method="POST" style="margin: 0;">
-                    <input type="hidden" name="action" value="update_rates">
-                    <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
-                    <button type="submit" class="btn btn-primary" style="display: flex; align-items: center; gap: 0.5rem;">
-                        🔄 <?= t('admin.update_rates_now') ?>
-                    </button>
-                </form>
-            </div>
-            <p>
-                <?= t('admin.last_rate_update') ?>:
-                <?= $lastRateUpdate && $lastRateUpdate['value'] ? formatDateTime($lastRateUpdate['value']) : t('common.not_available') ?>
-            </p>
-        </section>
 
-        <section class="bank-section">
-            <h2><?= t('admin.default_bank_setting') ?></h2>
-            <p><?= t('admin.default_bank_desc') ?></p>
-            <form method="POST" style="max-width: 400px;">
-                <input type="hidden" name="action" value="set_default_bank">
-                <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
-                <div style="display: flex; gap: 1rem; align-items: flex-end;">
-                    <div style="flex: 1;">
-                        <label for="default_bank" style="display: block; margin-bottom: 0.5rem; font-weight: 600;">
-                            <?= t('admin.default_bank') ?>:
-                        </label>
-                        <select id="default_bank" name="default_bank" style="width: 100%; padding: 0.5rem; border-radius: 4px; border: 1px solid #ddd;">
-                            <option value="all" <?= $defaultBankValue === 'all' ? 'selected' : '' ?>>
-                                <?= t('admin.all_banks') ?>
-                            </option>
-                            <?php foreach ($banks as $bank): ?>
-                                <?php if ($bank['is_active']): ?>
-                                    <option value="<?= htmlspecialchars($bank['slug']) ?>" <?= $defaultBankValue === $bank['slug'] ? 'selected' : '' ?>>
-                                        <?= htmlspecialchars($bank['name']) ?>
+        <div class="admin-grid">
+
+            <!-- Row 1: Health + Default Bank -->
+            <div class="row-2">
+                <!-- System Health -->
+                <div class="admin-card">
+                    <div class="admin-card-header">
+                        <div class="admin-card-header-left">
+                            <div class="admin-card-icon health">💚</div>
+                            <div>
+                                <h2><?= t('admin.health') ?></h2>
+                                <p><?= t('admin.last_rate_update') ?>:
+                                    <?= $lastRateUpdate && $lastRateUpdate['value'] ? formatDateTime($lastRateUpdate['value']) : t('common.not_available') ?>
+                                </p>
+                            </div>
+                        </div>
+                        <form method="POST" style="margin:0">
+                            <input type="hidden" name="action" value="update_rates">
+                            <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
+                            <button type="submit" class="btn btn-primary" style="white-space:nowrap">🔄
+                                <?= t('admin.update_rates_now') ?></button>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Default Bank -->
+                <div class="admin-card">
+                    <div class="admin-card-header">
+                        <div class="admin-card-header-left">
+                            <div class="admin-card-icon bank">🏦</div>
+                            <div>
+                                <h2><?= t('admin.default_bank_setting') ?></h2>
+                                <p><?= t('admin.default_bank_desc') ?></p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="admin-card-body">
+                        <form method="POST" class="settings-form">
+                            <input type="hidden" name="action" value="set_default_bank">
+                            <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
+                            <div class="form-field">
+                                <label for="default_bank"><?= t('admin.default_bank') ?></label>
+                                <select id="default_bank" name="default_bank">
+                                    <option value="all" <?= $defaultBankValue === 'all' ? 'selected' : '' ?>>
+                                        <?= t('admin.all_banks') ?></option>
+                                    <?php foreach ($banks as $bank): ?>
+                                        <?php if ($bank['is_active']): ?>
+                                            <option value="<?= htmlspecialchars($bank['slug']) ?>"
+                                                <?= $defaultBankValue === $bank['slug'] ? 'selected' : '' ?>>
+                                                <?= htmlspecialchars($bank['name']) ?>
+                                            </option>
+                                        <?php endif; ?>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+                            <button type="submit" class="btn btn-primary"><?= t('admin.save') ?></button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Row 2: Chart Defaults -->
+            <div class="admin-card">
+                <div class="admin-card-header">
+                    <div class="admin-card-header-left">
+                        <div class="admin-card-icon chart">📊</div>
+                        <div>
+                            <h2><?= t('admin.chart_defaults') ?></h2>
+                            <p><?= t('admin.chart_defaults_desc') ?></p>
+                        </div>
+                    </div>
+                </div>
+                <div class="admin-card-body">
+                    <form method="POST" class="settings-form">
+                        <input type="hidden" name="action" value="set_chart_defaults">
+                        <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
+                        <div class="form-field">
+                            <label for="chart_currency"><?= t('admin.chart_currency') ?></label>
+                            <select id="chart_currency" name="chart_currency">
+                                <?php foreach ($activeCurrencies as $curr): ?>
+                                    <option value="<?= htmlspecialchars($curr['code']) ?>"
+                                        <?= $chartDefaultCurrencyValue === $curr['code'] ? 'selected' : '' ?>>
+                                        <?= htmlspecialchars($curr['code']) ?> —
+                                        <?= htmlspecialchars(localizedCurrencyName($curr)) ?>
                                     </option>
-                                <?php endif; ?>
-                            <?php endforeach; ?>
-                        </select>
-                    </div>
-                    <button type="submit" class="btn btn-primary">
-                        <?= t('admin.save') ?>
-                    </button>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        <div class="form-field">
+                            <label for="chart_days"><?= t('admin.chart_days') ?></label>
+                            <select id="chart_days" name="chart_days">
+                                <?php foreach ([7, 30, 90, 180, 365] as $d): ?>
+                                    <option value="<?= $d ?>" <?= $chartDefaultDaysValue === $d ? 'selected' : '' ?>><?= $d ?>
+                                        <?= t('index.chart.days_unit') ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        <button type="submit" class="btn btn-primary"><?= t('admin.save') ?></button>
+                    </form>
                 </div>
-            </form>
-        </section>
+            </div>
 
-        <section class="bank-section">
-            <h2><?= t('admin.chart_defaults') ?></h2>
-            <p><?= t('admin.chart_defaults_desc') ?></p>
-            <form method="POST" style="max-width: 600px;">
-                <input type="hidden" name="action" value="set_chart_defaults">
-                <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
-                <div style="display: flex; gap: 1rem; align-items: flex-end; flex-wrap: wrap;">
-                    <div style="flex: 1; min-width: 200px;">
-                        <label for="chart_currency" style="display: block; margin-bottom: 0.5rem; font-weight: 600;">
-                            <?= t('admin.chart_currency') ?>:
-                        </label>
-                        <select id="chart_currency" name="chart_currency" style="width: 100%; padding: 0.5rem; border-radius: 4px; border: 1px solid #ddd;">
-                            <?php foreach ($activeCurrencies as $curr): ?>
-                                <option value="<?= htmlspecialchars($curr['code']) ?>" <?= $chartDefaultCurrencyValue === $curr['code'] ? 'selected' : '' ?>>
-                                    <?= htmlspecialchars($curr['code']) ?> - <?= htmlspecialchars(localizedCurrencyName($curr)) ?>
-                                </option>
-                            <?php endforeach; ?>
-                        </select>
+            <!-- Row 3: Banks -->
+            <div class="admin-card">
+                <div class="admin-card-header">
+                    <div class="admin-card-header-left">
+                        <div class="admin-card-icon bank">🏛️</div>
+                        <h2><?= t('admin.banks') ?></h2>
                     </div>
-                    <div style="flex: 1; min-width: 150px;">
-                        <label for="chart_days" style="display: block; margin-bottom: 0.5rem; font-weight: 600;">
-                            <?= t('admin.chart_days') ?>:
-                        </label>
-                        <select id="chart_days" name="chart_days" style="width: 100%; padding: 0.5rem; border-radius: 4px; border: 1px solid #ddd;">
-                            <option value="7" <?= $chartDefaultDaysValue === 7 ? 'selected' : '' ?>>7 <?= t('index.chart.days_unit') ?></option>
-                            <option value="30" <?= $chartDefaultDaysValue === 30 ? 'selected' : '' ?>>30 <?= t('index.chart.days_unit') ?></option>
-                            <option value="90" <?= $chartDefaultDaysValue === 90 ? 'selected' : '' ?>>90 <?= t('index.chart.days_unit') ?></option>
-                            <option value="180" <?= $chartDefaultDaysValue === 180 ? 'selected' : '' ?>>180 <?= t('index.chart.days_unit') ?></option>
-                            <option value="365" <?= $chartDefaultDaysValue === 365 ? 'selected' : '' ?>>365 <?= t('index.chart.days_unit') ?></option>
-                        </select>
-                    </div>
-                    <button type="submit" class="btn btn-primary">
-                        <?= t('admin.save') ?>
-                    </button>
                 </div>
-            </form>
-        </section>
+                <div class="table-responsive">
+                    <table class="admin-table">
+                        <thead>
+                            <tr>
+                                <th><?= t('observability.bank') ?></th>
+                                <th><?= t('admin.slug') ?></th>
+                                <th><?= t('observability.last_scrape') ?></th>
+                                <th><?= t('admin.status') ?></th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($banks as $b): ?>
+                                <tr>
+                                    <td><strong><?= htmlspecialchars($b['name']) ?></strong></td>
+                                    <td><code
+                                            style="font-size: 0.78rem; background: var(--surface-hover); padding: 2px 8px; border-radius: 4px;"><?= htmlspecialchars($b['slug']) ?></code>
+                                    </td>
+                                    <td><?= $b['last_scraped_at'] ? formatDateTime($b['last_scraped_at']) : '—' ?></td>
+                                    <td><span
+                                            class="badge <?= $b['is_active'] ? 'badge-success' : 'badge-muted' ?>"><?= $b['is_active'] ? '● ' . t('admin.active') : '○ ' . t('admin.inactive') ?></span>
+                                    </td>
+                                    <td style="text-align:right">
+                                        <form method="POST" style="display:inline">
+                                            <input type="hidden" name="action" value="toggle_bank">
+                                            <input type="hidden" name="id" value="<?= (int) $b['id'] ?>">
+                                            <input type="hidden" name="csrf_token"
+                                                value="<?= htmlspecialchars($csrfToken) ?>">
+                                            <button type="submit"
+                                                class="btn-action"><?= $b['is_active'] ? t('admin.deactivate') : t('admin.activate') ?></button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
 
-        <section class="bank-section">
-            <h2><?= t('admin.banks') ?></h2>
-            <div class="table-responsive">
-                <table class="rates-table">
-                    <thead>
-                        <tr>
-                            <th><?= t('observability.bank') ?></th>
-                            <th><?= t('admin.slug') ?></th>
-                            <th><?= t('observability.last_scrape') ?></th>
-                            <th><?= t('admin.status') ?></th>
-                            <th></th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <?php foreach ($banks as $b): ?>
-                        <tr>
-                            <td><?= htmlspecialchars($b['name']) ?></td>
-                            <td><code><?= htmlspecialchars($b['slug']) ?></code></td>
-                            <td><?= $b['last_scraped_at'] ? formatDateTime($b['last_scraped_at']) : '—' ?></td>
-                            <td><span class="<?= $b['is_active'] ? 'text-success' : 'text-muted' ?>"><?= $b['is_active'] ? t('admin.active') : t('admin.inactive') ?></span></td>
-                            <td>
-                                <form method="POST" style="display:inline">
-                                    <input type="hidden" name="action" value="toggle_bank">
-                                    <input type="hidden" name="id" value="<?= (int) $b['id'] ?>">
-                                    <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
-                                    <button type="submit" class="btn btn-sm"><?= $b['is_active'] ? t('admin.deactivate') : t('admin.activate') ?></button>
-                                </form>
-                            </td>
-                        </tr>
-                        <?php endforeach; ?>
-                    </tbody>
-                </table>
+            <!-- Row 4: Homepage Rates (Drag & Drop) -->
+            <div class="admin-card">
+                <div class="admin-card-header">
+                    <div class="admin-card-header-left">
+                        <div class="admin-card-icon rates">📋</div>
+                        <div>
+                            <h2><?= t('admin.homepage_rates') ?></h2>
+                            <p><?= t('admin.homepage_rates_desc') ?></p>
+                        </div>
+                    </div>
+                    <div id="save-status" class="save-status" aria-live="polite"></div>
+                </div>
+                <div class="admin-card-body" style="padding-top: 8px;">
+                    <div class="hint-box">
+                        <span>💡</span>
+                        <span><strong><?= t('admin.drag_drop_hint') ?>:</strong> <?= t('admin.drag_drop_desc') ?></span>
+                    </div>
+                    <?php if (count($bankNames) > 1): ?>
+                        <div class="filter-tabs" style="margin-bottom: 12px;">
+                            <button class="filter-tab active" data-bank="all"><?= t('admin.all') ?></button>
+                            <?php foreach ($bankNames as $slug => $name): ?>
+                                <button class="filter-tab"
+                                    data-bank="<?= htmlspecialchars($slug) ?>"><?= htmlspecialchars($name) ?></button>
+                            <?php endforeach; ?>
+                        </div>
+                    <?php endif; ?>
+                </div>
+                <div class="table-responsive">
+                    <table class="admin-table" id="rates-sortable-table">
+                        <thead>
+                            <tr>
+                                <th style="width:36px">#</th>
+                                <th style="width:36px"></th>
+                                <th><?= t('observability.bank') ?></th>
+                                <th><?= t('index.table.currency') ?></th>
+                                <th><?= t('index.table.code') ?></th>
+                                <th class="text-right"><?= t('index.table.bank_buy') ?></th>
+                                <th class="text-right"><?= t('index.table.bank_sell') ?></th>
+                                <th><?= t('admin.homepage_visibility') ?></th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody id="rates-sortable">
+                            <?php $idx = 0;
+                            foreach ($allRates as $rate):
+                                $idx++; ?>
+                                <tr class="sortable-row" data-rate-id="<?= (int) $rate['id'] ?>"
+                                    data-bank="<?= htmlspecialchars($rate['bank_slug']) ?>" draggable="true">
+                                    <td><span class="order-num"><?= $idx ?></span></td>
+                                    <td class="drag-handle" title="<?= t('admin.drag_drop_hint') ?>">⋮⋮</td>
+                                    <td><?= htmlspecialchars($rate['bank_name']) ?></td>
+                                    <td><?= htmlspecialchars(localizedCurrencyName($rate)) ?></td>
+                                    <td><strong><?= htmlspecialchars($rate['currency_code']) ?></strong></td>
+                                    <td class="text-right mono"><?= formatRate((float) $rate['buy_rate']) ?></td>
+                                    <td class="text-right mono"><?= formatRate((float) $rate['sell_rate']) ?></td>
+                                    <td>
+                                        <span
+                                            class="badge <?= $rate['show_on_homepage'] ? 'badge-success' : 'badge-muted' ?>">
+                                            <?= $rate['show_on_homepage'] ? '✓ ' . t('admin.visible') : '✗ ' . t('admin.hidden') ?>
+                                        </span>
+                                    </td>
+                                    <td style="text-align:right">
+                                        <form method="POST" style="display:inline">
+                                            <input type="hidden" name="action" value="toggle_homepage">
+                                            <input type="hidden" name="rate_id" value="<?= (int) $rate['id'] ?>">
+                                            <input type="hidden" name="csrf_token"
+                                                value="<?= htmlspecialchars($csrfToken) ?>">
+                                            <button type="submit"
+                                                class="btn-action"><?= $rate['show_on_homepage'] ? t('admin.hide') : t('admin.show') ?></button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
             </div>
-        </section>
 
-        <section class="bank-section">
-            <h2><?= t('admin.homepage_rates') ?></h2>
-            <p><?= t('admin.homepage_rates_desc') ?></p>
-            <p style="background: #f0f9ff; padding: 1rem; border-radius: 8px; border-left: 4px solid #3b82f6;">
-                <strong>💡 <?= t('admin.drag_drop_hint') ?>:</strong> <?= t('admin.drag_drop_desc') ?>
-            </p>
-            <div class="table-responsive">
-                <table class="rates-table" id="rates-sortable-table">
-                    <thead>
-                        <tr>
-                            <th style="width: 40px;">🔀</th>
-                            <th><?= t('observability.bank') ?></th>
-                            <th><?= t('index.table.currency') ?></th>
-                            <th><?= t('index.table.code') ?></th>
-                            <th class="text-right"><?= t('index.table.bank_buy') ?></th>
-                            <th class="text-right"><?= t('index.table.bank_sell') ?></th>
-                            <th><?= t('admin.homepage_visibility') ?></th>
-                            <th></th>
-                        </tr>
-                    </thead>
-                    <tbody id="rates-sortable">
-                        <?php foreach ($allRates as $rate): ?>
-                        <tr data-rate-id="<?= (int) $rate['id'] ?>" style="cursor: move;">
-                            <td class="drag-handle" style="text-align: center; cursor: grab;">⋮⋮</td>
-                            <td><?= htmlspecialchars($rate['bank_name']) ?></td>
-                            <td><?= htmlspecialchars(localizedCurrencyName($rate)) ?></td>
-                            <td><strong><?= htmlspecialchars($rate['currency_code']) ?></strong></td>
-                            <td class="text-right mono"><?= formatRate((float) $rate['buy_rate']) ?></td>
-                            <td class="text-right mono"><?= formatRate((float) $rate['sell_rate']) ?></td>
-                            <td>
-                                <span class="<?= $rate['show_on_homepage'] ? 'text-success' : 'text-muted' ?>">
-                                    <?= $rate['show_on_homepage'] ? '✓ ' . t('admin.visible') : '✗ ' . t('admin.hidden') ?>
-                                </span>
-                            </td>
-                            <td>
-                                <form method="POST" style="display:inline">
-                                    <input type="hidden" name="action" value="toggle_homepage">
-                                    <input type="hidden" name="rate_id" value="<?= (int) $rate['id'] ?>">
-                                    <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
-                                    <button type="submit" class="btn btn-sm">
-                                        <?= $rate['show_on_homepage'] ? t('admin.hide') : t('admin.show') ?>
-                                    </button>
-                                </form>
-                            </td>
-                        </tr>
-                        <?php endforeach; ?>
-                    </tbody>
-                </table>
-            </div>
-            <div style="margin-top: 1rem; text-align: right;">
-                <button id="save-order-btn" class="btn btn-primary" style="display: none;">
-                    💾 <?= t('admin.save_order') ?>
-                </button>
-            </div>
-        </section>
+            <!-- Row 5: Currencies + Users -->
+            <div class="row-2">
+                <!-- Currencies -->
+                <div class="admin-card">
+                    <div class="admin-card-header">
+                        <div class="admin-card-header-left">
+                            <div class="admin-card-icon currency">💱</div>
+                            <h2><?= t('admin.currencies') ?></h2>
+                        </div>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="admin-table">
+                            <thead>
+                                <tr>
+                                    <th><?= t('admin.code') ?></th>
+                                    <th><?= t('index.table.currency') ?></th>
+                                    <th><?= t('admin.type') ?></th>
+                                    <th><?= t('admin.status') ?></th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php foreach ($currencies as $c): ?>
+                                    <tr>
+                                        <td><strong><?= htmlspecialchars($c['code']) ?></strong></td>
+                                        <td><?= htmlspecialchars(localizedCurrencyName($c)) ?></td>
+                                        <td><span
+                                                class="badge badge-muted"><?= htmlspecialchars($c['type'] ?? 'fiat') ?></span>
+                                        </td>
+                                        <td><span
+                                                class="badge <?= $c['is_active'] ? 'badge-success' : 'badge-muted' ?>"><?= $c['is_active'] ? '● ' . t('admin.active') : '○ ' . t('admin.inactive') ?></span>
+                                        </td>
+                                        <td style="text-align:right">
+                                            <form method="POST" style="display:inline">
+                                                <input type="hidden" name="action" value="toggle_currency">
+                                                <input type="hidden" name="id" value="<?= (int) $c['id'] ?>">
+                                                <input type="hidden" name="csrf_token"
+                                                    value="<?= htmlspecialchars($csrfToken) ?>">
+                                                <button type="submit"
+                                                    class="btn-action"><?= $c['is_active'] ? t('admin.deactivate') : t('admin.activate') ?></button>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
 
-        <section class="bank-section">
-            <h2><?= t('admin.currencies') ?></h2>
-            <div class="table-responsive">
-                <table class="rates-table">
-                    <thead>
-                        <tr>
-                            <th><?= t('admin.code') ?></th>
-                            <th><?= t('index.table.currency') ?></th>
-                            <th><?= t('admin.type') ?></th>
-                            <th><?= t('admin.status') ?></th>
-                            <th></th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <?php foreach ($currencies as $c): ?>
-                        <tr>
-                            <td><strong><?= htmlspecialchars($c['code']) ?></strong></td>
-                            <td><?= htmlspecialchars(localizedCurrencyName($c)) ?></td>
-                            <td><?= htmlspecialchars($c['type'] ?? 'fiat') ?></td>
-                            <td><span class="<?= $c['is_active'] ? 'text-success' : 'text-muted' ?>"><?= $c['is_active'] ? t('admin.active') : t('admin.inactive') ?></span></td>
-                            <td>
-                                <form method="POST" style="display:inline">
-                                    <input type="hidden" name="action" value="toggle_currency">
-                                    <input type="hidden" name="id" value="<?= (int) $c['id'] ?>">
-                                    <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
-                                    <button type="submit" class="btn btn-sm"><?= $c['is_active'] ? t('admin.deactivate') : t('admin.activate') ?></button>
-                                </form>
-                            </td>
-                        </tr>
-                        <?php endforeach; ?>
-                    </tbody>
-                </table>
+                <!-- Users -->
+                <div class="admin-card">
+                    <div class="admin-card-header">
+                        <div class="admin-card-header-left">
+                            <div class="admin-card-icon users">👥</div>
+                            <h2><?= t('admin.users') ?></h2>
+                        </div>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="admin-table">
+                            <thead>
+                                <tr>
+                                    <th><?= t('admin.id') ?></th>
+                                    <th><?= t('auth.username') ?></th>
+                                    <th><?= t('admin.role') ?></th>
+                                    <th><?= t('admin.status') ?></th>
+                                    <th><?= t('admin.created') ?></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php foreach ($users as $u): ?>
+                                    <tr>
+                                        <td><?= (int) $u['id'] ?></td>
+                                        <td><strong><?= htmlspecialchars($u['username']) ?></strong></td>
+                                        <td><span
+                                                class="badge badge-muted"><?= htmlspecialchars($u['role'] ?? 'user') ?></span>
+                                        </td>
+                                        <td><span
+                                                class="badge <?= $u['is_active'] ? 'badge-success' : 'badge-muted' ?>"><?= $u['is_active'] ? '● ' . t('admin.active') : '○ ' . t('admin.inactive') ?></span>
+                                        </td>
+                                        <td style="font-size: 0.8rem; color: var(--text-muted);">
+                                            <?= formatDateTime($u['created_at']) ?></td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
             </div>
-        </section>
 
-        <section class="bank-section">
-            <h2><?= t('admin.users') ?></h2>
-            <div class="table-responsive">
-                <table class="rates-table">
-                    <thead>
-                        <tr>
-                            <th><?= t('admin.id') ?></th>
-                            <th><?= t('auth.username') ?></th>
-                            <th><?= t('admin.role') ?></th>
-                            <th><?= t('admin.status') ?></th>
-                            <th><?= t('admin.created') ?></th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <?php foreach ($users as $u): ?>
-                        <tr>
-                            <td><?= (int) $u['id'] ?></td>
-                            <td><?= htmlspecialchars($u['username']) ?></td>
-                            <td><?= htmlspecialchars($u['role'] ?? 'user') ?></td>
-                            <td><span class="<?= $u['is_active'] ? 'text-success' : 'text-muted' ?>"><?= $u['is_active'] ? t('admin.active') : t('admin.inactive') ?></span></td>
-                            <td><?= formatDateTime($u['created_at']) ?></td>
-                        </tr>
-                        <?php endforeach; ?>
-                    </tbody>
-                </table>
-            </div>
-        </section>
+        </div><!-- /admin-grid -->
     </main>
 
     <footer class="footer">
         <div class="container">
-            <p>Cybokron v<?= htmlspecialchars($version) ?> | <a href="observability.php"><?= t('observability.title') ?></a></p>
+            <p>Cybokron v<?= htmlspecialchars($version) ?> | <a
+                    href="observability.php"><?= t('observability.title') ?></a></p>
         </div>
     </footer>
-    
+
     <script>
-    // Drag & Drop functionality for rates ordering
-    (function() {
-        const tbody = document.getElementById('rates-sortable');
-        const saveBtn = document.getElementById('save-order-btn');
-        const csrfToken = '<?= htmlspecialchars($csrfToken) ?>';
-        
-        if (!tbody || !saveBtn) return;
-        
-        let draggedRow = null;
-        let orderChanged = false;
-        
-        // Make rows draggable
-        const rows = tbody.querySelectorAll('tr');
-        rows.forEach(row => {
-            row.setAttribute('draggable', 'true');
-            
-            row.addEventListener('dragstart', function(e) {
-                draggedRow = this;
-                this.style.opacity = '0.5';
-                e.dataTransfer.effectAllowed = 'move';
+        // ── Toast system ──
+        function showToast(msg, type) {
+            var c = document.getElementById('toast-container');
+            if (!c) return;
+            var t = document.createElement('div');
+            t.className = 'toast toast-' + (type || 'info');
+            t.textContent = msg;
+            c.appendChild(t);
+            setTimeout(function () {
+                t.classList.add('hiding');
+                setTimeout(function () { t.remove(); }, 300);
+            }, 3000);
+        }
+
+        // ── Bank filter tabs ──
+        (function () {
+            var tabs = document.querySelectorAll('.filter-tab');
+            var rows = document.querySelectorAll('#rates-sortable .sortable-row');
+            tabs.forEach(function (tab) {
+                tab.addEventListener('click', function () {
+                    tabs.forEach(function (t) { t.classList.remove('active'); });
+                    tab.classList.add('active');
+                    var bank = tab.getAttribute('data-bank');
+                    rows.forEach(function (row) {
+                        if (bank === 'all' || row.getAttribute('data-bank') === bank) {
+                            row.style.display = '';
+                        } else {
+                            row.style.display = 'none';
+                        }
+                    });
+                });
             });
-            
-            row.addEventListener('dragend', function() {
-                this.style.opacity = '1';
-                draggedRow = null;
-            });
-            
-            row.addEventListener('dragover', function(e) {
-                e.preventDefault();
-                e.dataTransfer.dropEffect = 'move';
-                
-                if (draggedRow && draggedRow !== this) {
-                    const rect = this.getBoundingClientRect();
-                    const midpoint = rect.top + rect.height / 2;
-                    
-                    if (e.clientY < midpoint) {
-                        this.parentNode.insertBefore(draggedRow, this);
+        })();
+
+        // ── Drag & Drop with AJAX auto-save ──
+        (function () {
+            var tbody = document.getElementById('rates-sortable');
+            var statusEl = document.getElementById('save-status');
+            var csrfToken = '<?= htmlspecialchars($csrfToken) ?>';
+            if (!tbody) return;
+
+            var draggedRow = null;
+            var saveTimeout = null;
+
+            function updateOrderNumbers() {
+                var rows = tbody.querySelectorAll('.sortable-row');
+                var i = 0;
+                rows.forEach(function (r) {
+                    i++;
+                    var num = r.querySelector('.order-num');
+                    if (num) num.textContent = i;
+                });
+            }
+
+            function showStatus(type, text) {
+                if (!statusEl) return;
+                statusEl.className = 'save-status visible ' + type;
+                statusEl.innerHTML = (type === 'saving' ? '<span class="save-spinner"></span>' : '') + text;
+                if (type !== 'saving') {
+                    setTimeout(function () { statusEl.className = 'save-status'; }, 2500);
+                }
+            }
+
+            function saveOrder() {
+                var rows = tbody.querySelectorAll('.sortable-row');
+                var orders = {};
+                var i = 0;
+                rows.forEach(function (r) {
+                    i++;
+                    var id = r.getAttribute('data-rate-id');
+                    if (id) orders[id] = i;
+                });
+
+                showStatus('saving', '<?= t('admin.order_saving') ?>');
+
+                var xhr = new XMLHttpRequest();
+                xhr.open('POST', 'admin.php', true);
+                xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+                xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+                xhr.onload = function () {
+                    if (xhr.status === 200) {
+                        try {
+                            var resp = JSON.parse(xhr.responseText);
+                            if (resp.status === 'ok') {
+                                showStatus('saved', '✓ <?= t('admin.order_saved') ?>');
+                                showToast('<?= t('admin.order_saved') ?>', 'success');
+                            } else {
+                                showStatus('error', '✗ <?= t('admin.order_save_error') ?>');
+                                showToast('<?= t('admin.order_save_error') ?>', 'error');
+                            }
+                        } catch (e) {
+                            showStatus('error', '✗ <?= t('admin.order_save_error') ?>');
+                        }
                     } else {
-                        this.parentNode.insertBefore(draggedRow, this.nextSibling);
+                        showStatus('error', '✗ <?= t('admin.order_save_error') ?>');
                     }
-                    orderChanged = true;
-                    saveBtn.style.display = 'inline-block';
-                }
+                };
+                xhr.onerror = function () {
+                    showStatus('error', '✗ <?= t('admin.order_save_error') ?>');
+                };
+                var params = 'action=update_rate_order&csrf_token=' + encodeURIComponent(csrfToken) +
+                    '&rate_orders=' + encodeURIComponent(JSON.stringify(orders));
+                xhr.send(params);
+            }
+
+            function scheduleSave() {
+                if (saveTimeout) clearTimeout(saveTimeout);
+                saveTimeout = setTimeout(saveOrder, 400);
+            }
+
+            // Set up drag events on each row
+            var allRows = tbody.querySelectorAll('.sortable-row');
+            allRows.forEach(function (row) {
+                row.addEventListener('dragstart', function (e) {
+                    draggedRow = this;
+                    this.classList.add('dragging');
+                    e.dataTransfer.effectAllowed = 'move';
+                    e.dataTransfer.setData('text/plain', '');
+                });
+
+                row.addEventListener('dragend', function () {
+                    this.classList.remove('dragging');
+                    draggedRow = null;
+                    tbody.querySelectorAll('.drag-over').forEach(function (r) { r.classList.remove('drag-over'); });
+                });
+
+                row.addEventListener('dragover', function (e) {
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = 'move';
+                    if (draggedRow && draggedRow !== this) {
+                        tbody.querySelectorAll('.drag-over').forEach(function (r) { r.classList.remove('drag-over'); });
+                        this.classList.add('drag-over');
+                    }
+                });
+
+                row.addEventListener('dragleave', function () {
+                    this.classList.remove('drag-over');
+                });
+
+                row.addEventListener('drop', function (e) {
+                    e.preventDefault();
+                    this.classList.remove('drag-over');
+                    if (draggedRow && draggedRow !== this) {
+                        var rect = this.getBoundingClientRect();
+                        var mid = rect.top + rect.height / 2;
+                        if (e.clientY < mid) {
+                            this.parentNode.insertBefore(draggedRow, this);
+                        } else {
+                            this.parentNode.insertBefore(draggedRow, this.nextSibling);
+                        }
+                        updateOrderNumbers();
+                        scheduleSave();
+                    }
+                });
             });
-        });
-        
-        // Save order button
-        saveBtn.addEventListener('click', function() {
-            const rows = tbody.querySelectorAll('tr');
-            const rateOrders = {};
-            
-            rows.forEach((row, index) => {
-                const rateId = row.getAttribute('data-rate-id');
-                if (rateId) {
-                    rateOrders[rateId] = index + 1;
+
+            // Touch support for mobile
+            var touchRow = null, touchClone = null, touchStartY = 0;
+            tbody.addEventListener('touchstart', function (e) {
+                var handle = e.target.closest('.drag-handle');
+                if (!handle) return;
+                touchRow = handle.closest('.sortable-row');
+                if (!touchRow) return;
+                touchStartY = e.touches[0].clientY;
+                touchRow.classList.add('dragging');
+            }, { passive: true });
+
+            tbody.addEventListener('touchmove', function (e) {
+                if (!touchRow) return;
+                e.preventDefault();
+                var y = e.touches[0].clientY;
+                var rows = Array.from(tbody.querySelectorAll('.sortable-row:not(.dragging)'));
+                rows.forEach(function (r) { r.classList.remove('drag-over'); });
+                for (var i = 0; i < rows.length; i++) {
+                    var rect = rows[i].getBoundingClientRect();
+                    if (y > rect.top && y < rect.bottom) {
+                        rows[i].classList.add('drag-over');
+                        var mid = rect.top + rect.height / 2;
+                        if (y < mid) {
+                            tbody.insertBefore(touchRow, rows[i]);
+                        } else {
+                            tbody.insertBefore(touchRow, rows[i].nextSibling);
+                        }
+                        break;
+                    }
                 }
+            }, { passive: false });
+
+            tbody.addEventListener('touchend', function () {
+                if (!touchRow) return;
+                touchRow.classList.remove('dragging');
+                tbody.querySelectorAll('.drag-over').forEach(function (r) { r.classList.remove('drag-over'); });
+                updateOrderNumbers();
+                scheduleSave();
+                touchRow = null;
             });
-            
-            // Send to server
-            const form = document.createElement('form');
-            form.method = 'POST';
-            form.style.display = 'none';
-            
-            const actionInput = document.createElement('input');
-            actionInput.type = 'hidden';
-            actionInput.name = 'action';
-            actionInput.value = 'update_rate_order';
-            form.appendChild(actionInput);
-            
-            const csrfInput = document.createElement('input');
-            csrfInput.type = 'hidden';
-            csrfInput.name = 'csrf_token';
-            csrfInput.value = csrfToken;
-            form.appendChild(csrfInput);
-            
-            const ordersInput = document.createElement('input');
-            ordersInput.type = 'hidden';
-            ordersInput.name = 'rate_orders';
-            ordersInput.value = JSON.stringify(rateOrders);
-            form.appendChild(ordersInput);
-            
-            document.body.appendChild(form);
-            form.submit();
-        });
-    })();
+        })();
     </script>
 </body>
+
 </html>
