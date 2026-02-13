@@ -254,6 +254,25 @@ To add a new bank source later:
 
 ## Changelog
 
+### v1.5.1 (2026-02-13)
+
+Admin panel improvements: editable OpenRouter settings and redesigned system configuration UI.
+
+**Admin OpenRouter Settings**
+- API key and model editable from admin panel (password field with show/hide toggle)
+- DB-backed API key resolution: database value takes priority over config.php constant
+- Key source indicator shows whether API key comes from DB, config.php, or is not configured
+- Default model `z-ai/glm-5` pre-filled, validated with regex before save
+
+**System Configuration Redesign**
+- Replaced flat key-value grid with themed card layout (6 sections: Security, Scraping, Market Hours, Notifications, API Limits, System)
+- Human-readable localized labels instead of raw PHP constant names
+- Color-coded status indicators with icons per section
+- Responsive grid (3→2→1 columns)
+
+**Localization**
+- Added 40+ translation keys for config labels, day names, and OpenRouter settings in Turkish and English
+
 ### v1.5.0 (2026-02-13)
 
 Release focused on OpenRouter AI management, model tuning, and admin observability.
