@@ -29,10 +29,23 @@ RewriteRule ^(.*)$ https://%{HTTP_HOST}/$1 [R=301,L]
     Require all denied
 </FilesMatch>
 
-# PHP settings
+# Character encoding
+AddDefaultCharset UTF-8
+
+# PHP settings (mod_php)
 <IfModule mod_php.c>
     php_value upload_max_filesize 10M
     php_value post_max_size 10M
     php_value max_execution_time 60
     php_value date.timezone "Europe/Istanbul"
+    php_value default_charset "UTF-8"
+</IfModule>
+
+# PHP settings (LiteSpeed / lsapi)
+<IfModule LiteSpeed>
+    php_value upload_max_filesize 10M
+    php_value post_max_size 10M
+    php_value max_execution_time 60
+    php_value date.timezone "Europe/Istanbul"
+    php_value default_charset "UTF-8"
 </IfModule>
