@@ -778,7 +778,7 @@ class Portfolio
     /**
      * Valid target types for goals.
      */
-    private const GOAL_TARGET_TYPES = ['value', 'cost', 'amount'];
+    private const GOAL_TARGET_TYPES = ['value', 'cost', 'amount', 'currency_value'];
 
     /**
      * Add a new goal.
@@ -796,14 +796,21 @@ class Portfolio
         $targetType = in_array($data['target_type'] ?? '', self::GOAL_TARGET_TYPES)
             ? $data['target_type'] : 'value';
 
-        // target_currency is required for 'amount' type
+        // target_currency is required for 'amount' and 'currency_value' types
         $targetCurrency = null;
-        if ($targetType === 'amount') {
+        if ($targetType === 'amount' || $targetType === 'currency_value') {
             $tc = strtoupper(trim((string) ($data['target_currency'] ?? '')));
             if ($tc === '' || !preg_match('/^[A-Z0-9]{3,10}$/', $tc)) {
-                throw new InvalidArgumentException('Currency is required for amount goals.');
+                throw new InvalidArgumentException('Currency is required for this goal type.');
             }
             $targetCurrency = $tc;
+        }
+
+        // Optional bank filter
+        $bankSlug = null;
+        $bs = trim((string) ($data['bank_slug'] ?? ''));
+        if ($bs !== '' && preg_match('/^[a-z0-9_-]+$/i', $bs)) {
+            $bankSlug = $bs;
         }
 
         $goalId = Database::insert('portfolio_goals', [
@@ -812,6 +819,7 @@ class Portfolio
             'target_value' => $targetValue,
             'target_type' => $targetType,
             'target_currency' => $targetCurrency,
+            'bank_slug' => $bankSlug,
         ]);
 
         return (int) $goalId;
@@ -834,17 +842,24 @@ class Portfolio
             ? $data['target_type'] : 'value';
 
         $targetCurrency = null;
-        if ($targetType === 'amount') {
+        if ($targetType === 'amount' || $targetType === 'currency_value') {
             $tc = strtoupper(trim((string) ($data['target_currency'] ?? '')));
             if ($tc === '' || !preg_match('/^[A-Z0-9]{3,10}$/', $tc)) {
-                throw new InvalidArgumentException('Currency is required for amount goals.');
+                throw new InvalidArgumentException('Currency is required for this goal type.');
             }
             $targetCurrency = $tc;
         }
 
+        // Optional bank filter
+        $bankSlug = null;
+        $bs = trim((string) ($data['bank_slug'] ?? ''));
+        if ($bs !== '' && preg_match('/^[a-z0-9_-]+$/i', $bs)) {
+            $bankSlug = $bs;
+        }
+
         return Database::execute(
-            'UPDATE portfolio_goals SET name = ?, target_value = ?, target_type = ?, target_currency = ? WHERE id = ?',
-            [$name, $targetValue, $targetType, $targetCurrency, $id]
+            'UPDATE portfolio_goals SET name = ?, target_value = ?, target_type = ?, target_currency = ?, bank_slug = ? WHERE id = ?',
+            [$name, $targetValue, $targetType, $targetCurrency, $bankSlug, $id]
         ) >= 0;
     }
 
@@ -921,17 +936,19 @@ class Portfolio
      * Deduplicates items: an item matching multiple sources is counted only once.
      *
      * Target types:
-     *   'value'  — sum current TRY value (value_try)
-     *   'cost'   — sum TRY cost (cost_try)
-     *   'amount' — sum raw amount of a specific currency (target_currency)
+     *   'value'          — sum current TRY value (value_try)
+     *   'cost'           — sum TRY cost (cost_try)
+     *   'amount'         — sum raw amount of a specific currency (target_currency)
+     *   'currency_value' — sum TRY value, then convert to target_currency (e.g. USD, EUR)
      *
      * @param array $goals          All goals
      * @param array $allItems       All portfolio items from Portfolio::getAll()
      * @param array $allItemTags    All item tags from Portfolio::getAllItemTags()
      * @param array $allGoalSources Goal sources keyed by goal_id
+     * @param array $currencyRates  Optional: currency sell rates keyed by code => sell_rate (TRY per unit)
      * @return array Keyed by goal_id => ['current' => float, 'target' => float, 'percent' => float, 'item_count' => int, 'unit' => string]
      */
-    public static function computeGoalProgress(array $goals, array $allItems, array $allItemTags, array $allGoalSources): array
+    public static function computeGoalProgress(array $goals, array $allItems, array $allItemTags, array $allGoalSources, array $currencyRates = []): array
     {
         $result = [];
 
@@ -939,6 +956,7 @@ class Portfolio
             $goalId = (int) $goal['id'];
             $targetType = $goal['target_type'] ?? 'value';
             $targetCurrency = $goal['target_currency'] ?? null;
+            $goalBankSlug = $goal['bank_slug'] ?? null;
             $sources = $allGoalSources[$goalId] ?? [];
 
             // Collect unique item IDs matching any source
@@ -970,10 +988,16 @@ class Portfolio
             }
 
             // Sum values for matched items (deduplicated)
+            // If bank_slug is set, additionally filter items by bank
             $current = 0.0;
             $countedItems = 0;
             foreach ($allItems as $item) {
                 if (!isset($matchedItemIds[(int) $item['id']])) {
+                    continue;
+                }
+
+                // Bank filter: skip items not from the goal's bank
+                if ($goalBankSlug !== null && ($item['bank_slug'] ?? '') !== $goalBankSlug) {
                     continue;
                 }
 
@@ -983,6 +1007,10 @@ class Portfolio
                         $current += (float) ($item['amount'] ?? 0);
                         $countedItems++;
                     }
+                } elseif ($targetType === 'currency_value') {
+                    // Sum TRY values — will convert to target currency after loop
+                    $current += (float) ($item['value_try'] ?? 0);
+                    $countedItems++;
                 } elseif ($targetType === 'cost') {
                     $current += (float) ($item['cost_try'] ?? 0);
                     $countedItems++;
@@ -993,12 +1021,21 @@ class Portfolio
                 }
             }
 
+            // For currency_value: convert TRY sum to target currency
+            if ($targetType === 'currency_value' && $targetCurrency !== null) {
+                $rate = $currencyRates[strtoupper($targetCurrency)] ?? 0;
+                if ($rate > 0) {
+                    $current = $current / $rate;
+                }
+                // If rate is 0, current stays as TRY (fallback)
+            }
+
             $target = (float) $goal['target_value'];
             $percent = $target > 0 ? min(($current / $target) * 100, 100) : 0;
 
             // Determine unit for display
             $unit = '₺';
-            if ($targetType === 'amount' && $targetCurrency) {
+            if (($targetType === 'amount' || $targetType === 'currency_value') && $targetCurrency) {
                 $unit = $targetCurrency;
             }
 
@@ -1010,6 +1047,7 @@ class Portfolio
                 'unit' => $unit,
                 'target_type' => $targetType,
                 'target_currency' => $targetCurrency,
+                'bank_slug' => $goalBankSlug,
             ];
         }
 
