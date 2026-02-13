@@ -163,6 +163,7 @@ jobs:
             --exclude='config.sample.php' \
             --exclude='config.docker.php' \
             --exclude='docs/' \
+            --exclude='error_log' \
             -e "ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no" \
             ./ ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/home2/investercanatay/public_html/
 
@@ -174,7 +175,13 @@ jobs:
 
       - name: Check PHP error log
         if: always()
+        env:
+          APP_URL: ${{ secrets.APP_URL }}
         run: |
+          echo "Triggering portfolio page to capture errors..."
+          curl -s -o /dev/null --max-time 10 "${APP_URL}/portfolio.php" || true
+          sleep 2
+          echo "=== PHP Error Log (last 50 lines) ==="
           ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \
             ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} \
             "tail -50 ~/public_html/error_log 2>/dev/null || tail -50 ~/error_log 2>/dev/null || echo '(no error log found)'"
