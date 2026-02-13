@@ -487,4 +487,13 @@ return [
     'seo.observability_description' => 'Bank scraping statistics, system health and performance logs.',
     'seo.login_description' => 'Cybokron Exchange Rate & Portfolio Tracking login page.',
     'seo.openrouter_description' => 'OpenRouter AI configuration and rate repair statistics.',
+
+    // Data Retention
+    'admin.retention_title' => 'Data Retention',
+    'admin.retention_desc' => 'Configure how long rate history data is kept.',
+    'admin.retention_label' => 'Retention Period',
+    'admin.retention_month' => 'month',
+    'admin.retention_year' => 'year',
+    'admin.retention_hint' => 'Rate history data older than this period will be automatically deleted by the cleanup cron job.',
+    'admin.retention_updated' => 'Data retention period updated.',
 ];
