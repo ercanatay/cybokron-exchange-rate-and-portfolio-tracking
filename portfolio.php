@@ -1679,7 +1679,6 @@ $annualizedReturn = ($oldestDate && $analyticsCost > 0)
             </p>
         </div>
     </footer>
-    <script src="assets/js/theme.js"></script>
     <script>
         /* ─── Panel Toggle (Collapse/Expand) ─────────────────────────────────── */
         function toggleManagePanel() {

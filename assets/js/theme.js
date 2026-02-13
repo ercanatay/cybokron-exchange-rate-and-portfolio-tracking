@@ -23,10 +23,14 @@
         document.documentElement.setAttribute('data-theme', theme);
         const btn = document.getElementById('theme-toggle');
         if (btn) {
-            btn.textContent = theme === 'dark' ? '☀️' : '🌙';
+            const iconSpan = btn.querySelector('.theme-icon');
+            if (iconSpan) {
+                iconSpan.textContent = theme === 'dark' ? '☀️' : '🌙';
+            }
             const lightLabel = btn.getAttribute('data-label-light') || 'Switch to light mode';
             const darkLabel = btn.getAttribute('data-label-dark') || 'Switch to dark mode';
             btn.setAttribute('aria-label', theme === 'dark' ? lightLabel : darkLabel);
+            btn.setAttribute('title', theme === 'dark' ? lightLabel : darkLabel);
         }
     }
 
@@ -34,9 +38,6 @@
         const stored = getStoredTheme();
         const theme = stored || getSystemTheme();
         applyTheme(theme);
-        if (!stored) {
-            document.documentElement.removeAttribute('data-theme');
-        }
     }
 
     function toggleTheme() {
@@ -48,7 +49,13 @@
         applyTheme(next);
     }
 
-    document.addEventListener('DOMContentLoaded', initTheme);
+    // Apply theme as early as possible to prevent flash
+    initTheme();
+
+    // Also apply on DOMContentLoaded to ensure button is updated
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initTheme);
+    }
 
     document.addEventListener('click', (e) => {
         if (e.target.id === 'theme-toggle' || e.target.closest('#theme-toggle')) {

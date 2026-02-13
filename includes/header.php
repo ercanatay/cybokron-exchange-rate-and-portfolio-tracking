@@ -150,3 +150,4 @@ $_headerActivePage = $activePage ?? '';
         });
     })();
 </script>
+<script src="assets/js/theme.js" defer></script>
