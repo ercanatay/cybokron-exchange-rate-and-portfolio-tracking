@@ -102,13 +102,31 @@ $cooldownSeconds = defined('OPENROUTER_AI_COOLDOWN_SECONDS') ? (int) OPENROUTER_
 // Bank AI stats from settings table
 $banks = Database::query('SELECT id, name, slug FROM banks WHERE is_active = 1 ORDER BY name');
 $bankStats = [];
+
+// Build all setting keys for a single batch query
+$settingKeys = [];
+$bankCacheKeys = [];
 foreach ($banks as $bank) {
     $cacheKey = substr(hash('sha1', $bank['slug']), 0, 12);
-    $lastTs = Database::queryOne('SELECT value FROM settings WHERE `key` = ?', ['or_ai_t_' . $cacheKey]);
-    $lastHash = Database::queryOne('SELECT value FROM settings WHERE `key` = ?', ['or_ai_h_' . $cacheKey]);
-    $lastCount = Database::queryOne('SELECT value FROM settings WHERE `key` = ?', ['or_ai_c_' . $cacheKey]);
+    $bankCacheKeys[] = $cacheKey;
+    $settingKeys[] = 'or_ai_t_' . $cacheKey;
+    $settingKeys[] = 'or_ai_h_' . $cacheKey;
+    $settingKeys[] = 'or_ai_c_' . $cacheKey;
+}
 
-    $ts = (int) ($lastTs['value'] ?? 0);
+// Fetch all AI settings in a single query
+$aiSettings = [];
+if (!empty($settingKeys)) {
+    $placeholders = implode(',', array_fill(0, count($settingKeys), '?'));
+    $rows = Database::query("SELECT `key`, value FROM settings WHERE `key` IN ({$placeholders})", $settingKeys);
+    foreach ($rows as $row) {
+        $aiSettings[$row['key']] = $row['value'];
+    }
+}
+
+foreach ($banks as $i => $bank) {
+    $cacheKey = $bankCacheKeys[$i];
+    $ts = (int) ($aiSettings['or_ai_t_' . $cacheKey] ?? 0);
     $cooldownActive = false;
     if ($ts > 0 && $cooldownSeconds > 0) {
         $cooldownActive = (time() - $ts) < $cooldownSeconds;
@@ -118,7 +136,7 @@ foreach ($banks as $bank) {
         'name' => $bank['name'],
         'slug' => $bank['slug'],
         'last_ai_ts' => $ts,
-        'last_ai_count' => (int) ($lastCount['value'] ?? 0),
+        'last_ai_count' => (int) ($aiSettings['or_ai_c_' . $cacheKey] ?? 0),
         'cooldown_active' => $cooldownActive,
         'has_data' => $ts > 0,
     ];

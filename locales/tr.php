@@ -15,6 +15,7 @@ return [
     'nav.theme_toggle' => 'Koyu/Açık tema değiştir',
     'nav.login' => 'Giriş',
     'nav.logout' => 'Çıkış',
+    'nav.logout_action' => 'Çıkış Yap',
 
     'auth.login_title' => 'Giriş Yap',
     'auth.username' => 'Kullanıcı adı',

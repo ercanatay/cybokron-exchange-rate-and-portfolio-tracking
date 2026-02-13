@@ -11,6 +11,9 @@
 require_once __DIR__ . '/../includes/helpers.php';
 require_once __DIR__ . '/../includes/WebhookDispatcher.php';
 cybokron_init();
+require_once __DIR__ . '/../includes/Scraper.php';
+require_once __DIR__ . '/../includes/OpenRouterRateRepair.php';
+require_once __DIR__ . '/../includes/Updater.php';
 ensureCliExecution();
 
 // Load active banks from database

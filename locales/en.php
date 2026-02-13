@@ -15,6 +15,7 @@ return [
     'nav.theme_toggle' => 'Toggle dark/light theme',
     'nav.login' => 'Login',
     'nav.logout' => 'Logout',
+    'nav.logout_action' => 'Sign Out',
 
     'auth.login_title' => 'Login',
     'auth.username' => 'Username',
