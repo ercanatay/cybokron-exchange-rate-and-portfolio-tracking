@@ -48,7 +48,7 @@ define('SCRAPE_TIMEOUT', 30);         // HTTP request timeout in seconds
 define('SCRAPE_USER_AGENT', 'Cybokron/1.0');
 define('SCRAPE_RETRY_COUNT', 3);      // Retry failed requests
 define('SCRAPE_RETRY_DELAY', 5);      // Seconds between retries
-define('SCRAPE_ALLOWED_HOSTS', ['dunyakatilim.com.tr', 'www.dunyakatilim.com.tr', 'www.tcmb.gov.tr', 'tcmb.gov.tr']);
+define('SCRAPE_ALLOWED_HOSTS', ['dunyakatilim.com.tr', 'www.dunyakatilim.com.tr', 'www.tcmb.gov.tr', 'tcmb.gov.tr', 'kur.doviz.com', 'doviz.com']);
 define('OPENROUTER_AI_REPAIR_ENABLED', true);   // AI fallback only triggers when parsed row count is too low
 define('OPENROUTER_API_KEY', '');               // Set your API key from https://openrouter.ai
 define('OPENROUTER_MODEL', 'z-ai/glm-5');       // Default model (can be changed later via scripts/set_openrouter_model.php)
@@ -78,11 +78,17 @@ define('LOGIN_RATE_WINDOW_SECONDS', 300);       // 5 minutes
 define('AUTH_BASIC_USER', 'admin');
 define('AUTH_BASIC_PASSWORD_HASH', '');         // Generate via: php -r "echo password_hash('your-password', PASSWORD_DEFAULT), PHP_EOL;"
 
+// ─── Cloudflare Turnstile CAPTCHA ────────────────────────────────────────────
+define('TURNSTILE_ENABLED', false);            // Enable in production after setting keys
+define('TURNSTILE_SITE_KEY', '');              // Cloudflare Turnstile site key
+define('TURNSTILE_SECRET_KEY', '');            // Cloudflare Turnstile secret key
+
 // ─── Active Banks ────────────────────────────────────────────────────────────
 // Add bank class names to activate scraping
 $ACTIVE_BANKS = [
     'DunyaKatilim',
     'TCMB',
+    'IsBank',
     // 'GarantiBBVA',
     // 'Ziraat',
 ];

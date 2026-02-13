@@ -20,6 +20,7 @@ Cybokron is an open-source PHP/MySQL application for tracking Turkish bank excha
 - **OpenRouter AI fallback** for automatic table-change recovery (cost-guarded)
 - **Portfolio tracking** with profit/loss, soft delete, user-scoped RBAC
 - **Session-based authentication** (login, logout, admin/user roles)
+- **Cloudflare Turnstile CAPTCHA** on login page (managed mode, auto-pass for most users)
 - **Alert system** — email, Telegram, webhook notifications on rate thresholds
 - **Rate history** with retention policy and cleanup cron
 - **Chart.js dashboard** — rate trends, portfolio distribution pie chart
@@ -38,6 +39,7 @@ Cybokron is an open-source PHP/MySQL application for tracking Turkish bank excha
 ## Security Defaults
 
 - CSRF protection for portfolio state-changing actions
+- Cloudflare Turnstile CAPTCHA for login (configurable, disabled in development)
 - Input validation for API and portfolio operations
 - Security headers enabled by default (`X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`)
 - Cron scripts can be restricted to CLI execution
@@ -85,7 +87,7 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON cybokron.* TO 'cybokron_app'@'localhost'
 FLUSH PRIVILEGES;
 SQL
 
-mysql -u root -p < database.sql
+mysql -u root -p cybokron < database/database.sql
 ```
 
 ### 3. Configure
@@ -113,6 +115,10 @@ define('AUTH_REQUIRE_PORTFOLIO', true);
 define('AUTH_BASIC_USER', 'admin');
 define('AUTH_BASIC_PASSWORD_HASH', '');  // generate with password_hash(...)
 
+define('TURNSTILE_ENABLED', false);      // Enable in production
+define('TURNSTILE_SITE_KEY', '');        // Cloudflare Turnstile site key
+define('TURNSTILE_SECRET_KEY', '');      // Cloudflare Turnstile secret key
+
 define('RATE_UPDATE_WEBHOOK_URL', '');   // optional: Slack, Zapier, etc.
 define('ALERT_EMAIL_FROM', 'noreply@localhost');
 define('ALERT_COOLDOWN_MINUTES', 60);
@@ -131,29 +137,26 @@ php -r "echo password_hash('your-strong-password', PASSWORD_DEFAULT), PHP_EOL;"
 ### 4. Run migrations (if upgrading)
 
 ```bash
-php database/migrate.php
+php database/migrator.php
 ```
 
-If upgrading from `v1.3.1` or older, also apply:
-
-- `database/migrations/add_homepage_visibility.sql`
-- `database/migrations/add_display_order.sql`
-- `database/migrations/add_isbank_bank.sql`
+The migrator tracks applied migrations in a `schema_migrations` table. Place new `.sql` files in `database/migrations/` and run `migrator.php` to apply them. For fresh installs, `database/database.sql` already contains the full schema.
 
 ### 5. Configure cron
 
 ```cron
-# Update exchange rates every 15 minutes during market hours (Mon-Fri, 09:00-18:00)
-*/15 9-18 * * 1-5 php /path/to/cron/update_rates.php >> /var/log/cybokron.log 2>&1
+# Update exchange rates + check alerts every 15 minutes during market hours (Mon-Fri, 09:00-18:00)
+*/15 9-18 * * 1-5 php /path/to/cron/update_rates.php >> /path/to/cybokron-logs/cron.log 2>&1 && php /path/to/cron/check_alerts.php >> /path/to/cybokron-logs/cron.log 2>&1
 
-# Check alerts every 15 minutes
-*/15 9-18 * * 1-5 php /path/to/cron/check_alerts.php >> /var/log/cybokron.log 2>&1
+# Cleanup old rate history (weekly, Sunday 4am)
+0 4 * * 0 php /path/to/cron/cleanup_rate_history.php >> /path/to/cybokron-logs/cron.log 2>&1
+```
 
-# Cleanup old rate history (daily)
-0 3 * * * php /path/to/cron/cleanup_rate_history.php >> /var/log/cybokron.log 2>&1
+Optional (if self-update is configured with signed packages):
 
+```cron
 # Check for application updates daily at midnight
-0 0 * * * php /path/to/cron/self_update.php >> /var/log/cybokron-update.log 2>&1
+0 0 * * * php /path/to/cron/self_update.php >> /path/to/cybokron-logs/cron.log 2>&1
 ```
 
 ### 6. Open dashboard
@@ -223,12 +226,21 @@ To add a new language:
 
 ## CI/CD Flow (Control -> Test -> Deploy)
 
-GitHub Actions workflow: `.github/workflows/quality-test-deploy.yml`
+GitHub Actions workflows:
 
-1. `Control`: syntax checks on PHP 8.3 and 8.4
-2. `Test`: smoke tests on PHP 8.3 and 8.4
-3. `Deploy`: runs only when control + test pass on `main` push (webhook-based, optional)
-4. `Auto Remediation`: opens an issue automatically if pipeline fails on `main`
+- `.github/workflows/quality-test-deploy.yml` — Main pipeline (PR + push to main)
+- `.github/workflows/deploy.yml` — Production deployment (called by main pipeline or manual)
+- `.github/workflows/rollback.yml` — Manual rollback to previous backup
+
+Pipeline stages:
+
+1. **Control**: PHP syntax check on 8.3 and 8.4
+2. **Test**: Unit test suite on 8.3 and 8.4
+3. **Migration Check**: SQL syntax validation for migration files
+4. **Deploy** (main branch only): Config generation → backup → rsync → migrations → password update → version update → smoke test
+5. **Auto Remediation**: Opens a GitHub issue if any stage fails on main
+
+Rollback: Trigger `rollback.yml` manually via `gh workflow run rollback.yml` to restore from the latest file backup.
 
 ## Adding New Banks
 
@@ -238,13 +250,13 @@ To add a new bank source later:
 2. Implement `scrape()` and parse rules for the bank table (or override `run()` for XML sources like TCMB)
 3. Add the class name to `$ACTIVE_BANKS` in `config.php`
 4. Add the bank host to `SCRAPE_ALLOWED_HOSTS`
-5. Insert bank metadata: `php database/migrate.php` or run migration SQL
+5. Insert bank metadata via a new migration SQL file in `database/migrations/`
 
 ## Changelog
 
 ### v1.4.0 (2026-02-13)
 
-Release focused on admin UX, homepage configurability, and expanded bank coverage.
+Release focused on admin UX, homepage configurability, expanded bank coverage, and production deployment automation.
 
 **Highlights**
 - Added İş Bankası scraper (`banks/IsBank.php`) and integrated additional currency icon assets
@@ -253,6 +265,8 @@ Release focused on admin UX, homepage configurability, and expanded bank coverag
 - Added default bank and chart default settings managed in admin and consumed by homepage widgets
 - Added widget layout persistence (visibility + order) through settings-backed configuration
 - Added shared header include and broader UI refresh across rates, portfolio, login, and observability screens
+- Added Cloudflare Turnstile CAPTCHA on login page (managed mode)
+- Added automated CI/CD pipeline with backup, migration, and rollback support
 
 **API / Portfolio**
 - Extended portfolio update endpoint to accept `bank_slug` updates
@@ -260,12 +274,8 @@ Release focused on admin UX, homepage configurability, and expanded bank coverag
 
 **Database**
 - Added `rates.show_on_homepage` and `rates.display_order` columns with indexes
-- Added migration scripts:
-  `database/migrations/add_homepage_visibility.sql`,
-  `database/migrations/add_display_order.sql`,
-  `database/migrations/add_isbank_bank.sql`
-
-Detailed notes: `CHANGELOG_v1.4.0.md`.
+- Consolidated schema into single `database/database.sql` for fresh installs
+- Migration system (`database/migrator.php`) with `schema_migrations` tracking table
 
 ### v1.3.1 (2026)
 
