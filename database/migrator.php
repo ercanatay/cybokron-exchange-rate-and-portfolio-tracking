@@ -23,6 +23,7 @@ if (PHP_SAPI !== 'cli') {
 }
 
 $pdo = Database::getInstance();
+$pdo->setAttribute(PDO::MYSQL_ATTR_USE_BUFFERED_QUERY, true);
 $migrationsDir = __DIR__ . '/migrations';
 $exitCode = 0;
 
@@ -60,7 +61,9 @@ ksort($migrationFiles, SORT_NATURAL);
 // ─── Load applied migrations ────────────────────────────────────────────────
 $applied = [];
 $stmt = $pdo->query("SELECT filename, checksum FROM schema_migrations ORDER BY id");
-while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+$rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+$stmt->closeCursor();
+foreach ($rows as $row) {
     $applied[$row['filename']] = $row['checksum'];
 }
 
