@@ -10,9 +10,18 @@ if (PHP_SAPI !== 'cli') {
     die('CLI only.');
 }
 
-// Read hash from file (preferred) or env variable
+// Read password (plaintext) or hash from file/env
 $hashFile = __DIR__ . '/../.admin_hash.tmp';
-if (file_exists($hashFile)) {
+$passwordFile = __DIR__ . '/../.admin_password.tmp';
+
+if (file_exists($passwordFile)) {
+    // Plaintext password provided — hash it on the server
+    $plaintext = trim(file_get_contents($passwordFile));
+    if (!empty($plaintext)) {
+        $hash = password_hash($plaintext, PASSWORD_BCRYPT);
+        echo "  password hashed on server (bcrypt)\n";
+    }
+} elseif (file_exists($hashFile)) {
     $hash = trim(file_get_contents($hashFile));
 } else {
     $hash = getenv('ADMIN_HASH');

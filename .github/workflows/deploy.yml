@@ -174,16 +174,16 @@ jobs:
 
       - name: Run migrations, update password and version
         env:
-          ADMIN_HASH: ${{ secrets.ADMIN_PASSWORD_HASH }}
+          ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
           APP_VERSION: ${{ steps.version.outputs.VERSION }}
         run: |
-          # Transfer admin hash via file to avoid shell escaping issues with bcrypt $ signs
-          if [ -n "${ADMIN_HASH}" ]; then
-            printf '%s' "${ADMIN_HASH}" > /tmp/admin_hash.txt
+          # Transfer admin password via file — hashing done server-side to avoid bcrypt shell issues
+          if [ -n "${ADMIN_PASSWORD}" ]; then
+            printf '%s' "${ADMIN_PASSWORD}" > /tmp/admin_password.txt
             scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \
-              /tmp/admin_hash.txt \
-              ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:~/public_html/.admin_hash.tmp
-            rm -f /tmp/admin_hash.txt
+              /tmp/admin_password.txt \
+              ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:~/public_html/.admin_password.tmp
+            rm -f /tmp/admin_password.txt
           fi
 
           # Run all DB operations in a single SSH session
@@ -200,7 +200,7 @@ jobs:
              php database/update_admin_password.php 2>&1 && \
              echo '=== Version ===' && \
              php database/update_version.php '${APP_VERSION}' 2>&1 && \
-             rm -f .admin_hash.tmp && \
+             rm -f .admin_hash.tmp .admin_password.tmp && \
              echo '=== All DB operations complete ==='"
 
       - name: Smoke test
