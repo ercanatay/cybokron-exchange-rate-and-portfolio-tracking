@@ -1,0 +1,304 @@
+-- Cybokron Exchange Rate & Portfolio Tracking
+-- Complete database schema (fresh install)
+-- Run: mysql -u root -p your_database < database/database.sql
+
+SET NAMES utf8mb4;
+SET FOREIGN_KEY_CHECKS = 0;
+
+-- ─── Users ───────────────────────────────────────────────────────────────────
+
+CREATE TABLE IF NOT EXISTS `users` (
+    `id` int unsigned NOT NULL AUTO_INCREMENT,
+    `username` varchar(64) NOT NULL,
+    `password_hash` varchar(255) NOT NULL,
+    `role` enum('admin','user') DEFAULT 'user',
+    `is_active` tinyint(1) DEFAULT 1,
+    `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `username` (`username`),
+    KEY `idx_username` (`username`),
+    KEY `idx_active` (`is_active`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ─── Banks ───────────────────────────────────────────────────────────────────
+
+CREATE TABLE IF NOT EXISTS `banks` (
+    `id` int unsigned NOT NULL AUTO_INCREMENT,
+    `name` varchar(100) NOT NULL,
+    `slug` varchar(100) NOT NULL,
+    `url` varchar(500) NOT NULL,
+    `scraper_class` varchar(100) NOT NULL,
+    `is_active` tinyint(1) DEFAULT 1,
+    `last_scraped_at` datetime DEFAULT NULL,
+    `table_hash` varchar(64) DEFAULT NULL COMMENT 'Hash of source table structure for change detection',
+    `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `slug` (`slug`),
+    KEY `idx_slug` (`slug`),
+    KEY `idx_active` (`is_active`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ─── Currencies ──────────────────────────────────────────────────────────────
+
+CREATE TABLE IF NOT EXISTS `currencies` (
+    `id` int unsigned NOT NULL AUTO_INCREMENT,
+    `code` varchar(10) NOT NULL,
+    `name_tr` varchar(100) NOT NULL,
+    `name_en` varchar(100) NOT NULL,
+    `symbol` varchar(10) DEFAULT NULL,
+    `type` enum('fiat','precious_metal','crypto') DEFAULT 'fiat',
+    `decimal_places` tinyint unsigned DEFAULT 4,
+    `is_active` tinyint(1) DEFAULT 1,
+    `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `code` (`code`),
+    KEY `idx_code` (`code`),
+    KEY `idx_type` (`type`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ─── Rates (current) ────────────────────────────────────────────────────────
+
+CREATE TABLE IF NOT EXISTS `rates` (
+    `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+    `bank_id` int unsigned NOT NULL,
+    `currency_id` int unsigned NOT NULL,
+    `buy_rate` decimal(18,6) NOT NULL,
+    `sell_rate` decimal(18,6) NOT NULL,
+    `change_percent` decimal(8,4) DEFAULT NULL,
+    `show_on_homepage` tinyint(1) DEFAULT 1 COMMENT 'Show this rate on homepage',
+    `display_order` int unsigned DEFAULT 0 COMMENT 'Custom display order (0 = default order)',
+    `scraped_at` datetime NOT NULL,
+    `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uk_bank_currency` (`bank_id`,`currency_id`),
+    KEY `currency_id` (`currency_id`),
+    KEY `idx_scraped` (`scraped_at`),
+    KEY `idx_bank_currency` (`bank_id`,`currency_id`),
+    KEY `idx_homepage` (`show_on_homepage`),
+    KEY `idx_display_order` (`display_order`),
+    CONSTRAINT `rates_ibfk_1` FOREIGN KEY (`bank_id`) REFERENCES `banks` (`id`) ON DELETE CASCADE,
+    CONSTRAINT `rates_ibfk_2` FOREIGN KEY (`currency_id`) REFERENCES `currencies` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ─── Rate History ────────────────────────────────────────────────────────────
+
+CREATE TABLE IF NOT EXISTS `rate_history` (
+    `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+    `bank_id` int unsigned NOT NULL,
+    `currency_id` int unsigned NOT NULL,
+    `buy_rate` decimal(18,6) NOT NULL,
+    `sell_rate` decimal(18,6) NOT NULL,
+    `change_percent` decimal(8,4) DEFAULT NULL,
+    `scraped_at` datetime NOT NULL,
+    `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`),
+    KEY `idx_history_lookup` (`bank_id`,`currency_id`,`scraped_at`),
+    KEY `idx_currency_scraped` (`currency_id`,`scraped_at`),
+    KEY `idx_scraped_at` (`scraped_at`),
+    CONSTRAINT `rate_history_ibfk_1` FOREIGN KEY (`bank_id`) REFERENCES `banks` (`id`) ON DELETE CASCADE,
+    CONSTRAINT `rate_history_ibfk_2` FOREIGN KEY (`currency_id`) REFERENCES `currencies` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ─── Settings ────────────────────────────────────────────────────────────────
+
+CREATE TABLE IF NOT EXISTS `settings` (
+    `key` varchar(100) NOT NULL,
+    `value` text,
+    `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (`key`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ─── Alerts ──────────────────────────────────────────────────────────────────
+
+CREATE TABLE IF NOT EXISTS `alerts` (
+    `id` int unsigned NOT NULL AUTO_INCREMENT,
+    `user_id` int unsigned DEFAULT NULL,
+    `currency_code` varchar(10) NOT NULL,
+    `condition_type` enum('above','below','change_pct') NOT NULL,
+    `threshold` decimal(18,6) NOT NULL,
+    `channel` enum('email','telegram','webhook') DEFAULT 'email',
+    `channel_config` text,
+    `is_active` tinyint(1) DEFAULT 1,
+    `last_triggered_at` datetime DEFAULT NULL,
+    `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`),
+    KEY `idx_currency_active` (`currency_code`,`is_active`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ─── Portfolio Groups ────────────────────────────────────────────────────────
+
+CREATE TABLE IF NOT EXISTS `portfolio_groups` (
+    `id` int unsigned NOT NULL AUTO_INCREMENT,
+    `user_id` int unsigned DEFAULT NULL,
+    `name` varchar(100) NOT NULL,
+    `slug` varchar(100) NOT NULL,
+    `color` varchar(7) NOT NULL DEFAULT '#3b82f6',
+    `icon` varchar(10) DEFAULT NULL,
+    `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uq_group_slug_user` (`slug`,`user_id`),
+    KEY `idx_group_user` (`user_id`),
+    CONSTRAINT `fk_group_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ─── Portfolio ───────────────────────────────────────────────────────────────
+
+CREATE TABLE IF NOT EXISTS `portfolio` (
+    `id` int unsigned NOT NULL AUTO_INCREMENT,
+    `user_id` int unsigned DEFAULT NULL,
+    `currency_id` int unsigned NOT NULL,
+    `bank_id` int unsigned DEFAULT NULL,
+    `group_id` int unsigned DEFAULT NULL,
+    `amount` decimal(18,6) NOT NULL,
+    `buy_rate` decimal(18,6) NOT NULL COMMENT 'Rate at which the currency was purchased',
+    `buy_date` date NOT NULL,
+    `notes` varchar(500) DEFAULT NULL,
+    `deleted_at` datetime DEFAULT NULL,
+    `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`),
+    KEY `idx_bank_currency` (`bank_id`,`currency_id`),
+    KEY `idx_user_id` (`user_id`),
+    KEY `idx_currency` (`currency_id`),
+    KEY `idx_buy_date` (`buy_date`),
+    KEY `idx_portfolio_group` (`group_id`),
+    CONSTRAINT `fk_portfolio_group` FOREIGN KEY (`group_id`) REFERENCES `portfolio_groups` (`id`) ON DELETE SET NULL,
+    CONSTRAINT `portfolio_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE SET NULL,
+    CONSTRAINT `portfolio_ibfk_2` FOREIGN KEY (`currency_id`) REFERENCES `currencies` (`id`) ON DELETE CASCADE,
+    CONSTRAINT `portfolio_ibfk_3` FOREIGN KEY (`bank_id`) REFERENCES `banks` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ─── Portfolio Tags ──────────────────────────────────────────────────────────
+
+CREATE TABLE IF NOT EXISTS `portfolio_tags` (
+    `id` int unsigned NOT NULL AUTO_INCREMENT,
+    `user_id` int unsigned DEFAULT NULL,
+    `name` varchar(50) NOT NULL,
+    `slug` varchar(100) NOT NULL,
+    `color` varchar(7) NOT NULL DEFAULT '#8b5cf6',
+    `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`),
+    KEY `idx_portfolio_tags_user` (`user_id`),
+    KEY `idx_portfolio_tags_slug` (`slug`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ─── Portfolio Tag Items ─────────────────────────────────────────────────────
+
+CREATE TABLE IF NOT EXISTS `portfolio_tag_items` (
+    `id` int unsigned NOT NULL AUTO_INCREMENT,
+    `portfolio_id` int unsigned NOT NULL,
+    `tag_id` int unsigned NOT NULL,
+    `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `idx_portfolio_tag_unique` (`portfolio_id`,`tag_id`),
+    KEY `idx_portfolio_tag_items_tag` (`tag_id`),
+    CONSTRAINT `fk_pti_portfolio` FOREIGN KEY (`portfolio_id`) REFERENCES `portfolio` (`id`) ON DELETE CASCADE,
+    CONSTRAINT `fk_pti_tag` FOREIGN KEY (`tag_id`) REFERENCES `portfolio_tags` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ─── Portfolio Goals ─────────────────────────────────────────────────────────
+
+CREATE TABLE IF NOT EXISTS `portfolio_goals` (
+    `id` int unsigned NOT NULL AUTO_INCREMENT,
+    `user_id` int unsigned DEFAULT NULL,
+    `name` varchar(100) NOT NULL,
+    `target_value` decimal(18,2) NOT NULL COMMENT 'Target value in TRY',
+    `target_type` varchar(20) NOT NULL DEFAULT 'value',
+    `target_currency` varchar(10) DEFAULT NULL,
+    `bank_slug` varchar(50) DEFAULT NULL COMMENT 'Filter items by bank',
+    `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`),
+    KEY `idx_portfolio_goals_user` (`user_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ─── Portfolio Goal Sources ──────────────────────────────────────────────────
+
+CREATE TABLE IF NOT EXISTS `portfolio_goal_sources` (
+    `id` int unsigned NOT NULL AUTO_INCREMENT,
+    `goal_id` int unsigned NOT NULL,
+    `source_type` enum('group','tag','item') NOT NULL,
+    `source_id` int unsigned NOT NULL COMMENT 'group_id, tag_id, or portfolio item id',
+    `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `idx_goal_source_unique` (`goal_id`,`source_type`,`source_id`),
+    CONSTRAINT `fk_goal_source_goal` FOREIGN KEY (`goal_id`) REFERENCES `portfolio_goals` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ─── Scrape Logs ─────────────────────────────────────────────────────────────
+
+CREATE TABLE IF NOT EXISTS `scrape_logs` (
+    `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+    `bank_id` int unsigned NOT NULL,
+    `status` enum('success','error','warning') NOT NULL,
+    `message` text,
+    `rates_count` int unsigned DEFAULT 0,
+    `duration_ms` int unsigned DEFAULT NULL,
+    `table_changed` tinyint(1) DEFAULT 0 COMMENT 'Was the source HTML table structure different?',
+    `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`),
+    KEY `idx_bank_status` (`bank_id`,`status`),
+    KEY `idx_created` (`created_at`),
+    CONSTRAINT `scrape_logs_ibfk_1` FOREIGN KEY (`bank_id`) REFERENCES `banks` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ─── Schema Migrations (used by migrator.php) ───────────────────────────────
+
+CREATE TABLE IF NOT EXISTS `schema_migrations` (
+    `id` int unsigned NOT NULL AUTO_INCREMENT,
+    `filename` varchar(255) NOT NULL,
+    `checksum` varchar(32) NOT NULL,
+    `applied_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `execution_time_ms` int unsigned NOT NULL DEFAULT 0,
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `filename` (`filename`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+SET FOREIGN_KEY_CHECKS = 1;
+
+-- ═══════════════════════════════════════════════════════════════════════════════
+-- SEED DATA
+-- ═══════════════════════════════════════════════════════════════════════════════
+
+-- Banks
+INSERT IGNORE INTO `banks` (`name`, `slug`, `url`, `scraper_class`) VALUES
+('Dünya Katılım', 'dunya-katilim', 'https://dunyakatilim.com.tr/gunluk-kurlar', 'DunyaKatilim'),
+('TCMB', 'tcmb', 'https://www.tcmb.gov.tr/kurlar/today.xml', 'TCMB'),
+('İş Bankası', 'is-bankasi', 'https://kur.doviz.com/isbankasi', 'IsBank');
+
+-- Currencies
+INSERT IGNORE INTO `currencies` (`code`, `name_tr`, `name_en`, `symbol`, `type`, `decimal_places`) VALUES
+('USD', 'Amerikan Doları', 'US Dollar', '$', 'fiat', 4),
+('EUR', 'Euro', 'Euro', '€', 'fiat', 4),
+('GBP', 'İngiliz Sterlini', 'British Pound', '£', 'fiat', 4),
+('CHF', 'İsviçre Frangı', 'Swiss Franc', 'CHF', 'fiat', 4),
+('JPY', 'Japon Yeni', 'Japanese Yen', '¥', 'fiat', 4),
+('CAD', 'Kanada Doları', 'Canadian Dollar', 'C$', 'fiat', 4),
+('AUD', 'Avustralya Doları', 'Australian Dollar', 'A$', 'fiat', 4),
+('CNY', 'Çin Yuanı', 'Chinese Yuan', '¥', 'fiat', 4),
+('SAR', 'Suudi Riyali', 'Saudi Riyal', 'SAR', 'fiat', 4),
+('AED', 'BAE Dirhemi', 'UAE Dirham', 'AED', 'fiat', 4),
+('DKK', 'Danimarka Kronu', 'Danish Krone', 'kr', 'fiat', 4),
+('NOK', 'Norveç Kronu', 'Norwegian Krone', 'kr', 'fiat', 4),
+('SEK', 'İsveç Kronu', 'Swedish Krona', 'kr', 'fiat', 4),
+('KWD', 'Kuveyt Dinarı', 'Kuwaiti Dinar', 'KD', 'fiat', 4),
+('RON', 'Rumen Leyi', 'Romanian Leu', 'lei', 'fiat', 4),
+('RUB', 'Rus Rublesi', 'Russian Rouble', '₽', 'fiat', 4),
+('PKR', 'Pakistan Rupisi', 'Pakistani Rupee', '₨', 'fiat', 4),
+('QAR', 'Katar Riyali', 'Qatari Rial', 'QR', 'fiat', 4),
+('KRW', 'Güney Kore Wonu', 'South Korean Won', '₩', 'fiat', 4),
+('AZN', 'Azerbaycan Manatı', 'Azerbaijani Manat', '₼', 'fiat', 4),
+('KZT', 'Kazakistan Tengesi', 'Kazakhstan Tenge', '₸', 'fiat', 4),
+('XDR', 'Özel Çekme Hakkı (SDR)', 'Special Drawing Right', 'XDR', 'fiat', 4),
+('XAU', 'Altın', 'Gold', 'XAU', 'precious_metal', 4),
+('XAG', 'Gümüş', 'Silver', 'XAG', 'precious_metal', 4),
+('XPT', 'Platin', 'Platinum', 'XPT', 'precious_metal', 4),
+('XPD', 'Paladyum', 'Palladium', 'XPD', 'precious_metal', 4);
+
+-- Default admin user (password: admin123 — change after first login!)
+INSERT IGNORE INTO `users` (`username`, `password_hash`, `role`, `is_active`) VALUES
+('admin', '$2y$10$placeholder_change_after_install', 'admin', 1);
