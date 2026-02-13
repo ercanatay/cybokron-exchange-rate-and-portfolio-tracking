@@ -24,6 +24,7 @@ $formValues = [
     'buy_rate' => '',
     'buy_date' => $defaultBuyDate,
     'notes' => '',
+    'group_id' => '',
 ];
 $editId = null;
 $editItem = null;
@@ -41,6 +42,7 @@ if (isset($_GET['edit']) && is_numeric($_GET['edit'])) {
                 'buy_rate' => (string) $item['buy_rate'],
                 'buy_date' => (string) $item['buy_date'],
                 'notes' => (string) ($item['notes'] ?? ''),
+                'group_id' => (string) ($item['group_id'] ?? ''),
             ];
             break;
         }
@@ -97,6 +99,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'buy_rate' => trim((string) ($_POST['buy_rate'] ?? '')),
             'buy_date' => $rawBuyDate,
             'notes' => trim((string) ($_POST['notes'] ?? '')),
+            'group_id' => trim((string) ($_POST['group_id'] ?? '')),
         ];
 
         if ($formValues['buy_date'] === '') {
@@ -118,6 +121,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'buy_rate' => $formValues['buy_rate'],
                 'buy_date' => $formValues['buy_date'],
                 'notes' => $formValues['notes'],
+                'group_id' => $formValues['group_id'],
             ]);
             $message = t('portfolio.message.added');
             $messageType = 'success';
@@ -128,6 +132,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'buy_rate' => '',
                 'buy_date' => $defaultBuyDate,
                 'notes' => '',
+                'group_id' => '',
             ];
         } catch (Throwable $e) {
             $isClientError = $e instanceof InvalidArgumentException;
@@ -174,6 +179,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'buy_date' => $rawBuyDate,
                 'notes' => trim((string) ($_POST['notes'] ?? '')),
                 'bank_slug' => trim((string) ($_POST['bank_slug'] ?? '')),
+                'group_id' => trim((string) ($_POST['group_id'] ?? '')),
             ];
             if ($updateData['buy_date'] === '') {
                 $updateData['buy_date'] = $defaultBuyDate;
@@ -210,9 +216,53 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $messageType = 'error';
         }
     }
+
+    // Group actions
+    if ($messageType === '' && $action === 'add_group') {
+        try {
+            Portfolio::addGroup([
+                'name' => trim((string) ($_POST['group_name'] ?? '')),
+                'color' => trim((string) ($_POST['group_color'] ?? '#3b82f6')),
+                'icon' => trim((string) ($_POST['group_icon'] ?? '')),
+            ]);
+            $message = t('portfolio.groups.added');
+            $messageType = 'success';
+        } catch (Throwable $e) {
+            cybokron_log('Group add failed: ' . $e->getMessage(), 'ERROR');
+            $message = t('portfolio.groups.error');
+            $messageType = 'error';
+        }
+    }
+
+    if ($messageType === '' && $action === 'edit_group' && !empty($_POST['group_id'])) {
+        try {
+            Portfolio::updateGroup((int) $_POST['group_id'], [
+                'name' => trim((string) ($_POST['group_name'] ?? '')),
+                'color' => trim((string) ($_POST['group_color'] ?? '')),
+                'icon' => trim((string) ($_POST['group_icon'] ?? '')),
+            ]);
+            $message = t('portfolio.groups.updated');
+            $messageType = 'success';
+        } catch (Throwable $e) {
+            cybokron_log('Group edit failed: ' . $e->getMessage(), 'ERROR');
+            $message = t('portfolio.groups.error');
+            $messageType = 'error';
+        }
+    }
+
+    if ($messageType === '' && $action === 'delete_group' && !empty($_POST['group_id'])) {
+        if (Portfolio::deleteGroup((int) $_POST['group_id'])) {
+            $message = t('portfolio.groups.deleted');
+            $messageType = 'success';
+        } else {
+            $message = t('portfolio.groups.error');
+            $messageType = 'error';
+        }
+    }
 }
 
 $summary = Portfolio::getSummary();
+$groups = Portfolio::getGroups();
 $distribution = !empty($summary['items']) ? PortfolioAnalytics::getDistribution($summary['items']) : [];
 $oldestDate = !empty($summary['items']) ? PortfolioAnalytics::getOldestDate($summary['items']) : null;
 $annualizedReturn = ($oldestDate && $summary['total_cost'] > 0)
@@ -229,7 +279,42 @@ $currentLocale = getAppLocale();
 $availableLocales = getAvailableLocales();
 $newTabText = t('common.opens_new_tab');
 $deleteConfirmText = json_encode(t('portfolio.table.delete_confirm'), JSON_UNESCAPED_UNICODE | JSON_HEX_APOS | JSON_HEX_QUOT);
+$deleteGroupConfirmText = json_encode(t('portfolio.groups.delete_confirm'), JSON_UNESCAPED_UNICODE | JSON_HEX_APOS | JSON_HEX_QUOT);
 $csrfToken = getCsrfToken();
+
+// Filters
+$filterGroup = $_GET['group'] ?? '';
+$filterDateFrom = $_GET['date_from'] ?? '';
+$filterDateTo = $_GET['date_to'] ?? '';
+$hasFilters = ($filterGroup !== '' || $filterDateFrom !== '' || $filterDateTo !== '');
+
+// Apply filters to items
+$filteredItems = $summary['items'];
+if ($filterGroup !== '') {
+    if ($filterGroup === 'none') {
+        $filteredItems = array_filter($filteredItems, fn($item) => empty($item['group_id']));
+    } else {
+        $gid = (int) $filterGroup;
+        $filteredItems = array_filter($filteredItems, fn($item) => (int) ($item['group_id'] ?? 0) === $gid);
+    }
+}
+if ($filterDateFrom !== '') {
+    $filteredItems = array_filter($filteredItems, fn($item) => $item['buy_date'] >= $filterDateFrom);
+}
+if ($filterDateTo !== '') {
+    $filteredItems = array_filter($filteredItems, fn($item) => $item['buy_date'] <= $filterDateTo);
+}
+$filteredItems = array_values($filteredItems);
+
+// Compute filtered totals
+$filteredTotalCost = 0.0;
+$filteredTotalValue = 0.0;
+foreach ($filteredItems as $fi) {
+    $filteredTotalCost += (float) $fi['cost_try'];
+    $filteredTotalValue += (float) $fi['value_try'];
+}
+$filteredProfitLoss = $filteredTotalValue - $filteredTotalCost;
+$filteredProfitPercent = $filteredTotalCost > 0 ? ($filteredProfitLoss / $filteredTotalCost * 100) : 0;
 ?>
 <!DOCTYPE html>
 <html lang="<?= htmlspecialchars($currentLocale) ?>">
@@ -269,6 +354,67 @@ $csrfToken = getCsrfToken();
                     <small>(% <?= formatNumberLocalized((float) $summary['profit_percent'], 2) ?>)</small>
                 </p>
             </div>
+        </section>
+
+        <!-- Group Management Panel -->
+        <section class="groups-section" id="groups-section">
+            <div class="groups-header">
+                <h2>🏷️ <?= t('portfolio.groups.title') ?></h2>
+                <button type="button" class="btn btn-sm btn-secondary" onclick="document.getElementById('group-form-panel').classList.toggle('hidden')">
+                    <?= t('portfolio.groups.add') ?>
+                </button>
+            </div>
+
+            <div id="group-form-panel" class="group-form-panel hidden">
+                <form method="POST" class="group-form">
+                    <input type="hidden" name="action" value="add_group">
+                    <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
+                    <div class="group-form-row">
+                        <input type="text" name="group_name" placeholder="<?= htmlspecialchars(t('portfolio.groups.name')) ?>" maxlength="100" required class="group-name-input">
+                        <input type="color" name="group_color" value="#3b82f6" class="group-color-input" title="<?= htmlspecialchars(t('portfolio.groups.color')) ?>">
+                        <input type="text" name="group_icon" placeholder="<?= htmlspecialchars(t('portfolio.groups.icon')) ?> (emoji)" maxlength="10" class="group-icon-input">
+                        <button type="submit" class="btn btn-primary btn-sm"><?= t('portfolio.groups.add') ?></button>
+                    </div>
+                </form>
+            </div>
+
+            <?php if (!empty($groups)): ?>
+                <div class="groups-grid">
+                    <?php foreach ($groups as $group): ?>
+                        <div class="group-card" style="--group-color: <?= htmlspecialchars($group['color']) ?>">
+                            <div class="group-card-header">
+                                <span class="group-badge" style="background: <?= htmlspecialchars($group['color']) ?>">
+                                    <?php if ($group['icon']): ?>
+                                        <span class="group-icon"><?= htmlspecialchars($group['icon']) ?></span>
+                                    <?php endif; ?>
+                                    <?= htmlspecialchars($group['name']) ?>
+                                </span>
+                                <span class="group-count"><?= t('portfolio.groups.items', ['count' => (int) $group['item_count']]) ?></span>
+                            </div>
+                            <div class="group-card-actions">
+                                <button type="button" class="btn btn-xs btn-secondary" onclick="toggleEditGroup(<?= (int) $group['id'] ?>)">✏️</button>
+                                <form method="POST" style="display:inline" onsubmit="return confirm(<?= $deleteGroupConfirmText ?>)">
+                                    <input type="hidden" name="action" value="delete_group">
+                                    <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
+                                    <input type="hidden" name="group_id" value="<?= (int) $group['id'] ?>">
+                                    <button type="submit" class="btn btn-xs btn-danger">🗑</button>
+                                </form>
+                            </div>
+                            <form method="POST" class="group-edit-form hidden" id="edit-group-<?= (int) $group['id'] ?>">
+                                <input type="hidden" name="action" value="edit_group">
+                                <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
+                                <input type="hidden" name="group_id" value="<?= (int) $group['id'] ?>">
+                                <div class="group-form-row">
+                                    <input type="text" name="group_name" value="<?= htmlspecialchars($group['name']) ?>" maxlength="100" required class="group-name-input">
+                                    <input type="color" name="group_color" value="<?= htmlspecialchars($group['color']) ?>" class="group-color-input">
+                                    <input type="text" name="group_icon" value="<?= htmlspecialchars($group['icon'] ?? '') ?>" placeholder="emoji" maxlength="10" class="group-icon-input">
+                                    <button type="submit" class="btn btn-primary btn-xs">💾</button>
+                                </div>
+                            </form>
+                        </div>
+                    <?php endforeach; ?>
+                </div>
+            <?php endif; ?>
         </section>
 
         <section id="form-section" class="form-section">
@@ -315,6 +461,19 @@ $csrfToken = getCsrfToken();
                         <?php if ($bankError !== ''): ?>
                             <small id="bank_slug-error" class="field-error"><?= htmlspecialchars($bankError) ?></small>
                         <?php endif; ?>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="group_id"><?= t('portfolio.form.group') ?></label>
+                        <select name="group_id" id="group_id">
+                            <option value=""><?= t('portfolio.form.group_optional') ?></option>
+                            <?php foreach ($groups as $group): ?>
+                                <option value="<?= (int) $group['id'] ?>"
+                                    <?= $formValues['group_id'] == (string) $group['id'] ? 'selected' : '' ?>>
+                                    <?= $group['icon'] ? htmlspecialchars($group['icon']) . ' ' : '' ?><?= htmlspecialchars($group['name']) ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
                     </div>
                 </div>
 
@@ -403,6 +562,57 @@ $csrfToken = getCsrfToken();
         <?php if (!empty($summary['items'])): ?>
             <section class="portfolio-section">
                 <h2>📋 <?= t('portfolio.table.title', ['count' => $summary['item_count']]) ?></h2>
+
+                <!-- Filter Bar -->
+                <div class="filter-bar">
+                    <form method="GET" class="filter-form">
+                        <div class="filter-group">
+                            <label><?= t('portfolio.filter.group') ?></label>
+                            <div class="filter-pills">
+                                <a href="?<?= http_build_query(array_diff_key($_GET, ['group' => ''])) ?>"
+                                   class="filter-pill <?= $filterGroup === '' ? 'active' : '' ?>"><?= t('portfolio.groups.all') ?></a>
+                                <?php foreach ($groups as $group): ?>
+                                    <a href="?<?= http_build_query(array_merge($_GET, ['group' => $group['id']])) ?>"
+                                       class="filter-pill <?= $filterGroup == (string) $group['id'] ? 'active' : '' ?>"
+                                       style="--pill-color: <?= htmlspecialchars($group['color']) ?>">
+                                        <?= $group['icon'] ? htmlspecialchars($group['icon']) . ' ' : '' ?><?= htmlspecialchars($group['name']) ?>
+                                    </a>
+                                <?php endforeach; ?>
+                                <a href="?<?= http_build_query(array_merge($_GET, ['group' => 'none'])) ?>"
+                                   class="filter-pill <?= $filterGroup === 'none' ? 'active' : '' ?>"><?= t('portfolio.groups.no_group') ?></a>
+                            </div>
+                        </div>
+                        <div class="filter-dates">
+                            <div class="filter-date-field">
+                                <label for="date_from"><?= t('portfolio.filter.date_from') ?></label>
+                                <input type="date" name="date_from" id="date_from" value="<?= htmlspecialchars($filterDateFrom) ?>">
+                            </div>
+                            <div class="filter-date-field">
+                                <label for="date_to"><?= t('portfolio.filter.date_to') ?></label>
+                                <input type="date" name="date_to" id="date_to" value="<?= htmlspecialchars($filterDateTo) ?>">
+                            </div>
+                            <?php if ($filterGroup !== ''): ?>
+                                <input type="hidden" name="group" value="<?= htmlspecialchars($filterGroup) ?>">
+                            <?php endif; ?>
+                            <button type="submit" class="btn btn-sm btn-primary"><?= t('portfolio.filter.apply') ?></button>
+                            <?php if ($hasFilters): ?>
+                                <a href="portfolio.php" class="btn btn-sm btn-secondary"><?= t('portfolio.filter.clear') ?></a>
+                            <?php endif; ?>
+                        </div>
+                    </form>
+                    <?php if ($hasFilters): ?>
+                        <div class="filter-summary">
+                            <span class="filter-result-count"><?= count($filteredItems) ?> / <?= $summary['item_count'] ?></span>
+                            <span class="filter-result-total">
+                                <?= formatTRY($filteredTotalCost) ?> → <?= formatTRY($filteredTotalValue) ?>
+                                <span class="<?= changeClass($filteredProfitLoss) ?>">
+                                    (<?= $filteredProfitLoss >= 0 ? '+' : '' ?><?= formatTRY($filteredProfitLoss) ?>, %<?= formatNumberLocalized(abs($filteredProfitPercent), 2) ?>)
+                                </span>
+                            </span>
+                        </div>
+                    <?php endif; ?>
+                </div>
+
                 <p class="portfolio-export-link">
                     <a href="portfolio_export.php" class="btn btn-secondary" download><?= t('portfolio.export_csv') ?></a>
                 </p>
@@ -412,6 +622,7 @@ $csrfToken = getCsrfToken();
                         <thead>
                             <tr>
                                 <th scope="col"><?= t('portfolio.table.currency') ?></th>
+                                <th scope="col"><?= t('portfolio.table.group') ?></th>
                                 <th scope="col" class="text-right"><?= t('portfolio.table.amount') ?></th>
                                 <th scope="col" class="text-right"><?= t('portfolio.table.buy_rate') ?></th>
                                 <th scope="col" class="text-right"><?= t('portfolio.table.current_rate') ?></th>
@@ -423,12 +634,22 @@ $csrfToken = getCsrfToken();
                             </tr>
                         </thead>
                         <tbody>
-                            <?php foreach ($summary['items'] as $item): ?>
+                            <?php foreach ($filteredItems as $item): ?>
                                 <?php $pl = (float) $item['profit_percent']; ?>
                                 <tr>
                                     <td>
                                         <strong><?= htmlspecialchars($item['currency_code']) ?></strong>
                                         <small><?= htmlspecialchars(localizedCurrencyName($item)) ?></small>
+                                    </td>
+                                    <td>
+                                        <?php if (!empty($item['group_name'])): ?>
+                                            <span class="group-badge-sm" style="background: <?= htmlspecialchars($item['group_color'] ?? '#666') ?>">
+                                                <?php if ($item['group_icon']): ?><span class="group-icon-sm"><?= htmlspecialchars($item['group_icon']) ?></span><?php endif; ?>
+                                                <?= htmlspecialchars($item['group_name']) ?>
+                                            </span>
+                                        <?php else: ?>
+                                            <span class="text-muted">—</span>
+                                        <?php endif; ?>
                                     </td>
                                     <td class="text-right mono"><?= formatRate((float) $item['amount']) ?></td>
                                     <td class="text-right mono"><?= formatRate((float) $item['buy_rate']) ?></td>
@@ -487,6 +708,12 @@ $csrfToken = getCsrfToken();
         </div>
     </footer>
     <script src="assets/js/theme.js"></script>
+    <script>
+    function toggleEditGroup(id) {
+        var el = document.getElementById('edit-group-' + id);
+        if (el) el.classList.toggle('hidden');
+    }
+    </script>
     <?php if (!empty($distribution)): ?>
         <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" crossorigin="anonymous"></script>
         <script src="assets/js/portfolio-analytics.js"></script>
