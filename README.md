@@ -18,7 +18,7 @@ Cybokron is an open-source PHP/MySQL application for tracking Turkish bank excha
 - **Multi-bank architecture** — Dünya Katılım, TCMB (Central Bank of Turkey), İş Bankası
 - **Exchange rate scraping** with table-structure change detection
 - **OpenRouter AI fallback** for automatic table-change recovery (cost-guarded)
-- **Portfolio tracking** with profit/loss, soft delete, user-scoped RBAC
+- **Portfolio tracking** with profit/loss, soft delete, user-scoped RBAC, goal favorites & filtering
 - **Session-based authentication** (login, logout, admin/user roles)
 - **Cloudflare Turnstile CAPTCHA** on login page (managed mode, auto-pass for most users)
 - **Alert system** — email, Telegram, webhook notifications on rate thresholds
@@ -253,6 +253,33 @@ To add a new bank source later:
 5. Insert bank metadata via a new migration SQL file in `database/migrations/`
 
 ## Changelog
+
+### v1.5.3 (2026-02-13)
+
+Goal favorites and client-side filtering for the Goals tab.
+
+**Portfolio Goals**
+- Star/unstar goals to mark favorites — favorites always sort to the top of the list
+- New `is_favorite` column on `portfolio_goals` with DB index for fast queries
+- `toggleGoalFavorite()` backend method with CSRF-protected POST toggle
+
+**Goal Filtering**
+- New filter bar above the goals list with pill-style toggle buttons
+- Filter by: Favorites, Source Type (Group / Tag), Currency
+- Filters combine with AND logic and work entirely client-side (no page reload)
+- Dynamic currency dropdown populated from goals' target currencies
+- Clear button resets all active filters
+
+**UI/UX**
+- Favorite star button (★/☆) on each goal card header with hover scale animation
+- Active filter buttons highlighted with primary color
+- Responsive filter bar wrapping on mobile (≤768px)
+
+**Database**
+- Migration `004_add_goal_favorite.sql`: `is_favorite TINYINT(1)` column + composite index
+
+**Localization**
+- 8 new translation keys in Turkish and English (favorites, filter labels, toggle messages)
 
 ### v1.5.2 (2026-02-13)
 
