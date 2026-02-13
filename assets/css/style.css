@@ -2241,11 +2241,25 @@ button:focus-visible,
 .bulk-actions-bar .btn-primary {
     background: #3b82f6;
     border-color: #3b82f6;
+    color: #fff;
+}
+
+.bulk-actions-bar .btn-primary:hover {
+    background: #2563eb;
+    border-color: #2563eb;
+    color: #fff;
 }
 
 .bulk-actions-bar .btn-danger {
     background: #ef4444;
     border-color: #ef4444;
+    color: #fff;
+}
+
+.bulk-actions-bar .btn-danger:hover {
+    background: #dc2626;
+    border-color: #dc2626;
+    color: #fff;
 }
 
 /* ─── Group Analytics Summary ──────────────────────────────────────────── */
