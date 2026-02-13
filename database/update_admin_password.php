@@ -36,5 +36,20 @@ $pdo = new PDO($dsn, DB_USER, DB_PASS, [
 // Ensure admin user exists, then update password
 $stmt = $pdo->prepare("INSERT INTO users (username, password_hash, role, is_active) VALUES ('admin', ?, 'admin', 1) ON DUPLICATE KEY UPDATE password_hash = VALUES(password_hash)");
 $stmt->execute([$hash]);
-$action = $stmt->rowCount() === 1 ? 'created' : 'updated';
-echo "admin password {$action} ({$stmt->rowCount()} row)\n";
+$affected = $stmt->rowCount();
+$action = $affected === 1 ? 'created' : 'updated';
+echo "admin password {$action} ({$affected} row)\n";
+
+// Diagnostic: verify the stored hash works
+$verify = $pdo->query("SELECT id, username, password_hash, is_active FROM users WHERE username = 'admin'");
+$row = $verify->fetch(PDO::FETCH_ASSOC);
+if ($row) {
+    echo "  admin user found: id={$row['id']}, is_active={$row['is_active']}\n";
+    echo "  stored hash length: " . strlen($row['password_hash']) . "\n";
+    echo "  stored hash prefix: " . substr($row['password_hash'], 0, 7) . "\n";
+    echo "  input hash length: " . strlen($hash) . "\n";
+    echo "  input hash prefix: " . substr($hash, 0, 7) . "\n";
+    echo "  hashes match: " . ($row['password_hash'] === $hash ? 'YES' : 'NO') . "\n";
+} else {
+    echo "  WARNING: admin user NOT FOUND after insert!\n";
+}
