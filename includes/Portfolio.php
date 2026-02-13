@@ -762,7 +762,7 @@ class Portfolio
         }
 
         return Database::query(
-            "SELECT g.* FROM portfolio_goals g WHERE {$where} ORDER BY g.created_at DESC",
+            "SELECT g.* FROM portfolio_goals g WHERE {$where} ORDER BY g.is_favorite DESC, g.created_at DESC",
             $params
         );
     }
@@ -904,6 +904,16 @@ class Portfolio
             'UPDATE portfolio_goals SET name = ?, target_value = ?, target_type = ?, target_currency = ?, bank_slug = ?, percent_date_mode = ?, percent_date_start = ?, percent_date_end = ?, percent_period_months = ? WHERE id = ?',
             [$name, $targetValue, $targetType, $targetCurrency, $bankSlug, $percentDateMode, $percentDateStart, $percentDateEnd, $targetType === 'percent' ? $percentPeriodMonths : null, $id]
         ) >= 0;
+    }
+
+    /**
+     * Toggle favorite status of a goal.
+     */
+    public static function toggleGoalFavorite(int $id): bool
+    {
+        $db = Database::getInstance();
+        $stmt = $db->prepare('UPDATE portfolio_goals SET is_favorite = NOT is_favorite WHERE id = ?');
+        return $stmt->execute([$id]);
     }
 
     /**
@@ -1110,6 +1120,7 @@ class Portfolio
                     'target_currency' => $targetCurrency,
                     'bank_slug' => $goalBankSlug,
                     'percent_date_mode' => $dateMode,
+                    'is_favorite' => (int) ($goal['is_favorite'] ?? 0),
                 ];
                 continue;
             }
@@ -1164,6 +1175,7 @@ class Portfolio
                     'target_type' => $targetType,
                     'target_currency' => $targetCurrency,
                     'bank_slug' => $goalBankSlug,
+                    'is_favorite' => (int) ($goal['is_favorite'] ?? 0),
                 ];
                 continue;
             }
@@ -1205,6 +1217,7 @@ class Portfolio
                     'target_type' => $targetType,
                     'target_currency' => $targetCurrency,
                     'bank_slug' => $goalBankSlug,
+                    'is_favorite' => (int) ($goal['is_favorite'] ?? 0),
                 ];
                 continue;
             }
@@ -1266,6 +1279,7 @@ class Portfolio
                 'target_type' => $targetType,
                 'target_currency' => $targetCurrency,
                 'bank_slug' => $goalBankSlug,
+                'is_favorite' => (int) ($goal['is_favorite'] ?? 0),
             ];
         }
 
