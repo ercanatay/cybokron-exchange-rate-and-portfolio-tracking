@@ -172,44 +172,36 @@ jobs:
             ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} \
             'mkdir -p ~/cybokron-logs ~/cybokron-backups && chmod 600 ~/public_html/config.php && echo "Deploy OK at $(date)"'
 
-      - name: Run database migrations
-        run: |
-          echo "Running database migrations..."
-          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \
-            ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} \
-            'cd ~/public_html && php database/migrator.php || {
-              echo "Migration failed. Marking all as applied and retrying..."
-              php database/migrator.php --mark-applied
-              php database/migrator.php
-            }'
-
-      - name: Update admin password
+      - name: Run migrations, update password and version
         env:
           ADMIN_HASH: ${{ secrets.ADMIN_PASSWORD_HASH }}
+          APP_VERSION: ${{ steps.version.outputs.VERSION }}
         run: |
+          # Transfer admin hash via file to avoid shell escaping issues with bcrypt $ signs
           if [ -n "${ADMIN_HASH}" ]; then
-            echo "Updating admin password..."
-            # Write hash to temp file to avoid shell escaping issues with bcrypt $ signs
             printf '%s' "${ADMIN_HASH}" > /tmp/admin_hash.txt
             scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \
               /tmp/admin_hash.txt \
               ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:~/public_html/.admin_hash.tmp
-            ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \
-              ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} \
-              'cd ~/public_html && php database/update_admin_password.php && rm -f .admin_hash.tmp'
             rm -f /tmp/admin_hash.txt
-          else
-            echo "ADMIN_PASSWORD_HASH secret not set, skipping password update."
           fi
 
-      - name: Update app version in database
-        env:
-          APP_VERSION: ${{ steps.version.outputs.VERSION }}
-        run: |
-          echo "Setting app_version to ${APP_VERSION}"
+          # Run all DB operations in a single SSH session
           ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \
             ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} \
-            "cd ~/public_html && php database/update_version.php '${APP_VERSION}' 2>&1"
+            "cd ~/public_html && \
+             echo '=== Migrations ===' && \
+             php database/migrator.php || { \
+               echo 'Migration failed, marking all as applied...' && \
+               php database/migrator.php --mark-applied && \
+               php database/migrator.php; \
+             } && \
+             echo '=== Admin Password ===' && \
+             php database/update_admin_password.php 2>&1 && \
+             echo '=== Version ===' && \
+             php database/update_version.php '${APP_VERSION}' 2>&1 && \
+             rm -f .admin_hash.tmp && \
+             echo '=== All DB operations complete ==='"
 
       - name: Smoke test
         env:
