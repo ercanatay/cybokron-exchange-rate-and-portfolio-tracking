@@ -1,6 +1,8 @@
 <?php
 
 return [
+    'nav.main' => 'Main navigation',
+    'nav.menu' => 'Menu',
     'nav.rates' => 'Rates',
     'nav.portfolio' => 'Portfolio',
     'nav.language' => 'Language',
@@ -268,6 +270,7 @@ return [
     'portfolio.groups.name' => 'Group Name',
     'portfolio.groups.color' => 'Color',
     'portfolio.groups.icon' => 'Icon',
+    'portfolio.groups.icon_placeholder' => 'Icon (emoji)',
     'portfolio.groups.items' => '{{count}} items',
     'portfolio.groups.no_group' => 'Ungrouped',
     'portfolio.groups.all' => 'All',
@@ -301,6 +304,10 @@ return [
     'portfolio.tags.removed' => 'Tag removed.',
     'portfolio.table.tags' => 'Tags',
     'portfolio.filter.tag' => 'Tag',
+    'portfolio.filter.currency_type' => 'Type',
+    'portfolio.filter.all_types' => 'All',
+    'portfolio.filter.precious_metals' => 'Gold & Precious Metals',
+    'portfolio.filter.fiat_only' => 'Currencies Only',
 
     'portfolio.bulk.selected' => '{{count}} items selected',
     'portfolio.bulk.assign_group' => 'Assign to Group',
@@ -335,4 +342,27 @@ return [
     'csv.tags' => 'Tags',
     'portfolio.bulk.group_actions' => 'Group Actions',
     'portfolio.bulk.tag_actions' => 'Tag Actions',
+
+    'portfolio.manage.tab_goals' => 'Goals',
+    'portfolio.goals.add' => 'New Goal',
+    'portfolio.goals.name' => 'Goal Name',
+    'portfolio.goals.name_placeholder' => 'e.g. My Gold Target, Currency Savings...',
+    'portfolio.goals.target_value' => 'Target Value (₺)',
+    'portfolio.goals.target_type' => 'Tracking Type',
+    'portfolio.goals.type_value' => 'Current Value',
+    'portfolio.goals.type_cost' => 'Total Cost',
+    'portfolio.goals.sources' => 'Sources (Group, Tag, or Item)',
+    'portfolio.goals.source_item' => 'Individual Item',
+    'portfolio.goals.items' => 'items',
+    'portfolio.goals.delete_confirm' => 'Are you sure you want to delete this goal?',
+    'portfolio.goals.empty' => 'No goals created yet.',
+    'portfolio.goals.added' => 'Goal created.',
+    'portfolio.goals.updated' => 'Goal updated.',
+    'portfolio.goals.deleted' => 'Goal deleted.',
+    'portfolio.goals.error' => 'Goal operation failed.',
+    'portfolio.goals.source_added' => 'Source added to goal.',
+    'portfolio.goals.source_removed' => 'Source removed from goal.',
+
+    'common.add' => 'Add',
+    'common.select_all' => 'Select all',
 ];

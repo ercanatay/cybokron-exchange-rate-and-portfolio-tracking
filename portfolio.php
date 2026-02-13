@@ -398,21 +398,109 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
     }
+
+    // ── Goal Actions ──
+    if ($action === 'add_goal') {
+        try {
+            $goalId = Portfolio::addGoal([
+                'name' => $_POST['goal_name'] ?? '',
+                'target_value' => $_POST['goal_target_value'] ?? 0,
+                'target_type' => $_POST['goal_target_type'] ?? 'value',
+            ]);
+            // Add sources if provided
+            $srcTypes = $_POST['goal_source_type'] ?? [];
+            $srcIds = $_POST['goal_source_id'] ?? [];
+            if (is_array($srcTypes) && is_array($srcIds)) {
+                foreach ($srcTypes as $i => $st) {
+                    if (isset($srcIds[$i]) && (int) $srcIds[$i] > 0) {
+                        Portfolio::addGoalSource($goalId, $st, (int) $srcIds[$i]);
+                    }
+                }
+            }
+            $message = t('portfolio.goals.added');
+            $messageType = 'success';
+        } catch (Exception $e) {
+            $message = $e->getMessage();
+            $messageType = 'error';
+        }
+    }
+
+    if ($action === 'edit_goal') {
+        try {
+            $goalId = (int) ($_POST['goal_id'] ?? 0);
+            Portfolio::updateGoal($goalId, [
+                'name' => $_POST['goal_name'] ?? '',
+                'target_value' => $_POST['goal_target_value'] ?? 0,
+                'target_type' => $_POST['goal_target_type'] ?? 'value',
+            ]);
+            // Re-sync sources: remove all then add
+            $existingSources = Portfolio::getGoalSources($goalId);
+            foreach ($existingSources as $es) {
+                Portfolio::removeGoalSource($goalId, $es['source_type'], (int) $es['source_id']);
+            }
+            $srcTypes = $_POST['goal_source_type'] ?? [];
+            $srcIds = $_POST['goal_source_id'] ?? [];
+            if (is_array($srcTypes) && is_array($srcIds)) {
+                foreach ($srcTypes as $i => $st) {
+                    if (isset($srcIds[$i]) && (int) $srcIds[$i] > 0) {
+                        Portfolio::addGoalSource($goalId, $st, (int) $srcIds[$i]);
+                    }
+                }
+            }
+            $message = t('portfolio.goals.updated');
+            $messageType = 'success';
+        } catch (Exception $e) {
+            $message = $e->getMessage();
+            $messageType = 'error';
+        }
+    }
+
+    if ($action === 'delete_goal') {
+        $goalId = (int) ($_POST['goal_id'] ?? 0);
+        if ($goalId > 0 && Portfolio::deleteGoal($goalId)) {
+            $message = t('portfolio.goals.deleted');
+            $messageType = 'success';
+        } else {
+            $message = t('portfolio.goals.error');
+            $messageType = 'error';
+        }
+    }
+
+    if ($action === 'add_goal_source') {
+        $goalId = (int) ($_POST['goal_id'] ?? 0);
+        $srcType = $_POST['source_type'] ?? '';
+        $srcId = (int) ($_POST['source_id'] ?? 0);
+        if ($goalId > 0 && Portfolio::addGoalSource($goalId, $srcType, $srcId)) {
+            $message = t('portfolio.goals.source_added');
+            $messageType = 'success';
+        } else {
+            $message = t('portfolio.goals.error');
+            $messageType = 'error';
+        }
+    }
+
+    if ($action === 'remove_goal_source') {
+        $goalId = (int) ($_POST['goal_id'] ?? 0);
+        $srcType = $_POST['source_type'] ?? '';
+        $srcId = (int) ($_POST['source_id'] ?? 0);
+        if ($goalId > 0 && Portfolio::removeGoalSource($goalId, $srcType, $srcId)) {
+            $message = t('portfolio.goals.source_removed');
+            $messageType = 'success';
+        } else {
+            $message = t('portfolio.goals.error');
+            $messageType = 'error';
+        }
+    }
 }
 
 $summary = Portfolio::getSummary();
 $groups = Portfolio::getGroups();
 $tags = Portfolio::getTags();
 $itemTags = Portfolio::getAllItemTags();
-$distribution = !empty($summary['items']) ? PortfolioAnalytics::getDistribution($summary['items']) : [];
-$oldestDate = !empty($summary['items']) ? PortfolioAnalytics::getOldestDate($summary['items']) : null;
-$annualizedReturn = ($oldestDate && $summary['total_cost'] > 0)
-    ? PortfolioAnalytics::annualizedReturn(
-        (float) $summary['total_cost'],
-        (float) $summary['total_value'],
-        $oldestDate
-    )
-    : null;
+$goals = Portfolio::getGoals();
+$goalSources = Portfolio::getAllGoalSources();
+$goalProgress = Portfolio::computeGoalProgress($goals, $summary['items'] ?? [], $itemTags, $goalSources);
+// Distribution & annualized return will be recalculated after filters are applied
 $currencies = Database::query('SELECT code, name_tr, name_en FROM currencies WHERE is_active = 1 ORDER BY code');
 $banks = Database::query('SELECT slug, name FROM banks WHERE is_active = 1 ORDER BY name');
 $version = trim(file_get_contents(__DIR__ . '/VERSION'));
@@ -437,7 +525,8 @@ $filterGroup = $_GET['group'] ?? '';
 $filterDateFrom = $_GET['date_from'] ?? '';
 $filterDateTo = $_GET['date_to'] ?? '';
 $filterTag = $_GET['tag'] ?? '';
-$hasFilters = ($filterGroup !== '' || $filterDateFrom !== '' || $filterDateTo !== '' || $filterTag !== '');
+$filterCurrencyType = $_GET['currency_type'] ?? '';
+$hasFilters = ($filterGroup !== '' || $filterDateFrom !== '' || $filterDateTo !== '' || $filterTag !== '' || $filterCurrencyType !== '');
 
 // Apply filters to items
 $filteredItems = $summary['items'];
@@ -455,6 +544,13 @@ if ($filterDateFrom !== '') {
 if ($filterDateTo !== '') {
     $filteredItems = array_filter($filteredItems, fn($item) => $item['buy_date'] <= $filterDateTo);
 }
+// Currency type filter (precious_metal = gold/silver, fiat = currencies only)
+if ($filterCurrencyType === 'precious_metal') {
+    $filteredItems = array_filter($filteredItems, fn($item) => ($item['currency_type'] ?? '') === 'precious_metal');
+} elseif ($filterCurrencyType === 'fiat') {
+    $filteredItems = array_filter($filteredItems, fn($item) => ($item['currency_type'] ?? '') === 'fiat');
+}
+
 // Tag filter
 if ($filterTag !== '') {
     if ($filterTag === 'none') {
@@ -511,6 +607,16 @@ foreach ($filteredItems as $fi) {
 }
 $filteredProfitLoss = $filteredTotalValue - $filteredTotalCost;
 $filteredProfitPercent = $filteredTotalCost > 0 ? ($filteredProfitLoss / $filteredTotalCost * 100) : 0;
+
+// Compute distribution & annualized return based on filtered items when filter active
+$analyticsItems = $hasFilters ? $filteredItems : ($summary['items'] ?? []);
+$distribution = !empty($analyticsItems) ? PortfolioAnalytics::getDistribution($analyticsItems) : [];
+$oldestDate = !empty($analyticsItems) ? PortfolioAnalytics::getOldestDate($analyticsItems) : null;
+$analyticsCost = $hasFilters ? $filteredTotalCost : (float) $summary['total_cost'];
+$analyticsValue = $hasFilters ? $filteredTotalValue : (float) $summary['total_value'];
+$annualizedReturn = ($oldestDate && $analyticsCost > 0)
+    ? PortfolioAnalytics::annualizedReturn($analyticsCost, $analyticsValue, $oldestDate)
+    : null;
 ?>
 <!DOCTYPE html>
 <html lang="<?= htmlspecialchars($currentLocale) ?>">
@@ -568,6 +674,10 @@ $filteredProfitPercent = $filteredTotalCost > 0 ? ($filteredProfitLoss / $filter
                         🏷️ <?= t('portfolio.manage.tab_tags') ?>
                         <span class="manage-tab-badge"><?= count($tags) ?></span>
                     </button>
+                    <button type="button" class="manage-tab" data-tab="goals-tab" onclick="switchManageTab('goals-tab')">
+                        🎯 <?= t('portfolio.manage.tab_goals') ?>
+                        <span class="manage-tab-badge"><?= count($goals) ?></span>
+                    </button>
                 </div>
 
                 <!-- === Groups Tab === -->
@@ -590,7 +700,7 @@ $filteredProfitPercent = $filteredTotalCost > 0 ? ($filteredProfitLoss / $filter
                                 <input type="color" name="group_color" value="#3b82f6" class="group-color-input"
                                     title="<?= htmlspecialchars(t('portfolio.groups.color')) ?>">
                                 <input type="text" name="group_icon"
-                                    placeholder="<?= htmlspecialchars(t('portfolio.groups.icon')) ?> (emoji)"
+                                    placeholder="<?= htmlspecialchars(t('portfolio.groups.icon_placeholder')) ?>"
                                     maxlength="10" class="group-icon-input">
                                 <button type="submit"
                                     class="btn btn-primary btn-sm"><?= t('portfolio.groups.add') ?></button>
@@ -635,7 +745,7 @@ $filteredProfitPercent = $filteredTotalCost > 0 ? ($filteredProfitLoss / $filter
                                             <input type="color" name="group_color"
                                                 value="<?= htmlspecialchars($group['color']) ?>" class="group-color-input">
                                             <input type="text" name="group_icon"
-                                                value="<?= htmlspecialchars($group['icon'] ?? '') ?>" placeholder="emoji"
+                                                value="<?= htmlspecialchars($group['icon'] ?? '') ?>" placeholder="<?= htmlspecialchars(t('portfolio.groups.icon_placeholder')) ?>"
                                                 maxlength="10" class="group-icon-input">
                                             <button type="submit" class="btn btn-primary btn-xs">💾</button>
                                         </div>
@@ -719,6 +829,187 @@ $filteredProfitPercent = $filteredTotalCost > 0 ? ($filteredProfitLoss / $filter
                         </div>
                     <?php endif; ?>
                 </div>
+
+                <!-- === Goals Tab === -->
+                <div class="manage-tab-content" id="goals-tab">
+                    <div class="manage-tab-actions">
+                        <span></span>
+                        <button type="button" class="btn btn-sm btn-secondary"
+                            onclick="document.getElementById('goal-form-panel').classList.toggle('hidden')">
+                            <?= t('portfolio.goals.add') ?>
+                        </button>
+                    </div>
+                    <div id="goal-form-panel" class="group-form-panel hidden">
+                        <form method="POST" class="goal-form">
+                            <input type="hidden" name="action" value="add_goal">
+                            <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
+                            <div class="goal-form-grid">
+                                <div class="goal-form-field">
+                                    <label><?= t('portfolio.goals.name') ?></label>
+                                    <input type="text" name="goal_name" placeholder="<?= htmlspecialchars(t('portfolio.goals.name_placeholder')) ?>" maxlength="100" required>
+                                </div>
+                                <div class="goal-form-field">
+                                    <label><?= t('portfolio.goals.target_value') ?></label>
+                                    <input type="number" name="goal_target_value" step="0.01" min="0.01" required placeholder="500000">
+                                </div>
+                                <div class="goal-form-field">
+                                    <label><?= t('portfolio.goals.target_type') ?></label>
+                                    <select name="goal_target_type">
+                                        <option value="value"><?= t('portfolio.goals.type_value') ?></option>
+                                        <option value="cost"><?= t('portfolio.goals.type_cost') ?></option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="goal-sources-section">
+                                <label><?= t('portfolio.goals.sources') ?></label>
+                                <div id="goal-sources-list"></div>
+                                <div class="goal-source-add">
+                                    <select id="goal-source-type-select" class="goal-source-select">
+                                        <option value="group">📦 <?= t('portfolio.manage.tab_groups') ?></option>
+                                        <option value="tag">🏷️ <?= t('portfolio.manage.tab_tags') ?></option>
+                                        <option value="item">📋 <?= t('portfolio.goals.source_item') ?></option>
+                                    </select>
+                                    <select id="goal-source-id-select" class="goal-source-select">
+                                        <?php foreach ($groups as $g): ?>
+                                            <option value="<?= (int)$g['id'] ?>" data-type="group"><?= htmlspecialchars($g['icon'] ? $g['icon'] . ' ' : '') ?><?= htmlspecialchars($g['name']) ?></option>
+                                        <?php endforeach; ?>
+                                        <?php foreach ($tags as $tag): ?>
+                                            <option value="<?= (int)$tag['id'] ?>" data-type="tag" style="display:none"><?= htmlspecialchars($tag['name']) ?></option>
+                                        <?php endforeach; ?>
+                                        <?php foreach ($summary['items'] ?? [] as $pItem): ?>
+                                            <option value="<?= (int)$pItem['id'] ?>" data-type="item" style="display:none">
+                                                <?= htmlspecialchars($pItem['currency_code']) ?> — <?= formatNumberLocalized((float)$pItem['amount'], 4) ?> (<?= $pItem['buy_date'] ?>)
+                                            </option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                    <button type="button" class="btn btn-sm btn-primary" onclick="addGoalSource()">
+                                        ➕ <?= t('common.add') ?>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="goal-form-actions">
+                                <button type="submit" class="btn btn-primary btn-sm"><?= t('portfolio.goals.add') ?></button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <?php if (!empty($goals)): ?>
+                        <div class="goals-list">
+                            <?php foreach ($goals as $goal):
+                                $gp = $goalProgress[(int)$goal['id']] ?? ['current' => 0, 'target' => 0, 'percent' => 0, 'item_count' => 0];
+                                $pct = $gp['percent'];
+                                $barColor = $pct >= 100 ? '#22c55e' : ($pct >= 50 ? '#eab308' : '#9ca3af');
+                                $gSources = $goalSources[(int)$goal['id']] ?? [];
+                            ?>
+                                <div class="goal-card">
+                                    <div class="goal-card-header">
+                                        <div class="goal-card-info">
+                                            <span class="goal-name">🎯 <?= htmlspecialchars($goal['name']) ?></span>
+                                            <span class="goal-meta">
+                                                <?= t('portfolio.goals.type_' . ($goal['target_type'] ?? 'value')) ?>
+                                                · <?= $gp['item_count'] ?> <?= t('portfolio.goals.items') ?>
+                                            </span>
+                                        </div>
+                                        <div class="goal-card-actions">
+                                            <button type="button" class="btn btn-xs btn-secondary"
+                                                onclick="toggleEditGoal(<?= (int)$goal['id'] ?>)">✏️</button>
+                                            <form method="POST" style="display:inline"
+                                                onsubmit="return confirm('<?= htmlspecialchars(t('portfolio.goals.delete_confirm'), ENT_QUOTES) ?>')">
+                                                <input type="hidden" name="action" value="delete_goal">
+                                                <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
+                                                <input type="hidden" name="goal_id" value="<?= (int)$goal['id'] ?>">
+                                                <button type="submit" class="btn btn-xs btn-danger">🗑</button>
+                                            </form>
+                                        </div>
+                                    </div>
+                                    <div class="goal-progress">
+                                        <div class="goal-progress-bar" style="width: <?= $pct ?>%;"></div>
+                                    </div>
+                                    <div class="goal-progress-stats">
+                                        <span class="goal-current<?= $pct >= 100 ? ' goal-complete' : '' ?>">
+                                            <?= formatTRY($gp['current']) ?>
+                                        </span>
+                                        <span class="goal-percent<?= $pct >= 100 ? ' goal-complete' : '' ?>">
+                                            <?= formatNumberLocalized($pct, 1) ?>%
+                                        </span>
+                                        <span class="goal-target">
+                                            <?= formatTRY($gp['target']) ?>
+                                        </span>
+                                    </div>
+                                    <?php if (!empty($gSources)): ?>
+                                        <div class="goal-sources-display">
+                                            <?php foreach ($gSources as $src): ?>
+                                                <span class="goal-source-pill goal-source-<?= htmlspecialchars($src['source_type']) ?>">
+                                                    <?php if ($src['source_type'] === 'group'): ?>
+                                                        <?php
+                                                        $srcName = '';
+                                                        foreach ($groups as $g) {
+                                                            if ((int)$g['id'] === (int)$src['source_id']) {
+                                                                $srcName = ($g['icon'] ? $g['icon'] . ' ' : '📦 ') . $g['name'];
+                                                                break;
+                                                            }
+                                                        }
+                                                        echo htmlspecialchars($srcName);
+                                                        ?>
+                                                    <?php elseif ($src['source_type'] === 'tag'): ?>
+                                                        <?php
+                                                        $srcName = '';
+                                                        foreach ($tags as $t) {
+                                                            if ((int)$t['id'] === (int)$src['source_id']) {
+                                                                $srcName = '🏷️ ' . $t['name'];
+                                                                break;
+                                                            }
+                                                        }
+                                                        echo htmlspecialchars($srcName);
+                                                        ?>
+                                                    <?php else: ?>
+                                                        <?php
+                                                        $srcName = '📋 #' . $src['source_id'];
+                                                        foreach ($summary['items'] ?? [] as $si) {
+                                                            if ((int)$si['id'] === (int)$src['source_id']) {
+                                                                $srcName = '📋 ' . $si['currency_code'] . ' ' . formatNumberLocalized((float)$si['amount'], 4);
+                                                                break;
+                                                            }
+                                                        }
+                                                        echo htmlspecialchars($srcName);
+                                                        ?>
+                                                    <?php endif; ?>
+                                                </span>
+                                            <?php endforeach; ?>
+                                        </div>
+                                    <?php endif; ?>
+                                    <!-- Edit form (hidden) -->
+                                    <form method="POST" class="goal-edit-form hidden" id="edit-goal-<?= (int)$goal['id'] ?>">
+                                        <input type="hidden" name="action" value="edit_goal">
+                                        <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
+                                        <input type="hidden" name="goal_id" value="<?= (int)$goal['id'] ?>">
+                                        <div class="goal-form-grid">
+                                            <div class="goal-form-field">
+                                                <input type="text" name="goal_name" value="<?= htmlspecialchars($goal['name']) ?>" maxlength="100" required>
+                                            </div>
+                                            <div class="goal-form-field">
+                                                <input type="number" name="goal_target_value" step="0.01" value="<?= (float)$goal['target_value'] ?>" required>
+                                            </div>
+                                            <div class="goal-form-field">
+                                                <select name="goal_target_type">
+                                                    <option value="value" <?= ($goal['target_type'] ?? 'value') === 'value' ? 'selected' : '' ?>><?= t('portfolio.goals.type_value') ?></option>
+                                                    <option value="cost" <?= ($goal['target_type'] ?? 'value') === 'cost' ? 'selected' : '' ?>><?= t('portfolio.goals.type_cost') ?></option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <button type="submit" class="btn btn-primary btn-xs">💾</button>
+                                        <button type="button" class="btn btn-secondary btn-xs" onclick="toggleEditGoal(<?= (int)$goal['id'] ?>)">❌</button>
+                                    </form>
+                                </div>
+                            <?php endforeach; ?>
+                        </div>
+                    <?php else: ?>
+                        <div class="manage-empty">
+                            <span class="manage-empty-icon">🎯</span>
+                            <?= t('portfolio.goals.empty') ?>
+                        </div>
+                    <?php endif; ?>
+                </div>
             </div>
         </section>
 
@@ -774,7 +1065,8 @@ $filteredProfitPercent = $filteredTotalCost > 0 ? ($filteredProfitLoss / $filter
                             <option value=""><?= t('portfolio.form.group_optional') ?></option>
                             <?php foreach ($groups as $group): ?>
                                 <option value="<?= (int) $group['id'] ?>" <?= $formValues['group_id'] == (string) $group['id'] ? 'selected' : '' ?>>
-                                    <?= $group['icon'] ? htmlspecialchars($group['icon']) . ' ' : '' ?>        <?= htmlspecialchars($group['name']) ?>
+                                    <?= $group['icon'] ? htmlspecialchars($group['icon']) . ' ' : '' ?>
+                                    <?= htmlspecialchars($group['name']) ?>
                                 </option>
                             <?php endforeach; ?>
                         </select>
@@ -829,16 +1121,16 @@ $filteredProfitPercent = $filteredTotalCost > 0 ? ($filteredProfitLoss / $filter
                     <div class="form-group">
                         <label><?= t('portfolio.form.tags') ?></label>
                         <div class="form-tag-selector">
-                                <?php foreach ($tags as $tag): ?>
+                            <?php foreach ($tags as $tag): ?>
                                 <input type="checkbox" class="form-tag-checkbox" id="form-tag-<?= (int) $tag['id'] ?>"
                                     name="tag_ids[]" value="<?= (int) $tag['id'] ?>">
                                 <label for="form-tag-<?= (int) $tag['id'] ?>" class="form-tag-label"
                                     style="--tag-color: <?= htmlspecialchars($tag['color']) ?>">
                                     <span class="form-tag-dot"
                                         style="background: <?= htmlspecialchars($tag['color']) ?>"></span>
-                                            <?= htmlspecialchars($tag['name']) ?>
+                                    <?= htmlspecialchars($tag['name']) ?>
                                 </label>
-                                <?php endforeach; ?>
+                            <?php endforeach; ?>
                         </div>
                     </div>
                 <?php endif; ?>
@@ -897,11 +1189,23 @@ $filteredProfitPercent = $filteredTotalCost > 0 ? ($filteredProfitLoss / $filter
                                     <a href="?<?= http_build_query(array_merge($_GET, ['group' => $group['id']])) ?>"
                                         class="filter-pill <?= $filterGroup == (string) $group['id'] ? 'active' : '' ?>"
                                         style="--pill-color: <?= htmlspecialchars($group['color']) ?>">
-                                        <?= $group['icon'] ? htmlspecialchars($group['icon']) . ' ' : '' ?>                <?= htmlspecialchars($group['name']) ?>
+                                        <?= $group['icon'] ? htmlspecialchars($group['icon']) . ' ' : '' ?>
+                                        <?= htmlspecialchars($group['name']) ?>
                                     </a>
                                 <?php endforeach; ?>
                                 <a href="?<?= http_build_query(array_merge($_GET, ['group' => 'none'])) ?>"
                                     class="filter-pill <?= $filterGroup === 'none' ? 'active' : '' ?>"><?= t('portfolio.groups.no_group') ?></a>
+                            </div>
+                        </div>
+                        <div class="filter-group">
+                            <label><?= t('portfolio.filter.currency_type') ?></label>
+                            <div class="filter-pills">
+                                <a href="?<?= http_build_query(array_diff_key($_GET, ['currency_type' => ''])) ?>"
+                                    class="filter-pill <?= $filterCurrencyType === '' ? 'active' : '' ?>"><?= t('portfolio.filter.all_types') ?></a>
+                                <a href="?<?= http_build_query(array_merge($_GET, ['currency_type' => 'precious_metal'])) ?>"
+                                    class="filter-pill filter-pill-gold <?= $filterCurrencyType === 'precious_metal' ? 'active' : '' ?>">🥇 <?= t('portfolio.filter.precious_metals') ?></a>
+                                <a href="?<?= http_build_query(array_merge($_GET, ['currency_type' => 'fiat'])) ?>"
+                                    class="filter-pill <?= $filterCurrencyType === 'fiat' ? 'active' : '' ?>">💱 <?= t('portfolio.filter.fiat_only') ?></a>
                             </div>
                         </div>
                         <?php if (!empty($tags)): ?>
@@ -910,13 +1214,13 @@ $filteredProfitPercent = $filteredTotalCost > 0 ? ($filteredProfitLoss / $filter
                                 <div class="filter-pills">
                                     <a href="?<?= http_build_query(array_diff_key($_GET, ['tag' => ''])) ?>"
                                         class="filter-pill filter-pill-tag <?= $filterTag === '' ? 'active' : '' ?>"><?= t('portfolio.tags.all') ?></a>
-                                            <?php foreach ($tags as $tag): ?>
+                                    <?php foreach ($tags as $tag): ?>
                                         <a href="?<?= http_build_query(array_merge($_GET, ['tag' => $tag['id']])) ?>"
                                             class="filter-pill filter-pill-tag <?= $filterTag == (string) $tag['id'] ? 'active' : '' ?>"
                                             style="--pill-color: <?= htmlspecialchars($tag['color']) ?>">
-                                           <?= htmlspecialchars($tag['name']) ?>
+                                            <?= htmlspecialchars($tag['name']) ?>
                                         </a>
-                                  <?php endforeach; ?>
+                                    <?php endforeach; ?>
                                     <a href="?<?= http_build_query(array_merge($_GET, ['tag' => 'none'])) ?>"
                                         class="filter-pill filter-pill-tag <?= $filterTag === 'none' ? 'active' : '' ?>"><?= t('portfolio.tags.no_tag') ?></a>
                                 </div>
@@ -935,6 +1239,12 @@ $filteredProfitPercent = $filteredTotalCost > 0 ? ($filteredProfitLoss / $filter
                             </div>
                             <?php if ($filterGroup !== ''): ?>
                                 <input type="hidden" name="group" value="<?= htmlspecialchars($filterGroup) ?>">
+                            <?php endif; ?>
+                            <?php if ($filterCurrencyType !== ''): ?>
+                                <input type="hidden" name="currency_type" value="<?= htmlspecialchars($filterCurrencyType) ?>">
+                            <?php endif; ?>
+                            <?php if ($filterTag !== ''): ?>
+                                <input type="hidden" name="tag" value="<?= htmlspecialchars($filterTag) ?>">
                             <?php endif; ?>
                             <button type="submit" class="btn btn-sm btn-primary"><?= t('portfolio.filter.apply') ?></button>
                             <?php if ($hasFilters): ?>
@@ -977,7 +1287,7 @@ $filteredProfitPercent = $filteredTotalCost > 0 ? ($filteredProfitLoss / $filter
                         <div class="group-stat">
                             <span class="group-stat-label"><?= t('portfolio.analytics.group_pl') ?></span>
                             <span class="group-stat-value <?= changeClass($groupAnalytics['pl']) ?>">
-                <?= $groupAnalytics['pl'] >= 0 ? '+' : '' ?>                <?= formatTRY($groupAnalytics['pl']) ?>
+                                <?= $groupAnalytics['pl'] >= 0 ? '+' : '' ?>         <?= formatTRY($groupAnalytics['pl']) ?>
                                 (% <?= formatNumberLocalized(abs($groupAnalytics['pl_percent']), 2) ?>)
                             </span>
                         </div>
@@ -1000,7 +1310,8 @@ $filteredProfitPercent = $filteredTotalCost > 0 ? ($filteredProfitLoss / $filter
                                     <option value=""><?= t('portfolio.bulk.select_group') ?></option>
                                     <?php foreach ($groups as $group): ?>
                                         <option value="<?= (int) $group['id'] ?>">
-                                       <?= $group['icon'] ? htmlspecialchars($group['icon']) . ' ' : '' ?>                <?= htmlspecialchars($group['name']) ?>
+                                            <?= $group['icon'] ? htmlspecialchars($group['icon']) . ' ' : '' ?>
+                                            <?= htmlspecialchars($group['name']) ?>
                                         </option>
                                     <?php endforeach; ?>
                                 </select>
@@ -1026,9 +1337,9 @@ $filteredProfitPercent = $filteredTotalCost > 0 ? ($filteredProfitLoss / $filter
                                     <div id="bulk-assign-tag-ids"></div>
                                     <select name="bulk_tag_id" class="bulk-select" required>
                                         <option value=""><?= t('portfolio.bulk.select_tag') ?></option>
-                                                <?php foreach ($tags as $tag): ?>
+                                        <?php foreach ($tags as $tag): ?>
                                             <option value="<?= (int) $tag['id'] ?>"><?= htmlspecialchars($tag['name']) ?></option>
-                                                <?php endforeach; ?>
+                                        <?php endforeach; ?>
                                     </select>
                                     <button type="submit"
                                         class="btn btn-xs btn-primary"><?= t('portfolio.bulk.assign_tag') ?></button>
@@ -1039,9 +1350,9 @@ $filteredProfitPercent = $filteredTotalCost > 0 ? ($filteredProfitLoss / $filter
                                     <div id="bulk-remove-tag-ids"></div>
                                     <select name="bulk_tag_id" class="bulk-select" required>
                                         <option value=""><?= t('portfolio.bulk.select_tag') ?></option>
-                                                <?php foreach ($tags as $tag): ?>
+                                        <?php foreach ($tags as $tag): ?>
                                             <option value="<?= (int) $tag['id'] ?>"><?= htmlspecialchars($tag['name']) ?></option>
-                                                <?php endforeach; ?>
+                                        <?php endforeach; ?>
                                     </select>
                                     <button type="submit"
                                         class="btn btn-xs btn-danger"><?= t('portfolio.bulk.remove_tag') ?></button>
@@ -1057,7 +1368,8 @@ $filteredProfitPercent = $filteredTotalCost > 0 ? ($filteredProfitLoss / $filter
                         <thead>
                             <tr>
                                 <th scope="col" class="col-checkbox"><input type="checkbox" id="select-all"
-                                        title="Select all"></th>
+                                        title="<?= htmlspecialchars(t('common.select_all')) ?>"
+                                        aria-label="<?= htmlspecialchars(t('common.select_all')) ?>"></th>
                                 <th scope="col"><?= t('portfolio.table.currency') ?></th>
                                 <th scope="col"><?= t('portfolio.table.group') ?></th>
                                 <th scope="col"><?= t('portfolio.table.tags') ?></th>
@@ -1096,12 +1408,12 @@ $filteredProfitPercent = $filteredTotalCost > 0 ? ($filteredProfitLoss / $filter
                                     </td>
                                     <td class="col-tags">
                                         <div class="inline-tag-wrapper" data-portfolio-id="<?= (int) $item['id'] ?>">
-                                                    <?php
-                                                    $thisTags = $itemTags[(int) $item['id']] ?? [];
-                                                    if (!empty($thisTags)):
-                                                        foreach ($thisTags as $t): ?>
+                                            <?php
+                                            $thisTags = $itemTags[(int) $item['id']] ?? [];
+                                            if (!empty($thisTags)):
+                                                foreach ($thisTags as $t): ?>
                                                     <span class="tag-pill-sm" style="background: <?= htmlspecialchars($t['color']) ?>">
-                                                       <?= htmlspecialchars($t['name']) ?>
+                                                        <?= htmlspecialchars($t['name']) ?>
                                                         <form method="POST" style="display:inline;margin:0;padding:0">
                                                             <input type="hidden" name="action" value="inline_remove_tag">
                                                             <input type="hidden" name="csrf_token"
@@ -1112,26 +1424,26 @@ $filteredProfitPercent = $filteredTotalCost > 0 ? ($filteredProfitLoss / $filter
                                                                 title="<?= htmlspecialchars(t('portfolio.inline.remove_tag')) ?>">✕</button>
                                                         </form>
                                                     </span>
-                                                            <?php endforeach;
-                                                    endif; ?>
-                                         <?php if (!empty($tags)): ?>
+                                                <?php endforeach;
+                                            endif; ?>
+                                            <?php if (!empty($tags)): ?>
                                                 <button type="button" class="inline-tag-add"
                                                     onclick="toggleInlineTagDropdown(this)"><?= t('portfolio.tags.inline_add') ?></button>
                                                 <div class="inline-tag-dropdown">
-                                               <?php foreach ($tags as $availTag): ?>
-                                                                        <?php
-                                                                        // Check if already assigned
-                                                                        $alreadyAssigned = false;
-                                                                        foreach ($thisTags as $at) {
-                                                                            if ((int) $at['id'] === (int) $availTag['id']) {
-                                                                                $alreadyAssigned = true;
-                                                                                break;
-                                                                            }
-                                                                        }
-                                                                        if ($alreadyAssigned)
-                                                                            continue;
-                                                                        ?>
-                                                                        <form method="POST" style="margin:0">
+                                                    <?php foreach ($tags as $availTag): ?>
+                                                        <?php
+                                                        // Check if already assigned
+                                                        $alreadyAssigned = false;
+                                                        foreach ($thisTags as $at) {
+                                                            if ((int) $at['id'] === (int) $availTag['id']) {
+                                                                $alreadyAssigned = true;
+                                                                break;
+                                                            }
+                                                        }
+                                                        if ($alreadyAssigned)
+                                                            continue;
+                                                        ?>
+                                                        <form method="POST" style="margin:0">
                                                             <input type="hidden" name="action" value="inline_assign_tag">
                                                             <input type="hidden" name="csrf_token"
                                                                 value="<?= htmlspecialchars($csrfToken) ?>">
@@ -1140,12 +1452,12 @@ $filteredProfitPercent = $filteredTotalCost > 0 ? ($filteredProfitLoss / $filter
                                                             <button type="submit" class="inline-tag-option">
                                                                 <span class="tag-dot"
                                                                     style="background: <?= htmlspecialchars($availTag['color']) ?>"></span>
-                                                                                <?= htmlspecialchars($availTag['name']) ?>
+                                                                <?= htmlspecialchars($availTag['name']) ?>
                                                             </button>
                                                         </form>
-                                                                <?php endforeach; ?>
+                                                    <?php endforeach; ?>
                                                 </div>
-                                          <?php endif; ?>
+                                            <?php endif; ?>
                                         </div>
                                     </td>
                                     <td class="text-right mono"><?= formatRate((float) $item['amount']) ?></td>
@@ -1230,6 +1542,65 @@ $filteredProfitPercent = $filteredTotalCost > 0 ? ($filteredProfitLoss / $filter
         function toggleEditTag(id) {
             var el = document.getElementById('edit-tag-' + id);
             if (el) el.classList.toggle('hidden');
+        }
+        function toggleEditGoal(id) {
+            var el = document.getElementById('edit-goal-' + id);
+            if (el) el.classList.toggle('hidden');
+        }
+
+        /* ─── Goal Source Management ────────────────────────────────────────── */
+        var goalSourceCounter = 0;
+        // Filter source ID options based on type selection
+        (function() {
+            var typeSelect = document.getElementById('goal-source-type-select');
+            var idSelect = document.getElementById('goal-source-id-select');
+            if (!typeSelect || !idSelect) return;
+            function filterOptions() {
+                var type = typeSelect.value;
+                var opts = idSelect.querySelectorAll('option');
+                var firstVisible = null;
+                opts.forEach(function(opt) {
+                    if (opt.getAttribute('data-type') === type) {
+                        opt.style.display = '';
+                        if (!firstVisible) firstVisible = opt;
+                    } else {
+                        opt.style.display = 'none';
+                        opt.selected = false;
+                    }
+                });
+                if (firstVisible) firstVisible.selected = true;
+            }
+            typeSelect.addEventListener('change', filterOptions);
+            filterOptions();
+        })();
+
+        function addGoalSource() {
+            var typeSelect = document.getElementById('goal-source-type-select');
+            var idSelect = document.getElementById('goal-source-id-select');
+            if (!typeSelect || !idSelect) return;
+            var type = typeSelect.value;
+            var id = idSelect.value;
+            var label = idSelect.options[idSelect.selectedIndex]?.text?.trim() || '';
+            if (!id) return;
+            // Check for duplicates
+            var existing = document.querySelectorAll('#goal-sources-list .goal-source-row');
+            for (var i = 0; i < existing.length; i++) {
+                var et = existing[i].querySelector('input[name="goal_source_type[]"]');
+                var ei = existing[i].querySelector('input[name="goal_source_id[]"]');
+                if (et && ei && et.value === type && ei.value === id) return; // duplicate
+            }
+            goalSourceCounter++;
+            var icons = {group: '📦', tag: '🏷️', item: '📋'};
+            var row = document.createElement('div');
+            row.className = 'goal-source-row';
+            row.innerHTML = '<input type="hidden" name="goal_source_type[]" value="' + type + '">' +
+                '<input type="hidden" name="goal_source_id[]" value="' + id + '">' +
+                '<span class="goal-source-pill goal-source-' + type + '">' + (icons[type] || '') + ' ' + label + '</span>' +
+                '<button type="button" class="btn btn-xs btn-danger" onclick="removeGoalSourceRow(this)">×</button>';
+            document.getElementById('goal-sources-list').appendChild(row);
+        }
+        function removeGoalSourceRow(btn) {
+            btn.parentElement.remove();
         }
 
         /* ─── Enhanced Delete Confirmation with Item Count ──────────────────── */
