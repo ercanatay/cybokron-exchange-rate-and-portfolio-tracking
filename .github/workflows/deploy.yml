@@ -1,0 +1,145 @@
+name: Deploy to Production
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Generate config.php
+        env:
+          DB_HOST: ${{ secrets.DB_HOST }}
+          DB_NAME: ${{ secrets.DB_NAME }}
+          DB_USER: ${{ secrets.DB_USER }}
+          DB_PASS: ${{ secrets.DB_PASS }}
+          APP_URL: ${{ secrets.APP_URL }}
+        run: |
+          cat > config.php << 'PHPEOF'
+          <?php
+          define('DB_HOST', '__DB_HOST__');
+          define('DB_NAME', '__DB_NAME__');
+          define('DB_USER', '__DB_USER__');
+          define('DB_PASS', '__DB_PASS__');
+          define('DB_CHARSET', 'utf8mb4');
+          define('APP_NAME', 'Cybokron Exchange Rate & Portfolio Tracking');
+          define('APP_URL', '__APP_URL__');
+          define('APP_TIMEZONE', 'Europe/Istanbul');
+          define('APP_DEBUG', false);
+          define('ENABLE_SECURITY_HEADERS', true);
+          define('CSP_POLICY', "default-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'; object-src 'none'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data:");
+          define('HSTS_MAX_AGE_SECONDS', 31536000);
+          define('DEFAULT_LOCALE', 'tr');
+          define('FALLBACK_LOCALE', 'en');
+          define('AVAILABLE_LOCALES', ['tr', 'en', 'ar', 'de', 'fr']);
+          define('GITHUB_REPO', 'ercanatay/cybokron-exchange-rate-and-portfolio-tracking');
+          define('GITHUB_BRANCH', 'main');
+          define('AUTO_UPDATE', false);
+          define('ENFORCE_CLI_CRON', true);
+          define('BACKUP_DIR', dirname(__DIR__) . '/cybokron-backups');
+          define('UPDATE_REQUIRE_SIGNATURE', true);
+          define('UPDATE_PACKAGE_ASSET_NAME', '');
+          define('UPDATE_SIGNATURE_ASSET_NAME', 'cybokron-update.zip.sig');
+          define('UPDATE_SIGNING_PUBLIC_KEY_PEM', "");
+          define('UPDATE_ALLOWED_HOSTS', ['api.github.com', 'github.com', 'codeload.github.com', 'objects.githubusercontent.com']);
+          define('SCRAPE_TIMEOUT', 30);
+          define('SCRAPE_USER_AGENT', 'Cybokron/1.0');
+          define('SCRAPE_RETRY_COUNT', 3);
+          define('SCRAPE_RETRY_DELAY', 5);
+          define('SCRAPE_ALLOWED_HOSTS', ['dunyakatilim.com.tr', 'www.dunyakatilim.com.tr', 'www.tcmb.gov.tr', 'tcmb.gov.tr', 'kur.doviz.com', 'doviz.com']);
+          define('OPENROUTER_AI_REPAIR_ENABLED', true);
+          define('OPENROUTER_API_KEY', '');
+          define('OPENROUTER_MODEL', 'z-ai/glm-5');
+          define('OPENROUTER_API_URL', 'https://openrouter.ai/api/v1/chat/completions');
+          define('OPENROUTER_ALLOWED_HOSTS', ['openrouter.ai']);
+          define('OPENROUTER_MIN_EXPECTED_RATES', 8);
+          define('OPENROUTER_AI_COOLDOWN_SECONDS', 21600);
+          define('OPENROUTER_AI_MAX_INPUT_CHARS', 12000);
+          define('OPENROUTER_AI_MAX_ROWS', 160);
+          define('OPENROUTER_AI_MAX_TOKENS', 600);
+          define('OPENROUTER_AI_TIMEOUT_SECONDS', 25);
+          define('API_ALLOW_CORS', false);
+          define('API_ALLOWED_ORIGINS', []);
+          define('API_REQUIRE_CSRF', true);
+          define('API_MAX_BODY_BYTES', 32768);
+          define('API_WRITE_RATE_LIMIT', 30);
+          define('API_WRITE_RATE_WINDOW_SECONDS', 60);
+          define('API_READ_RATE_LIMIT', 120);
+          define('API_READ_RATE_WINDOW_SECONDS', 60);
+          define('AUTH_REQUIRE_PORTFOLIO', true);
+          define('LOGIN_RATE_LIMIT', 5);
+          define('LOGIN_RATE_WINDOW_SECONDS', 300);
+          define('AUTH_BASIC_USER', 'admin');
+          define('AUTH_BASIC_PASSWORD_HASH', '');
+          $ACTIVE_BANKS = ['DunyaKatilim', 'TCMB', 'IsBank'];
+          define('UPDATE_INTERVAL_MINUTES', 15);
+          define('MARKET_OPEN_HOUR', 9);
+          define('MARKET_CLOSE_HOUR', 18);
+          define('MARKET_DAYS', [1, 2, 3, 4, 5]);
+          define('RATE_HISTORY_RETENTION_DAYS', 365);
+          define('RATE_UPDATE_WEBHOOK_URL', '');
+          define('RATE_UPDATE_WEBHOOK_URLS', []);
+          define('ALERT_EMAIL_FROM', 'noreply@invest.ercanatay.com');
+          define('ALERT_EMAIL_TO', '');
+          define('ALERT_COOLDOWN_MINUTES', 60);
+          define('ALERT_TELEGRAM_BOT_TOKEN', '');
+          define('ALERT_TELEGRAM_CHAT_ID', '');
+          define('ALERT_WEBHOOK_URL', '');
+          $DISPLAY_CURRENCIES = ['USD', 'EUR', 'GBP', 'XAU'];
+          define('LOG_ENABLED', true);
+          define('LOG_FILE', dirname(__DIR__) . '/cybokron-logs/cybokron.log');
+          define('DB_PERSISTENT', false);
+          PHPEOF
+
+          sed -i 's/^          //' config.php
+          sed -i "s|__DB_HOST__|${DB_HOST}|g" config.php
+          sed -i "s|__DB_NAME__|${DB_NAME}|g" config.php
+          sed -i "s|__DB_USER__|${DB_USER}|g" config.php
+          sed -i "s|__DB_PASS__|${DB_PASS}|g" config.php
+          sed -i "s|__APP_URL__|${APP_URL}|g" config.php
+
+      - name: Deploy via rsync
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts 2>/dev/null
+
+          rsync -rlgoDzvc --delete \
+            --exclude='.git/' \
+            --exclude='.github/' \
+            --exclude='node_modules/' \
+            --exclude='test-results/' \
+            --exclude='tests/' \
+            --exclude='playwright*' \
+            --exclude='package.json' \
+            --exclude='package-lock.json' \
+            --exclude='.dockerignore' \
+            --exclude='docker-compose.yml' \
+            --exclude='Dockerfile' \
+            --exclude='.Jules/' \
+            --exclude='.DS_Store' \
+            --exclude='config.sample.php' \
+            --exclude='config.docker.php' \
+            --exclude='docs/' \
+            -e "ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no" \
+            ./ ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/home2/investercanatay/public_html/
+
+      - name: Post-deploy setup
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+        run: |
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \
+            ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << 'EOF'
+          mkdir -p /home2/investercanatay/cybokron-logs
+          mkdir -p /home2/investercanatay/cybokron-backups
+          chmod 600 /home2/investercanatay/public_html/config.php
+          echo "Deploy completed at $(date)"
+          EOF
