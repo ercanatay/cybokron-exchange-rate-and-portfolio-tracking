@@ -442,6 +442,11 @@ return [
     'portfolio.goals.percent_date_start' => 'Start Date',
     'portfolio.goals.percent_date_end' => 'End Date',
     'portfolio.goals.percent_period' => 'Period (Months)',
+    'portfolio.goals.type_cagr' => 'Annual Growth (CAGR)',
+    'portfolio.goals.target_cagr' => 'Target CAGR (%/year)',
+    'portfolio.goals.type_drawdown' => 'Loss Limit',
+    'portfolio.goals.target_drawdown' => 'Max Loss Limit (%)',
+    'portfolio.goals.drawdown_limit' => 'Limit:',
 
     'common.add' => 'Add',
     'common.select_all' => 'Select all',
