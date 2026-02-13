@@ -1,8 +1,12 @@
 <?php
 /**
- * Update admin password from environment variable.
+ * Update admin password from environment variable or file.
  *
- * Usage: ADMIN_HASH='$2y$...' php database/update_admin_password.php
+ * Supports two modes:
+ *   1. Plaintext password in .admin_password.tmp — hashed on server (recommended)
+ *   2. Pre-hashed bcrypt in .admin_hash.tmp or ADMIN_HASH env var
+ *
+ * Usage: php database/update_admin_password.php
  */
 
 if (PHP_SAPI !== 'cli') {
@@ -46,41 +50,5 @@ $pdo = new PDO($dsn, DB_USER, DB_PASS, [
 $stmt = $pdo->prepare("INSERT INTO users (username, password_hash, role, is_active) VALUES ('admin', ?, 'admin', 1) ON DUPLICATE KEY UPDATE password_hash = VALUES(password_hash)");
 $stmt->execute([$hash]);
 $affected = $stmt->rowCount();
-$action = $affected === 1 ? 'created' : 'updated';
+$action = $affected === 1 ? 'created' : ($affected === 2 ? 'updated' : 'unchanged');
 echo "admin password {$action} ({$affected} row)\n";
-
-// Diagnostic: verify the stored hash works
-$verify = $pdo->query("SELECT id, username, password_hash, is_active FROM users WHERE username = 'admin'");
-$row = $verify->fetch(PDO::FETCH_ASSOC);
-if ($row) {
-    echo "  admin user found: id={$row['id']}, is_active={$row['is_active']}\n";
-    echo "  stored hash length: " . strlen($row['password_hash']) . "\n";
-    echo "  stored hash prefix: " . substr($row['password_hash'], 0, 7) . "\n";
-    echo "  input hash length: " . strlen($hash) . "\n";
-    echo "  input hash prefix: " . substr($hash, 0, 7) . "\n";
-    echo "  hashes match: " . ($row['password_hash'] === $hash ? 'YES' : 'NO') . "\n";
-    // Test password_verify with known password
-    $testResult = password_verify('Cyb0kr0n!2026xQ', $row['password_hash']);
-    echo "  password_verify test: " . ($testResult ? 'PASS' : 'FAIL') . "\n";
-    echo "  PHP version: " . PHP_VERSION . "\n";
-    // Test via Database class (same path as web login)
-    $helpersFile = __DIR__ . '/../includes/helpers.php';
-    if (file_exists($helpersFile)) {
-        require_once $helpersFile;
-        if (function_exists('cybokron_init')) {
-            cybokron_init();
-        }
-        if (class_exists('Database')) {
-            $dbUser = Database::queryOne('SELECT id, username, password_hash, is_active FROM users WHERE username = ? AND is_active = 1', ['admin']);
-            if ($dbUser) {
-                echo "  Database class: admin found, id={$dbUser['id']}\n";
-                echo "  Database class hash == PDO hash: " . ($dbUser['password_hash'] === $row['password_hash'] ? 'YES' : 'NO') . "\n";
-                echo "  Database class password_verify: " . (password_verify('Cyb0kr0n!2026xQ', (string)$dbUser['password_hash']) ? 'PASS' : 'FAIL') . "\n";
-            } else {
-                echo "  Database class: admin NOT FOUND\n";
-            }
-        }
-    }
-} else {
-    echo "  WARNING: admin user NOT FOUND after insert!\n";
-}
