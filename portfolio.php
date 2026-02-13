@@ -885,6 +885,8 @@ $annualizedReturn = ($oldestDate && $analyticsCost > 0)
                                         <option value="amount"><?= t('portfolio.goals.type_amount') ?></option>
                                         <option value="currency_value"><?= t('portfolio.goals.type_currency_value') ?></option>
                                         <option value="percent"><?= t('portfolio.goals.type_percent') ?></option>
+                                        <option value="cagr"><?= t('portfolio.goals.type_cagr') ?></option>
+                                        <option value="drawdown"><?= t('portfolio.goals.type_drawdown') ?></option>
                                     </select>
                                 </div>
                                 <div class="goal-form-field goal-currency-field" id="goal-currency-add" style="display:none">
@@ -975,6 +977,8 @@ $annualizedReturn = ($oldestDate && $analyticsCost > 0)
                                 $isAmountGoal = $goalTargetType === 'amount';
                                 $isCurrencyValueGoal = $goalTargetType === 'currency_value';
                                 $isPercentGoal = $goalTargetType === 'percent';
+                                $isCagrGoal = $goalTargetType === 'cagr';
+                                $isDrawdownGoal = $goalTargetType === 'drawdown';
                                 $hasCurrencyUnit = ($isAmountGoal || $isCurrencyValueGoal);
                                 $goalCurrency = $goal['target_currency'] ?? '';
                                 $goalBankSlug = $goal['bank_slug'] ?? '';
@@ -988,7 +992,7 @@ $annualizedReturn = ($oldestDate && $analyticsCost > 0)
                                     }
                                 }
                             ?>
-                                <div class="goal-card">
+                                <div class="goal-card<?= $isDrawdownGoal ? ' goal-card-drawdown' : '' ?>">
                                     <div class="goal-card-header">
                                         <div class="goal-card-info">
                                             <span class="goal-name">🎯 <?= htmlspecialchars($goal['name']) ?></span>
@@ -1022,9 +1026,11 @@ $annualizedReturn = ($oldestDate && $analyticsCost > 0)
                                         <div class="goal-progress-bar" style="width: <?= $pct ?>%;"></div>
                                     </div>
                                     <div class="goal-progress-stats">
-                                        <span class="goal-current<?= $pct >= 100 ? ' goal-complete' : '' ?>">
-                                            <?php if ($isPercentGoal): ?>
+                                        <span class="goal-current<?= $pct >= 100 ? ' goal-complete' : '' ?><?= $isDrawdownGoal && $gp['current'] > 0 ? ' goal-danger' : '' ?>">
+                                            <?php if ($isPercentGoal || $isCagrGoal): ?>
                                                 %<?= formatNumberLocalized($gp['current'], 2) ?>
+                                            <?php elseif ($isDrawdownGoal): ?>
+                                                <?= $gp['current'] > 0 ? '▼ ' : '' ?>%<?= formatNumberLocalized($gp['current'], 2) ?>
                                             <?php elseif ($isAmountGoal): ?>
                                                 <?= formatNumberLocalized($gp['current'], 4) ?> <?= htmlspecialchars($goalCurrency) ?>
                                             <?php elseif ($isCurrencyValueGoal): ?>
@@ -1037,8 +1043,10 @@ $annualizedReturn = ($oldestDate && $analyticsCost > 0)
                                             <?= formatNumberLocalized($pct, 1) ?>%
                                         </span>
                                         <span class="goal-target">
-                                            <?php if ($isPercentGoal): ?>
+                                            <?php if ($isPercentGoal || $isCagrGoal): ?>
                                                 %<?= formatNumberLocalized($gp['target'], 2) ?>
+                                            <?php elseif ($isDrawdownGoal): ?>
+                                                <?= t('portfolio.goals.drawdown_limit') ?> %<?= formatNumberLocalized($gp['target'], 2) ?>
                                             <?php elseif ($isAmountGoal): ?>
                                                 <?= formatNumberLocalized($gp['target'], 4) ?> <?= htmlspecialchars($goalCurrency) ?>
                                             <?php elseif ($isCurrencyValueGoal): ?>
@@ -1108,6 +1116,8 @@ $annualizedReturn = ($oldestDate && $analyticsCost > 0)
                                                     <option value="amount" <?= ($goal['target_type'] ?? 'value') === 'amount' ? 'selected' : '' ?>><?= t('portfolio.goals.type_amount') ?></option>
                                                     <option value="currency_value" <?= ($goal['target_type'] ?? 'value') === 'currency_value' ? 'selected' : '' ?>><?= t('portfolio.goals.type_currency_value') ?></option>
                                                     <option value="percent" <?= ($goal['target_type'] ?? 'value') === 'percent' ? 'selected' : '' ?>><?= t('portfolio.goals.type_percent') ?></option>
+                                                    <option value="cagr" <?= ($goal['target_type'] ?? 'value') === 'cagr' ? 'selected' : '' ?>><?= t('portfolio.goals.type_cagr') ?></option>
+                                                    <option value="drawdown" <?= ($goal['target_type'] ?? 'value') === 'drawdown' ? 'selected' : '' ?>><?= t('portfolio.goals.type_drawdown') ?></option>
                                                 </select>
                                             </div>
                                             <div class="goal-form-field goal-currency-field" id="goal-currency-edit-<?= (int)$goal['id'] ?>" style="<?= $hasCurrencyUnit ? '' : 'display:none' ?>">
@@ -1129,7 +1139,7 @@ $annualizedReturn = ($oldestDate && $analyticsCost > 0)
                                                 </select>
                                             </div>
                                             <div class="goal-form-field">
-                                                <label id="goal-target-label-edit-<?= (int)$goal['id'] ?>"><?= $isPercentGoal ? t('portfolio.goals.target_percent') : ($isAmountGoal ? t('portfolio.goals.target_amount') : ($isCurrencyValueGoal ? t('portfolio.goals.target_currency_value_label') : t('portfolio.goals.target_value'))) ?></label>
+                                                <label id="goal-target-label-edit-<?= (int)$goal['id'] ?>"><?= $isPercentGoal ? t('portfolio.goals.target_percent') : ($isCagrGoal ? t('portfolio.goals.target_cagr') : ($isDrawdownGoal ? t('portfolio.goals.target_drawdown') : ($isAmountGoal ? t('portfolio.goals.target_amount') : ($isCurrencyValueGoal ? t('portfolio.goals.target_currency_value_label') : t('portfolio.goals.target_value'))))) ?></label>
                                                 <input type="number" name="goal_target_value" step="0.000001" value="<?= (float)$goal['target_value'] ?>" required>
                                             </div>
                                             <?php
@@ -1781,6 +1791,8 @@ $annualizedReturn = ($oldestDate && $analyticsCost > 0)
             var val = select.value;
             var needsCurrency = (val === 'amount' || val === 'currency_value');
             var isPercent = (val === 'percent');
+            var isCagr = (val === 'cagr');
+            var isDrawdown = (val === 'drawdown');
             var currField = document.getElementById('goal-currency-' + formId);
             var percentField = document.getElementById('goal-percent-' + formId);
             var label = document.getElementById('goal-target-label-' + formId);
@@ -1802,6 +1814,10 @@ $annualizedReturn = ($oldestDate && $analyticsCost > 0)
                     label.textContent = <?= json_encode(t('portfolio.goals.target_currency_value_label'), JSON_UNESCAPED_UNICODE) ?>;
                 } else if (val === 'percent') {
                     label.textContent = <?= json_encode(t('portfolio.goals.target_percent'), JSON_UNESCAPED_UNICODE) ?>;
+                } else if (val === 'cagr') {
+                    label.textContent = <?= json_encode(t('portfolio.goals.target_cagr'), JSON_UNESCAPED_UNICODE) ?>;
+                } else if (val === 'drawdown') {
+                    label.textContent = <?= json_encode(t('portfolio.goals.target_drawdown'), JSON_UNESCAPED_UNICODE) ?>;
                 } else {
                     label.textContent = <?= json_encode(t('portfolio.goals.target_value'), JSON_UNESCAPED_UNICODE) ?>;
                 }

@@ -442,6 +442,11 @@ return [
     'portfolio.goals.percent_date_start' => 'Başlangıç',
     'portfolio.goals.percent_date_end' => 'Bitiş',
     'portfolio.goals.percent_period' => 'Süre (Ay)',
+    'portfolio.goals.type_cagr' => 'Yıllık Bileşik Büyüme (CAGR)',
+    'portfolio.goals.target_cagr' => 'Hedef CAGR (%/yıl)',
+    'portfolio.goals.type_drawdown' => 'Zarar Limiti',
+    'portfolio.goals.target_drawdown' => 'Maks. Zarar Limiti (%)',
+    'portfolio.goals.drawdown_limit' => 'Limit:',
 
     'common.add' => 'Ekle',
     'common.select_all' => 'Tümünü seç',

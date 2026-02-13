@@ -778,7 +778,7 @@ class Portfolio
     /**
      * Valid target types for goals.
      */
-    private const GOAL_TARGET_TYPES = ['value', 'cost', 'amount', 'currency_value', 'percent'];
+    private const GOAL_TARGET_TYPES = ['value', 'cost', 'amount', 'currency_value', 'percent', 'cagr', 'drawdown'];
     private const PERCENT_DATE_MODES = ['all', 'range', 'since_first', 'weighted'];
 
     /**
@@ -1110,6 +1110,101 @@ class Portfolio
                     'target_currency' => $targetCurrency,
                     'bank_slug' => $goalBankSlug,
                     'percent_date_mode' => $dateMode,
+                ];
+                continue;
+            }
+
+            // CAGR goal: compound annual growth rate
+            if ($targetType === 'cagr') {
+                $totalCost = 0.0;
+                $totalValue = 0.0;
+                $earliestDate = null;
+
+                foreach ($allItems as $item) {
+                    if (!isset($matchedItemIds[(int) $item['id']])) continue;
+                    if ($goalBankSlug !== null && ($item['bank_slug'] ?? '') !== $goalBankSlug) continue;
+
+                    $itemCost = (float) ($item['cost_try'] ?? 0);
+                    $itemValue = (float) ($item['value_try'] ?? 0);
+                    if ($itemCost <= 0) continue;
+
+                    $totalCost += $itemCost;
+                    $totalValue += $itemValue;
+                    $countedItems++;
+
+                    $bd = $item['buy_date'] ?? null;
+                    if ($bd && ($earliestDate === null || $bd < $earliestDate)) {
+                        $earliestDate = $bd;
+                    }
+                }
+
+                $current = 0.0;
+                if ($totalCost > 0 && $earliestDate) {
+                    $start = DateTime::createFromFormat('Y-m-d', $earliestDate);
+                    if ($start) {
+                        $days = (int) (new DateTime())->diff($start)->days;
+                        if ($days >= 1) {
+                            $years = $days / 365.25;
+                            $ratio = $totalValue / $totalCost;
+                            $current = (pow($ratio, 1 / $years) - 1) * 100;
+                        }
+                    }
+                }
+
+                $target = (float) $goal['target_value'];
+                $percent = $target != 0 ? min(($current / $target) * 100, 999) : 0;
+                if ($percent < 0) $percent = 0;
+
+                $result[$goalId] = [
+                    'current' => round($current, 2),
+                    'target' => $target,
+                    'percent' => round($percent, 1),
+                    'item_count' => $countedItems,
+                    'unit' => '%',
+                    'target_type' => $targetType,
+                    'target_currency' => $targetCurrency,
+                    'bank_slug' => $goalBankSlug,
+                ];
+                continue;
+            }
+
+            // Drawdown goal: max loss limit
+            if ($targetType === 'drawdown') {
+                $totalCost = 0.0;
+                $totalValue = 0.0;
+
+                foreach ($allItems as $item) {
+                    if (!isset($matchedItemIds[(int) $item['id']])) continue;
+                    if ($goalBankSlug !== null && ($item['bank_slug'] ?? '') !== $goalBankSlug) continue;
+
+                    $itemCost = (float) ($item['cost_try'] ?? 0);
+                    $itemValue = (float) ($item['value_try'] ?? 0);
+                    if ($itemCost <= 0) continue;
+
+                    $totalCost += $itemCost;
+                    $totalValue += $itemValue;
+                    $countedItems++;
+                }
+
+                // current = current drawdown % (0 or positive when losing)
+                $currentDrawdown = 0.0;
+                if ($totalCost > 0 && $totalValue < $totalCost) {
+                    $currentDrawdown = (($totalCost - $totalValue) / $totalCost) * 100;
+                }
+
+                $limit = (float) $goal['target_value'];
+                // Progress: how much safety buffer remains (100% = no loss, 0% = limit reached)
+                $percent = $limit > 0 ? max(0, (1 - $currentDrawdown / $limit) * 100) : 100;
+
+                $result[$goalId] = [
+                    'current' => round($currentDrawdown, 2),
+                    'target' => $limit,
+                    'percent' => round($percent, 1),
+                    'item_count' => $countedItems,
+                    'unit' => '%',
+                    'target_type' => $targetType,
+                    'target_currency' => $targetCurrency,
+                    'bank_slug' => $goalBankSlug,
                 ];
                 continue;
             }

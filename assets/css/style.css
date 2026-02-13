@@ -2540,6 +2540,12 @@ button:focus-visible,
     border-radius: 4px;
     vertical-align: middle;
 }
+.goal-danger {
+    color: var(--danger) !important;
+}
+.goal-card-drawdown .goal-progress-bar {
+    background: linear-gradient(90deg, #22c55e, #eab308, var(--danger));
+}
 .goal-form-grid-4 {
     grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
 }
