@@ -1,0 +1,38 @@
+# Force HTTPS (Cloudflare Flexible SSL compatible)
+# When behind Cloudflare proxy, check X-Forwarded-Proto header
+# Do NOT redirect if already HTTPS or if Cloudflare says proto is https
+RewriteEngine On
+RewriteCond %{HTTP:X-Forwarded-Proto} =https [OR]
+RewriteCond %{HTTPS} =on
+RewriteRule ^ - [L]
+RewriteRule ^(.*)$ https://%{HTTP_HOST}/$1 [R=301,L]
+
+# Security headers
+<IfModule mod_headers.c>
+    Header set X-Content-Type-Options "nosniff"
+    Header set X-Frame-Options "SAMEORIGIN"
+    Header set Referrer-Policy "strict-origin-when-cross-origin"
+</IfModule>
+
+# Deny access to sensitive files
+<FilesMatch "^(config\.php|database\.sql|\.git|\.env)">
+    Require all denied
+</FilesMatch>
+
+# Deny access to hidden files/directories
+<IfModule mod_rewrite.c>
+    RewriteRule (^|/)\.(?!well-known) - [F]
+</IfModule>
+
+# Deny access to log files and backups
+<FilesMatch "\.(log|bak|sql|sh)$">
+    Require all denied
+</FilesMatch>
+
+# PHP settings
+<IfModule mod_php.c>
+    php_value upload_max_filesize 10M
+    php_value post_max_size 10M
+    php_value max_execution_time 60
+    php_value date.timezone "Europe/Istanbul"
+</IfModule>

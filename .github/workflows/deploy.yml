@@ -115,6 +115,8 @@ jobs:
           rsync -rlgoDzvc --delete \
             --exclude='.git/' \
             --exclude='.github/' \
+            --exclude='.well-known/' \
+            --exclude='cgi-bin/' \
             --exclude='node_modules/' \
             --exclude='test-results/' \
             --exclude='tests/' \
