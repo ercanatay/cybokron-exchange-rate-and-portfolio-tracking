@@ -255,9 +255,21 @@ try {
             break;
 
         case 'alerts':
+            $where = '1=1';
+            $params = [];
+
+            if (class_exists('Auth') && Auth::check() && !Auth::isAdmin()) {
+                $userId = Auth::id();
+                if ($userId !== null) {
+                    $where .= ' AND (user_id IS NULL OR user_id = ?)';
+                    $params[] = $userId;
+                }
+            }
+
             $alerts = Database::query(
-                'SELECT id, currency_code, condition_type, threshold, channel, is_active, last_triggered_at, created_at
-                 FROM alerts ORDER BY created_at DESC'
+                "SELECT id, currency_code, condition_type, threshold, channel, is_active, last_triggered_at, created_at
+                 FROM alerts WHERE {$where} ORDER BY created_at DESC",
+                $params
             );
             jsonResponse(['status' => 'ok', 'locale' => $locale, 'data' => $alerts]);
             break;
@@ -324,7 +336,18 @@ try {
                 jsonResponse(['status' => 'error', 'message' => t('api.error.valid_id_required')], 400);
             }
 
-            $deleted = Database::execute('DELETE FROM alerts WHERE id = ?', [$id]);
+            $where = 'id = ?';
+            $params = [$id];
+
+            if (class_exists('Auth') && Auth::check() && !Auth::isAdmin()) {
+                $userId = Auth::id();
+                if ($userId !== null) {
+                    $where .= ' AND (user_id IS NULL OR user_id = ?)';
+                    $params[] = $userId;
+                }
+            }
+
+            $deleted = Database::execute("DELETE FROM alerts WHERE {$where}", $params);
             jsonResponse([
                 'status' => $deleted ? 'ok' : 'error',
                 'message' => $deleted ? t('api.message.deleted') : t('api.message.not_found'),

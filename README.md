@@ -254,6 +254,25 @@ To add a new bank source later:
 
 ## Changelog
 
+### v1.5.4 (2026-02-13)
+
+Security, performance, and accessibility improvements.
+
+**Security (PR #15)**
+- Fix IDOR vulnerability in alerts API — non-admin users can now only see/delete their own alerts
+- User-scoped WHERE clauses added to alerts list and alerts_delete endpoints
+
+**Performance (PR #16)**
+- Optimize `computeGoalProgress()` from O(N*M) to O(N+M) using hash map pre-indexing
+- Pre-index items by ID, group ID, and tag ID for O(1) lookups in goal source matching
+- All inner item loops now iterate only matched items instead of scanning all items
+
+**Accessibility (PR #17)**
+- Add `aria-label` attributes to all icon-only buttons (delete, save, cancel, remove, favorite)
+- Inject translated labels into JavaScript for dynamically created DOM elements
+- Fix bug in PHP template where JS string concatenation was incorrectly used for aria-label
+- New locale keys: `common.delete`, `common.remove`, `common.save`, `common.cancel` (TR, EN, DE, FR)
+
 ### v1.5.3 (2026-02-13)
 
 Goal favorites and client-side filtering for the Goals tab.

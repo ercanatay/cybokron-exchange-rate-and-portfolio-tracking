@@ -458,6 +458,10 @@ return [
 
     'common.add' => 'Add',
     'common.select_all' => 'Select all',
+    'common.delete' => 'Delete',
+    'common.remove' => 'Remove',
+    'common.save' => 'Save',
+    'common.cancel' => 'Cancel',
 
     // OpenRouter AI
     'nav.openrouter' => 'OpenRouter AI',
