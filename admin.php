@@ -592,6 +592,89 @@ foreach ($allRates as $r) {
                 </div>
             </div>
 
+            <!-- System Configuration (read-only) -->
+            <div class="admin-card">
+                <div class="admin-card-header">
+                    <div class="admin-card-header-left">
+                        <div class="admin-card-icon" style="background: linear-gradient(135deg, #6366f120, #818cf820);">&#9881;</div>
+                        <div>
+                            <h2><?= t('admin.system_config') ?></h2>
+                            <p><?= t('admin.system_config_desc') ?></p>
+                        </div>
+                    </div>
+                </div>
+                <div class="admin-card-body">
+                    <div class="config-grid">
+                        <?php
+                        $configSections = [
+                            t('admin.config_section_security') => [
+                                'TURNSTILE_ENABLED' => [defined('TURNSTILE_ENABLED') ? TURNSTILE_ENABLED : false, 'bool'],
+                                'ENABLE_SECURITY_HEADERS' => [defined('ENABLE_SECURITY_HEADERS') ? ENABLE_SECURITY_HEADERS : false, 'bool'],
+                                'API_REQUIRE_CSRF' => [defined('API_REQUIRE_CSRF') ? API_REQUIRE_CSRF : true, 'bool'],
+                                'ENFORCE_CLI_CRON' => [defined('ENFORCE_CLI_CRON') ? ENFORCE_CLI_CRON : true, 'bool'],
+                                'LOGIN_RATE_LIMIT' => [defined('LOGIN_RATE_LIMIT') ? LOGIN_RATE_LIMIT . ' / ' . (defined('LOGIN_RATE_WINDOW_SECONDS') ? LOGIN_RATE_WINDOW_SECONDS : 300) . 's' : '—', 'text'],
+                                'AUTH_REQUIRE_PORTFOLIO' => [defined('AUTH_REQUIRE_PORTFOLIO') ? AUTH_REQUIRE_PORTFOLIO : false, 'bool'],
+                            ],
+                            t('admin.config_section_scraping') => [
+                                'SCRAPE_TIMEOUT' => [defined('SCRAPE_TIMEOUT') ? SCRAPE_TIMEOUT . 's' : '—', 'text'],
+                                'SCRAPE_RETRY_COUNT' => [defined('SCRAPE_RETRY_COUNT') ? SCRAPE_RETRY_COUNT : '—', 'text'],
+                                'OPENROUTER_AI_REPAIR_ENABLED' => [defined('OPENROUTER_AI_REPAIR_ENABLED') ? OPENROUTER_AI_REPAIR_ENABLED : false, 'bool'],
+                                'OPENROUTER_MODEL' => [defined('OPENROUTER_MODEL') ? OPENROUTER_MODEL : '—', 'text'],
+                                'OPENROUTER_API_KEY' => [defined('OPENROUTER_API_KEY') && OPENROUTER_API_KEY !== '' ? true : false, 'secret'],
+                            ],
+                            t('admin.config_section_market') => [
+                                'UPDATE_INTERVAL_MINUTES' => [defined('UPDATE_INTERVAL_MINUTES') ? UPDATE_INTERVAL_MINUTES . ' min' : '—', 'text'],
+                                'MARKET_OPEN_HOUR' => [defined('MARKET_OPEN_HOUR') ? sprintf('%02d:00', MARKET_OPEN_HOUR) : '—', 'text'],
+                                'MARKET_CLOSE_HOUR' => [defined('MARKET_CLOSE_HOUR') ? sprintf('%02d:00', MARKET_CLOSE_HOUR) : '—', 'text'],
+                                'MARKET_DAYS' => [defined('MARKET_DAYS') ? implode(', ', array_map(fn($d) => ['','Pzt','Sal','Çar','Per','Cum','Cmt','Paz'][$d] ?? $d, MARKET_DAYS)) : '—', 'text'],
+                                'RATE_HISTORY_RETENTION_DAYS' => [defined('RATE_HISTORY_RETENTION_DAYS') ? RATE_HISTORY_RETENTION_DAYS . ' ' . t('index.chart.days_unit') : '—', 'text'],
+                            ],
+                            t('admin.config_section_alerts') => [
+                                'ALERT_EMAIL_TO' => [defined('ALERT_EMAIL_TO') && ALERT_EMAIL_TO !== '' ? true : false, 'secret'],
+                                'ALERT_TELEGRAM_BOT_TOKEN' => [defined('ALERT_TELEGRAM_BOT_TOKEN') && ALERT_TELEGRAM_BOT_TOKEN !== '' ? true : false, 'secret'],
+                                'ALERT_WEBHOOK_URL' => [defined('ALERT_WEBHOOK_URL') && ALERT_WEBHOOK_URL !== '' ? true : false, 'secret'],
+                                'ALERT_COOLDOWN_MINUTES' => [defined('ALERT_COOLDOWN_MINUTES') ? ALERT_COOLDOWN_MINUTES . ' min' : '—', 'text'],
+                                'RATE_UPDATE_WEBHOOK_URL' => [defined('RATE_UPDATE_WEBHOOK_URL') && RATE_UPDATE_WEBHOOK_URL !== '' ? true : false, 'secret'],
+                            ],
+                            t('admin.config_section_api') => [
+                                'API_ALLOW_CORS' => [defined('API_ALLOW_CORS') ? API_ALLOW_CORS : false, 'bool'],
+                                'API_READ_RATE_LIMIT' => [defined('API_READ_RATE_LIMIT') ? API_READ_RATE_LIMIT . ' / ' . (defined('API_READ_RATE_WINDOW_SECONDS') ? API_READ_RATE_WINDOW_SECONDS : 60) . 's' : '—', 'text'],
+                                'API_WRITE_RATE_LIMIT' => [defined('API_WRITE_RATE_LIMIT') ? API_WRITE_RATE_LIMIT . ' / ' . (defined('API_WRITE_RATE_WINDOW_SECONDS') ? API_WRITE_RATE_WINDOW_SECONDS : 60) . 's' : '—', 'text'],
+                            ],
+                            t('admin.config_section_system') => [
+                                'APP_DEBUG' => [defined('APP_DEBUG') ? APP_DEBUG : false, 'bool'],
+                                'APP_TIMEZONE' => [defined('APP_TIMEZONE') ? APP_TIMEZONE : '—', 'text'],
+                                'DEFAULT_LOCALE' => [defined('DEFAULT_LOCALE') ? DEFAULT_LOCALE : '—', 'text'],
+                                'AUTO_UPDATE' => [defined('AUTO_UPDATE') ? AUTO_UPDATE : false, 'bool'],
+                                'LOG_ENABLED' => [defined('LOG_ENABLED') ? LOG_ENABLED : false, 'bool'],
+                                'DB_PERSISTENT' => [defined('DB_PERSISTENT') ? DB_PERSISTENT : false, 'bool'],
+                            ],
+                        ];
+                        foreach ($configSections as $sectionName => $items): ?>
+                            <div class="config-section">
+                                <h3 class="config-section-title"><?= htmlspecialchars($sectionName) ?></h3>
+                                <div class="config-items">
+                                    <?php foreach ($items as $key => [$value, $type]): ?>
+                                        <div class="config-item">
+                                            <span class="config-key"><code><?= htmlspecialchars($key) ?></code></span>
+                                            <span class="config-value">
+                                                <?php if ($type === 'bool'): ?>
+                                                    <span class="badge <?= $value ? 'badge-success' : 'badge-muted' ?>"><?= $value ? t('admin.config_enabled') : t('admin.config_disabled') ?></span>
+                                                <?php elseif ($type === 'secret'): ?>
+                                                    <span class="badge <?= $value ? 'badge-success' : 'badge-muted' ?>"><?= $value ? t('admin.config_set') : t('admin.config_not_set') ?></span>
+                                                <?php else: ?>
+                                                    <?= htmlspecialchars((string) $value) ?>
+                                                <?php endif; ?>
+                                            </span>
+                                        </div>
+                                    <?php endforeach; ?>
+                                </div>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
+            </div>
+
         </div><!-- /admin-grid -->
     </main>
 
