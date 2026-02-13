@@ -103,49 +103,26 @@ jobs:
           sed -i "s|__DB_PASS__|${DB_PASS}|g" config.php
           sed -i "s|__APP_URL__|${APP_URL}|g" config.php
 
-      - name: Setup SSH
-        env:
-          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
-        run: |
-          mkdir -p ~/.ssh
-          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
-          chmod 600 ~/.ssh/deploy_key
-          ssh-keyscan -H ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts 2>&1
-          echo "Testing SSH connection..."
-          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no -o BatchMode=yes ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} 'echo "SSH OK"'
-
-      - name: Deploy via rsync
-        run: |
-          rsync -rlgoDzvc --delete \
-            --exclude='.git/' \
-            --exclude='.github/' \
-            --exclude='.well-known/' \
-            --exclude='cgi-bin/' \
-            --exclude='node_modules/' \
-            --exclude='test-results/' \
-            --exclude='tests/' \
-            --exclude='playwright*' \
-            --exclude='package.json' \
-            --exclude='package-lock.json' \
-            --exclude='.dockerignore' \
-            --exclude='docker-compose.yml' \
-            --exclude='Dockerfile' \
-            --exclude='.Jules/' \
-            --exclude='.DS_Store' \
-            --exclude='config.sample.php' \
-            --exclude='config.docker.php' \
-            --exclude='docs/' \
-            -e "ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no" \
-            ./ ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/home2/investercanatay/public_html/
+      - name: Deploy files
+        uses: burnett01/rsync-deployments@7.0.2
+        with:
+          switches: -rlgoDzvc --delete
+          path: ./
+          remote_path: /home2/investercanatay/public_html/
+          remote_host: ${{ secrets.SSH_HOST }}
+          remote_user: ${{ secrets.SSH_USER }}
+          remote_key: ${{ secrets.SSH_PRIVATE_KEY }}
+          exclude: ".git/, .github/, .well-known/, cgi-bin/, node_modules/, test-results/, tests/, playwright*, package.json, package-lock.json, .dockerignore, docker-compose.yml, Dockerfile, .Jules/, .DS_Store, config.sample.php, config.docker.php, docs/"
 
       - name: Post-deploy setup
-        env:
-          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
-        run: |
-          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \
-            ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << 'EOF'
-          mkdir -p /home2/investercanatay/cybokron-logs
-          mkdir -p /home2/investercanatay/cybokron-backups
-          chmod 600 /home2/investercanatay/public_html/config.php
-          echo "Deploy completed at $(date)"
-          EOF
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          password: ${{ secrets.SSH_PASSWORD }}
+          port: 22
+          script: |
+            mkdir -p /home2/investercanatay/cybokron-logs
+            mkdir -p /home2/investercanatay/cybokron-backups
+            chmod 600 /home2/investercanatay/public_html/config.php
+            echo "Deploy completed at $(date)"
