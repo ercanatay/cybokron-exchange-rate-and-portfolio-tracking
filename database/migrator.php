@@ -14,17 +14,21 @@
  * Rollback files:  database/migrations/NNN_description.down.sql (optional)
  */
 
-require_once __DIR__ . '/../includes/helpers.php';
-cybokron_init();
-
 if (PHP_SAPI !== 'cli') {
     http_response_code(403);
     die('Migration must run from CLI.');
 }
 
-// Create a dedicated PDO connection for migrations with buffered queries enabled.
-// The shared Database::getInstance() connection may have EMULATE_PREPARES=false
-// which causes "unbuffered queries" errors on some hosting environments.
+// Load config only (no helpers/scraper/auth dependencies needed for migrations)
+$configFile = __DIR__ . '/../config.php';
+if (!file_exists($configFile)) {
+    die("Configuration file not found: {$configFile}\n");
+}
+require_once $configFile;
+
+// Create a standalone PDO connection for migrations.
+// Uses EMULATE_PREPARES=true and buffered queries to avoid
+// "unbuffered queries" errors on shared hosting.
 $dsn = sprintf('mysql:host=%s;dbname=%s;charset=%s', DB_HOST, DB_NAME, DB_CHARSET);
 $pdo = new PDO($dsn, DB_USER, DB_PASS, [
     PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
