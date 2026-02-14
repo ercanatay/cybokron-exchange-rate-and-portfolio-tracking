@@ -138,6 +138,7 @@ $version = getAppVersion();
     <link rel="icon" type="image/svg+xml" href="favicon.svg">
     <link rel="stylesheet" href="assets/css/style.css?v=<?= filemtime(__DIR__ . '/assets/css/style.css') ?>">
     <link rel="stylesheet" href="assets/css/repair-progress.css?v=<?= filemtime(__DIR__ . '/assets/css/repair-progress.css') ?>">
+    <link rel="stylesheet" href="assets/css/observability.css?v=<?= filemtime(__DIR__ . '/assets/css/observability.css') ?>">
 </head>
 
 <body>
@@ -145,227 +146,280 @@ $version = getAppVersion();
     include __DIR__ . '/includes/header.php'; ?>
 
     <main id="main-content" class="container">
-        <section class="bank-section">
-            <h2><?= t('observability.bank_stats') ?></h2>
-            <p class="last-update"><?= t('observability.stats_period') ?></p>
 
-            <div class="table-responsive">
-                <table class="rates-table">
-                    <thead>
-                        <tr>
-                            <th scope="col"><?= t('observability.bank') ?></th>
-                            <th scope="col"><?= t('observability.last_scrape') ?></th>
-                            <th scope="col"><?= t('observability.runs_7d') ?></th>
-                            <th scope="col"><?= t('observability.success_rate') ?></th>
-                            <th scope="col"><?= t('observability.avg_duration') ?></th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <?php foreach ($bankStats as $row): ?>
-                            <?php
-                            $total = (int) $row['total_runs'];
-                            $success = (int) $row['success_count'];
-                            $successRate = $total > 0 ? round(($success / $total) * 100) : 0;
-                            $avgDuration = $row['avg_duration_ms'] !== null ? round((float) $row['avg_duration_ms']) : 0;
-                            ?>
-                            <tr>
-                                <td><?= htmlspecialchars($row['name']) ?></td>
-                                <td><?= $row['last_scraped_at'] ? formatDateTime($row['last_scraped_at']) : t('common.not_available') ?>
-                                </td>
-                                <td><?= $total ?></td>
-                                <td>
-                                    <span
-                                        class="rate-change <?= $successRate >= 90 ? 'text-success' : ($successRate >= 70 ? 'text-warning' : 'text-danger') ?>">
-                                        <?= $successRate ?>%
-                                    </span>
-                                    <?php if ((int) $row['error_count'] > 0): ?>
-                                        <span class="text-danger"
-                                            title="<?= t('observability.errors') ?>">(<?= (int) $row['error_count'] ?>)</span>
-                                    <?php endif; ?>
-                                </td>
-                                <td><?= $avgDuration ?> ms</td>
-                            </tr>
-                        <?php endforeach; ?>
-                    </tbody>
-                </table>
+        <!-- ═══ Bank Statistics ════════════════════════════════════════════════ -->
+        <section class="obs-section">
+            <div class="obs-section-header">
+                <div class="obs-section-icon stats">&#x1F4CA;</div>
+                <div>
+                    <h2 class="obs-section-title"><?= t('observability.bank_stats') ?></h2>
+                    <p class="obs-section-subtitle"><?= t('observability.stats_period') ?></p>
+                </div>
             </div>
-        </section>
-
-        <?php if (defined('SELF_HEALING_ENABLED') && SELF_HEALING_ENABLED): ?>
-        <section class="bank-section">
-            <h2><?= t('selfhealing.title') ?></h2>
-
-            <?php if (!empty($_SESSION['flash_success'])): ?>
-                <p class="text-success"><?= htmlspecialchars($_SESSION['flash_success']) ?></p>
-                <?php unset($_SESSION['flash_success']); ?>
-            <?php endif; ?>
-            <?php if (!empty($_SESSION['flash_error'])): ?>
-                <p class="text-danger"><?= htmlspecialchars($_SESSION['flash_error']) ?></p>
-                <?php unset($_SESSION['flash_error']); ?>
-            <?php endif; ?>
-
-            <h3><?= t('selfhealing.active_configs') ?></h3>
-            <?php if (empty($activeRepairConfigs)): ?>
-                <p><?= t('selfhealing.no_active_configs') ?></p>
-            <?php else: ?>
+            <div class="obs-section-body">
                 <div class="table-responsive">
-                    <table class="rates-table">
+                    <table class="rates-table obs-stats-table">
                         <thead>
                             <tr>
                                 <th scope="col"><?= t('observability.bank') ?></th>
-                                <th scope="col">XPath</th>
-                                <th scope="col">GitHub</th>
-                                <th scope="col"><?= t('observability.time') ?></th>
-                                <th scope="col"><?= t('portfolio.table.actions') ?></th>
+                                <th scope="col"><?= t('observability.last_scrape') ?></th>
+                                <th scope="col"><?= t('observability.runs_7d') ?></th>
+                                <th scope="col"><?= t('observability.success_rate') ?></th>
+                                <th scope="col"><?= t('observability.avg_duration') ?></th>
                             </tr>
                         </thead>
                         <tbody>
-                            <?php foreach ($activeRepairConfigs as $rc): ?>
+                            <?php foreach ($bankStats as $row): ?>
+                                <?php
+                                $total = (int) $row['total_runs'];
+                                $success = (int) $row['success_count'];
+                                $successRate = $total > 0 ? round(($success / $total) * 100) : 0;
+                                $avgDuration = $row['avg_duration_ms'] !== null ? round((float) $row['avg_duration_ms']) : 0;
+                                ?>
                                 <tr>
-                                    <td><?= htmlspecialchars($rc['bank_name']) ?></td>
-                                    <td><code><?= htmlspecialchars(mb_substr($rc['xpath_rows'], 0, 50)) ?></code></td>
-                                    <td>
-                                        <?php if ($rc['github_issue_url']): ?>
-                                            <a href="<?= htmlspecialchars($rc['github_issue_url']) ?>" target="_blank" rel="noopener">Issue</a>
-                                        <?php endif; ?>
-                                        <?php if ($rc['github_commit_sha']): ?>
-                                            <code><?= htmlspecialchars(substr($rc['github_commit_sha'], 0, 7)) ?></code>
+                                    <td data-label="<?= htmlspecialchars(t('observability.bank')) ?>"><?= htmlspecialchars($row['name']) ?></td>
+                                    <td data-label="<?= htmlspecialchars(t('observability.last_scrape')) ?>"><?= $row['last_scraped_at'] ? formatDateTime($row['last_scraped_at']) : t('common.not_available') ?></td>
+                                    <td data-label="<?= htmlspecialchars(t('observability.runs_7d')) ?>"><?= $total ?></td>
+                                    <td data-label="<?= htmlspecialchars(t('observability.success_rate')) ?>">
+                                        <span class="rate-change <?= $successRate >= 90 ? 'text-success' : ($successRate >= 70 ? 'text-warning' : 'text-danger') ?>">
+                                            <?= $successRate ?>%
+                                        </span>
+                                        <?php if ((int) $row['error_count'] > 0): ?>
+                                            <span class="text-danger" title="<?= t('observability.errors') ?>">(<?= (int) $row['error_count'] ?>)</span>
                                         <?php endif; ?>
                                     </td>
-                                    <td><?= formatDateTime($rc['created_at']) ?></td>
-                                    <td>
-                                        <form method="post" style="display:inline">
-                                            <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
-                                            <input type="hidden" name="action" value="deactivate_repair">
-                                            <input type="hidden" name="bank_id" value="<?= (int) $rc['bank_id'] ?>">
-                                            <button type="submit" class="btn btn-sm" onclick="return confirm('<?= t('selfhealing.deactivate_confirm') ?>')"><?= t('admin.deactivate') ?></button>
-                                        </form>
-                                    </td>
+                                    <td data-label="<?= htmlspecialchars(t('observability.avg_duration')) ?>"><?= $avgDuration ?> ms</td>
                                 </tr>
                             <?php endforeach; ?>
                         </tbody>
                     </table>
                 </div>
-            <?php endif; ?>
+            </div>
+        </section>
 
-            <h3><?= t('selfhealing.repair_logs') ?></h3>
-            <?php if (empty($repairLogs)): ?>
-                <p><?= t('selfhealing.no_repair_logs') ?></p>
-            <?php else: ?>
+        <?php if (defined('SELF_HEALING_ENABLED') && SELF_HEALING_ENABLED): ?>
+        <!-- ═══ Self-Healing Section ══════════════════════════════════════════ -->
+        <section class="obs-section">
+            <div class="obs-section-header">
+                <div class="obs-section-icon healing">&#x1F527;</div>
+                <div>
+                    <h2 class="obs-section-title"><?= t('selfhealing.title') ?></h2>
+                </div>
+            </div>
+            <div class="obs-section-body">
+
+                <?php if (!empty($_SESSION['flash_success'])): ?>
+                    <div class="obs-flash flash-success"><?= htmlspecialchars($_SESSION['flash_success']) ?></div>
+                    <?php unset($_SESSION['flash_success']); ?>
+                <?php endif; ?>
+                <?php if (!empty($_SESSION['flash_error'])): ?>
+                    <div class="obs-flash flash-error"><?= htmlspecialchars($_SESSION['flash_error']) ?></div>
+                    <?php unset($_SESSION['flash_error']); ?>
+                <?php endif; ?>
+
+                <!-- Active repair configs -->
+                <div class="obs-sub-panel">
+                    <h3 class="obs-sub-title">
+                        <span class="obs-sub-icon">&#x2699;</span>
+                        <?= t('selfhealing.active_configs') ?>
+                    </h3>
+                    <?php if (empty($activeRepairConfigs)): ?>
+                        <p class="obs-empty"><?= t('selfhealing.no_active_configs') ?></p>
+                    <?php else: ?>
+                        <div class="table-responsive">
+                            <table class="rates-table">
+                                <thead>
+                                    <tr>
+                                        <th scope="col"><?= t('observability.bank') ?></th>
+                                        <th scope="col">XPath</th>
+                                        <th scope="col">GitHub</th>
+                                        <th scope="col"><?= t('observability.time') ?></th>
+                                        <th scope="col"><?= t('portfolio.table.actions') ?></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php foreach ($activeRepairConfigs as $rc): ?>
+                                        <tr>
+                                            <td><?= htmlspecialchars($rc['bank_name']) ?></td>
+                                            <td><code><?= htmlspecialchars(mb_substr($rc['xpath_rows'], 0, 50)) ?></code></td>
+                                            <td>
+                                                <?php if ($rc['github_issue_url']): ?>
+                                                    <a href="<?= htmlspecialchars($rc['github_issue_url']) ?>" target="_blank" rel="noopener">Issue</a>
+                                                <?php endif; ?>
+                                                <?php if ($rc['github_commit_sha']): ?>
+                                                    <code><?= htmlspecialchars(substr($rc['github_commit_sha'], 0, 7)) ?></code>
+                                                <?php endif; ?>
+                                            </td>
+                                            <td><?= formatDateTime($rc['created_at']) ?></td>
+                                            <td>
+                                                <form method="post" style="display:inline">
+                                                    <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
+                                                    <input type="hidden" name="action" value="deactivate_repair">
+                                                    <input type="hidden" name="bank_id" value="<?= (int) $rc['bank_id'] ?>">
+                                                    <button type="submit" class="btn btn-sm" onclick="return confirm('<?= t('selfhealing.deactivate_confirm') ?>')"><?= t('admin.deactivate') ?></button>
+                                                </form>
+                                            </td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                </tbody>
+                            </table>
+                        </div>
+                    <?php endif; ?>
+                </div>
+
+                <!-- Repair logs -->
+                <div class="obs-sub-panel">
+                    <h3 class="obs-sub-title">
+                        <span class="obs-sub-icon">&#x1F4DD;</span>
+                        <?= t('selfhealing.repair_logs') ?>
+                    </h3>
+                    <?php if (empty($repairLogs)): ?>
+                        <p class="obs-empty"><?= t('selfhealing.no_repair_logs') ?></p>
+                    <?php else: ?>
+                        <div class="table-responsive">
+                            <table class="rates-table">
+                                <thead>
+                                    <tr>
+                                        <th scope="col"><?= t('observability.time') ?></th>
+                                        <th scope="col"><?= t('observability.bank') ?></th>
+                                        <th scope="col"><?= t('selfhealing.step') ?></th>
+                                        <th scope="col"><?= t('observability.status') ?></th>
+                                        <th scope="col"><?= t('observability.duration') ?></th>
+                                        <th scope="col"><?= t('observability.message') ?></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php foreach ($repairLogs as $rl): ?>
+                                        <tr>
+                                            <td><?= formatDateTime($rl['created_at']) ?></td>
+                                            <td><?= htmlspecialchars($rl['bank_name']) ?></td>
+                                            <td><code><?= htmlspecialchars($rl['step']) ?></code></td>
+                                            <td>
+                                                <span class="rate-change <?= $rl['status'] === 'success' ? 'text-success' : ($rl['status'] === 'skipped' ? 'text-warning' : 'text-danger') ?>">
+                                                    <?= htmlspecialchars($rl['status']) ?>
+                                                </span>
+                                            </td>
+                                            <td><?= $rl['duration_ms'] !== null ? (int) $rl['duration_ms'] . ' ms' : '—' ?></td>
+                                            <td class="message-cell"><?= htmlspecialchars($rl['message'] ?? '') ?></td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                </tbody>
+                            </table>
+                        </div>
+                    <?php endif; ?>
+                </div>
+
+                <!-- Manual trigger -->
+                <div class="obs-sub-panel">
+                    <h3 class="obs-sub-title">
+                        <span class="obs-sub-icon">&#x26A1;</span>
+                        <?= t('selfhealing.manual_trigger') ?>
+                    </h3>
+                    <div class="obs-trigger-grid">
+                        <?php foreach ($bankStats as $bs): ?>
+                            <form method="post" style="display:inline">
+                                <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
+                                <input type="hidden" name="action" value="trigger_repair">
+                                <input type="hidden" name="bank_id" value="<?= (int) $bs['id'] ?>">
+                                <button type="submit" class="obs-trigger-btn">
+                                    <span class="trigger-icon">&#x1F3E6;</span>
+                                    <?= htmlspecialchars($bs['name']) ?>
+                                </button>
+                            </form>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ═══ Live Repair Progress ══════════════════════════════════════════ -->
+        <section class="obs-section">
+            <div class="obs-section-header">
+                <div class="obs-section-icon live">&#x1F6E0;</div>
+                <div>
+                    <h2 class="obs-section-title"><?= t('repair.live_title') ?></h2>
+                    <p class="obs-section-subtitle"><?= t('repair.live_desc') ?></p>
+                </div>
+            </div>
+            <div class="obs-section-body">
+                <div id="repair-live-card"
+                    data-csrf="<?= htmlspecialchars($csrfToken) ?>"
+                    data-btn_start="<?= htmlspecialchars(t('repair.btn.start')) ?>"
+                    data-btn_running="<?= htmlspecialchars(t('repair.btn.running')) ?>"
+                    data-label_fetch_html="<?= htmlspecialchars(t('repair.step.fetch_html')) ?>"
+                    data-label_check_enabled="<?= htmlspecialchars(t('repair.step.check_enabled')) ?>"
+                    data-label_cooldown_check="<?= htmlspecialchars(t('repair.step.cooldown_check')) ?>"
+                    data-label_generate_config="<?= htmlspecialchars(t('repair.step.generate_config')) ?>"
+                    data-label_validate_config="<?= htmlspecialchars(t('repair.step.validate_config')) ?>"
+                    data-label_save_config="<?= htmlspecialchars(t('repair.step.save_config')) ?>"
+                    data-label_github_commit="<?= htmlspecialchars(t('repair.step.github_commit')) ?>"
+                    data-label_pipeline_complete="<?= htmlspecialchars(t('repair.step.pipeline_complete')) ?>"
+                    data-summary_success="<?= htmlspecialchars(t('repair.summary.success')) ?>"
+                    data-summary_failed="<?= htmlspecialchars(t('repair.summary.failed')) ?>"
+                    data-summary_rates="<?= htmlspecialchars(t('repair.summary.rates_found')) ?>"
+                >
+                    <div class="repair-controls">
+                        <select class="repair-bank-select" aria-label="<?= htmlspecialchars(t('repair.select_bank')) ?>">
+                            <?php foreach ($repairableBanks as $rb): ?>
+                                <option value="<?= (int) $rb['id'] ?>"><?= htmlspecialchars($rb['name']) ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                        <button type="button" class="btn-repair"><?= t('repair.btn.start') ?></button>
+                    </div>
+
+                    <ul class="repair-stepper" role="list" aria-label="<?= htmlspecialchars(t('repair.stepper_aria')) ?>"></ul>
+                    <div class="repair-summary"></div>
+                </div>
+            </div>
+        </section>
+        <?php endif; ?>
+
+        <!-- ═══ Recent Logs ═══════════════════════════════════════════════════ -->
+        <section class="obs-section">
+            <div class="obs-section-header">
+                <div class="obs-section-icon logs">&#x1F4CB;</div>
+                <div>
+                    <h2 class="obs-section-title"><?= t('observability.recent_logs') ?></h2>
+                </div>
+            </div>
+            <div class="obs-section-body">
                 <div class="table-responsive">
-                    <table class="rates-table">
+                    <table class="rates-table obs-log-table">
                         <thead>
                             <tr>
                                 <th scope="col"><?= t('observability.time') ?></th>
                                 <th scope="col"><?= t('observability.bank') ?></th>
-                                <th scope="col"><?= t('selfhealing.step') ?></th>
                                 <th scope="col"><?= t('observability.status') ?></th>
+                                <th scope="col"><?= t('observability.rates') ?></th>
                                 <th scope="col"><?= t('observability.duration') ?></th>
                                 <th scope="col"><?= t('observability.message') ?></th>
                             </tr>
                         </thead>
                         <tbody>
-                            <?php foreach ($repairLogs as $rl): ?>
+                            <?php foreach ($recentLogs as $log): ?>
                                 <tr>
-                                    <td><?= formatDateTime($rl['created_at']) ?></td>
-                                    <td><?= htmlspecialchars($rl['bank_name']) ?></td>
-                                    <td><code><?= htmlspecialchars($rl['step']) ?></code></td>
-                                    <td>
-                                        <span class="rate-change <?= $rl['status'] === 'success' ? 'text-success' : ($rl['status'] === 'skipped' ? 'text-warning' : 'text-danger') ?>">
-                                            <?= htmlspecialchars($rl['status']) ?>
+                                    <td data-label="<?= htmlspecialchars(t('observability.time')) ?>">
+                                        <span class="log-time"><?= formatDateTime($log['created_at']) ?></span>
+                                    </td>
+                                    <td data-label="<?= htmlspecialchars(t('observability.bank')) ?>">
+                                        <span class="log-bank"><?= htmlspecialchars($log['bank_name']) ?></span>
+                                    </td>
+                                    <td data-label="<?= htmlspecialchars(t('observability.status')) ?>">
+                                        <span class="rate-change <?= $log['status'] === 'success' ? 'text-success' : ($log['status'] === 'warning' ? 'text-warning' : 'text-danger') ?>">
+                                            <?= htmlspecialchars(t('observability.status_' . ($log['status'] === 'success' ? 'success' : ($log['status'] === 'warning' ? 'warning' : 'error')))) ?>
                                         </span>
                                     </td>
-                                    <td><?= $rl['duration_ms'] !== null ? (int) $rl['duration_ms'] . ' ms' : '—' ?></td>
-                                    <td class="message-cell"><?= htmlspecialchars($rl['message'] ?? '') ?></td>
+                                    <td data-label="<?= htmlspecialchars(t('observability.rates')) ?>"><?= (int) $log['rates_count'] ?></td>
+                                    <td data-label="<?= htmlspecialchars(t('observability.duration')) ?>"><?= $log['duration_ms'] !== null ? (int) $log['duration_ms'] . ' ms' : '—' ?></td>
+                                    <td class="message-cell" data-label="<?= htmlspecialchars(t('observability.message')) ?>">
+                                        <?= htmlspecialchars($log['message'] ?? '') ?>
+                                        <?= $log['table_changed'] ? ' ' . t('observability.table_changed') : '' ?>
+                                    </td>
                                 </tr>
                             <?php endforeach; ?>
                         </tbody>
                     </table>
                 </div>
-            <?php endif; ?>
-
-            <h3><?= t('selfhealing.manual_trigger') ?></h3>
-            <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.5rem;">
-                <?php foreach ($bankStats as $bs): ?>
-                    <form method="post" style="display:inline">
-                        <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
-                        <input type="hidden" name="action" value="trigger_repair">
-                        <input type="hidden" name="bank_id" value="<?= (int) $bs['id'] ?>">
-                        <button type="submit" class="btn btn-sm"><?= htmlspecialchars($bs['name']) ?></button>
-                    </form>
-                <?php endforeach; ?>
-            </div>
-
-            <!-- Live Repair Progress -->
-            <h3 style="margin-top: 2rem;"><?= t('repair.live_title') ?></h3>
-            <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 1rem;"><?= t('repair.live_desc') ?></p>
-
-            <div id="repair-live-card"
-                data-csrf="<?= htmlspecialchars($csrfToken) ?>"
-                data-btn_start="<?= htmlspecialchars(t('repair.btn.start')) ?>"
-                data-btn_running="<?= htmlspecialchars(t('repair.btn.running')) ?>"
-                data-label_fetch_html="<?= htmlspecialchars(t('repair.step.fetch_html')) ?>"
-                data-label_check_enabled="<?= htmlspecialchars(t('repair.step.check_enabled')) ?>"
-                data-label_cooldown_check="<?= htmlspecialchars(t('repair.step.cooldown_check')) ?>"
-                data-label_generate_config="<?= htmlspecialchars(t('repair.step.generate_config')) ?>"
-                data-label_validate_config="<?= htmlspecialchars(t('repair.step.validate_config')) ?>"
-                data-label_save_config="<?= htmlspecialchars(t('repair.step.save_config')) ?>"
-                data-label_github_commit="<?= htmlspecialchars(t('repair.step.github_commit')) ?>"
-                data-label_pipeline_complete="<?= htmlspecialchars(t('repair.step.pipeline_complete')) ?>"
-                data-summary_success="<?= htmlspecialchars(t('repair.summary.success')) ?>"
-                data-summary_failed="<?= htmlspecialchars(t('repair.summary.failed')) ?>"
-                data-summary_rates="<?= htmlspecialchars(t('repair.summary.rates_found')) ?>"
-            >
-                <div class="repair-controls">
-                    <select class="repair-bank-select" aria-label="<?= htmlspecialchars(t('repair.select_bank')) ?>">
-                        <?php foreach ($repairableBanks as $rb): ?>
-                            <option value="<?= (int) $rb['id'] ?>"><?= htmlspecialchars($rb['name']) ?></option>
-                        <?php endforeach; ?>
-                    </select>
-                    <button type="button" class="btn-repair"><?= t('repair.btn.start') ?></button>
-                </div>
-
-                <ul class="repair-stepper" role="list" aria-label="<?= htmlspecialchars(t('repair.stepper_aria')) ?>"></ul>
-                <div class="repair-summary"></div>
-            </div>
-        </section>
-        <?php endif; ?>
-
-        <section class="bank-section">
-            <h2><?= t('observability.recent_logs') ?></h2>
-            <div class="table-responsive">
-                <table class="rates-table">
-                    <thead>
-                        <tr>
-                            <th scope="col"><?= t('observability.time') ?></th>
-                            <th scope="col"><?= t('observability.bank') ?></th>
-                            <th scope="col"><?= t('observability.status') ?></th>
-                            <th scope="col"><?= t('observability.rates') ?></th>
-                            <th scope="col"><?= t('observability.duration') ?></th>
-                            <th scope="col"><?= t('observability.message') ?></th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <?php foreach ($recentLogs as $log): ?>
-                            <tr>
-                                <td><?= formatDateTime($log['created_at']) ?></td>
-                                <td><?= htmlspecialchars($log['bank_name']) ?></td>
-                                <td>
-                                    <span
-                                        class="rate-change <?= $log['status'] === 'success' ? 'text-success' : ($log['status'] === 'warning' ? 'text-warning' : 'text-danger') ?>">
-                                        <?= htmlspecialchars(t('observability.status_' . ($log['status'] === 'success' ? 'success' : ($log['status'] === 'warning' ? 'warning' : 'error')))) ?>
-                                    </span>
-                                </td>
-                                <td><?= (int) $log['rates_count'] ?></td>
-                                <td><?= $log['duration_ms'] !== null ? (int) $log['duration_ms'] . ' ms' : '—' ?></td>
-                                <td class="message-cell">
-                                    <?= htmlspecialchars($log['message'] ?? '') ?>
-                                    <?= $log['table_changed'] ? ' ' . t('observability.table_changed') : '' ?>
-                                </td>
-                            </tr>
-                        <?php endforeach; ?>
-                    </tbody>
-                </table>
             </div>
         </section>
     </main>
