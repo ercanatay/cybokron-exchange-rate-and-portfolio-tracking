@@ -298,12 +298,16 @@ foreach ($allRates as $r) {
                                 </p>
                             </div>
                         </div>
-                        <form method="POST" style="margin:0">
-                            <input type="hidden" name="action" value="update_rates">
-                            <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
-                            <button type="submit" class="btn btn-primary" style="white-space:nowrap">🔄
-                                <?= t('admin.update_rates_now') ?></button>
-                        </form>
+                        <div style="display:flex;gap:8px;align-items:center">
+                            <button type="button" id="clear-cache-btn" class="btn btn-sm" style="white-space:nowrap"
+                                onclick="clearServiceWorkerCache(this)">🧹 <?= t('admin.clear_cache') ?></button>
+                            <form method="POST" style="margin:0">
+                                <input type="hidden" name="action" value="update_rates">
+                                <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
+                                <button type="submit" class="btn btn-primary" style="white-space:nowrap">🔄
+                                    <?= t('admin.update_rates_now') ?></button>
+                            </form>
+                        </div>
                     </div>
                 </div>
 
@@ -1288,6 +1292,43 @@ foreach ($allRates as $r) {
                 touchItem = null;
             });
         })();
+
+        function clearServiceWorkerCache(btn) {
+            btn.disabled = true;
+            btn.textContent = '⏳ ...';
+            if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+                navigator.serviceWorker.controller.postMessage({ type: 'CLEAR_CACHE' });
+                navigator.serviceWorker.addEventListener('message', function handler(e) {
+                    if (e.data && e.data.type === 'CACHE_CLEARED') {
+                        navigator.serviceWorker.removeEventListener('message', handler);
+                        btn.textContent = '✅ <?= t('admin.cache_cleared') ?>';
+                        setTimeout(function() {
+                            btn.disabled = false;
+                            btn.textContent = '🧹 <?= t('admin.clear_cache') ?>';
+                        }, 2000);
+                    }
+                });
+            } else {
+                // No service worker, clear caches directly
+                if ('caches' in window) {
+                    caches.keys().then(function(keys) {
+                        return Promise.all(keys.map(function(k) { return caches.delete(k); }));
+                    }).then(function() {
+                        btn.textContent = '✅ <?= t('admin.cache_cleared') ?>';
+                        setTimeout(function() {
+                            btn.disabled = false;
+                            btn.textContent = '🧹 <?= t('admin.clear_cache') ?>';
+                        }, 2000);
+                    });
+                } else {
+                    btn.textContent = '✅ <?= t('admin.cache_cleared') ?>';
+                    setTimeout(function() {
+                        btn.disabled = false;
+                        btn.textContent = '🧹 <?= t('admin.clear_cache') ?>';
+                    }, 2000);
+                }
+            }
+        }
     </script>
 </body>
 

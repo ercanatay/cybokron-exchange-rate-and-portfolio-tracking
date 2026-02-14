@@ -149,6 +149,8 @@ return [
     'admin.health' => 'صحة النظام',
     'admin.last_rate_update' => 'آخر تحديث للأسعار',
     'admin.update_rates_now' => 'تحديث الأسعار الآن',
+    'admin.clear_cache' => 'مسح ذاكرة التخزين المؤقت',
+    'admin.cache_cleared' => 'تم مسح ذاكرة التخزين المؤقت',
     'admin.rates_updated_success' => 'تم تحديث الأسعار بنجاح!',
     'admin.rates_updated_error' => 'خطأ في تحديث الأسعار',
     'admin.status' => 'الحالة',

@@ -1,9 +1,9 @@
 /**
  * Service Worker — Cybokron PWA
- * Basic offline caching for static assets
+ * Network-first strategy with offline fallback
  */
 
-const CACHE_NAME = 'cybokron-v2';
+const CACHE_NAME = 'cybokron-v3';
 const STATIC_ASSETS = [
   '/',
   '/index.php',
@@ -35,22 +35,37 @@ self.addEventListener('activate', (e) => {
   );
 });
 
+// Listen for cache clear messages from admin panel
+self.addEventListener('message', (e) => {
+  if (e.data && e.data.type === 'CLEAR_CACHE') {
+    caches.keys().then((keys) => {
+      return Promise.all(keys.map((k) => caches.delete(k)));
+    }).then(() => {
+      // Notify all clients
+      self.clients.matchAll().then((clients) => {
+        clients.forEach((client) => client.postMessage({ type: 'CACHE_CLEARED' }));
+      });
+    });
+  }
+});
+
 self.addEventListener('fetch', (e) => {
   if (e.request.method !== 'GET') return;
   const url = new URL(e.request.url);
   if (url.origin !== location.origin) return;
   if (url.pathname.includes('api.php') || url.pathname.includes('portfolio')) return;
 
+  // Network-first: try network, fall back to cache, then offline page
   e.respondWith(
-    caches.match(e.request).then((cached) => {
-      if (cached) return cached;
-      return fetch(e.request).then((res) => {
+    fetch(e.request).then((res) => {
+      if (res.ok && (url.pathname.endsWith('.css') || url.pathname.endsWith('.js') || url.pathname.endsWith('.html') || url.pathname === '/' || url.pathname.endsWith('.php'))) {
         const clone = res.clone();
-        if (res.ok && (url.pathname.endsWith('.css') || url.pathname.endsWith('.js') || url.pathname.endsWith('.html') || url.pathname === '/' || url.pathname.endsWith('.php'))) {
-          caches.open(CACHE_NAME).then((cache) => cache.put(e.request, clone));
-        }
-        return res;
-      }).catch(() => {
+        caches.open(CACHE_NAME).then((cache) => cache.put(e.request, clone));
+      }
+      return res;
+    }).catch(() => {
+      return caches.match(e.request).then((cached) => {
+        if (cached) return cached;
         if (e.request.mode === 'navigate') {
           return caches.match('/index.php') || caches.match('/');
         }

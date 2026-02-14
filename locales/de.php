@@ -149,6 +149,8 @@ return [
     'admin.health' => 'Systemzustand',
     'admin.last_rate_update' => 'Letzte Kursaktualisierung',
     'admin.update_rates_now' => 'Kurse jetzt aktualisieren',
+    'admin.clear_cache' => 'Cache leeren',
+    'admin.cache_cleared' => 'Cache geleert',
     'admin.rates_updated_success' => 'Kurse erfolgreich aktualisiert!',
     'admin.rates_updated_error' => 'Fehler bei Kursaktualisierung',
     'admin.status' => 'Status',
