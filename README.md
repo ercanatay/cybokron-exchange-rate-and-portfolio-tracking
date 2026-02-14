@@ -15,9 +15,11 @@ Cybokron is an open-source PHP/MySQL application for tracking Turkish bank excha
 
 ## Features
 
-- **Multi-bank architecture** — Dünya Katılım, TCMB (Central Bank of Turkey), İş Bankası
+- **Multi-bank architecture** — Dünya Katılım, TCMB (Central Bank of Turkey), İş Bankası, Kapalıçarşı
 - **Exchange rate scraping** with table-structure change detection
 - **OpenRouter AI fallback** for automatic table-change recovery (cost-guarded)
+- **Autonomous self-healing** — detects broken scrapers, generates new configs via AI, validates & commits to GitHub
+- **Live repair tracker** — real-time SSE streaming of repair pipeline steps with stepper UI
 - **Portfolio tracking** with profit/loss, soft delete, user-scoped RBAC, goal favorites, filtering, period-based progress & deadlines
 - **Session-based authentication** (login, logout, admin/user roles)
 - **Cloudflare Turnstile CAPTCHA** on login page (managed mode, auto-pass for most users)
@@ -32,7 +34,7 @@ Cybokron is an open-source PHP/MySQL application for tracking Turkish bank excha
 - **PWA support** — manifest, service worker, offline cache
 - **Webhook dispatch** on rate updates (Zapier, IFTTT, Slack, Discord)
 - **Admin dashboard** — bank/currency toggle, user list, system health
-- **Observability panel** — scrape logs, success rates, latency
+- **Observability panel** — scrape logs, success rates, latency, responsive card-based UI
 - **GitHub release-based self-update** with optional signed verification
 - **Localization** — Turkish, English, Arabic, German, French
 
@@ -60,6 +62,7 @@ Cybokron is an open-source PHP/MySQL application for tracking Turkish bank excha
 | Dünya Katılım | [gunluk-kurlar](https://dunyakatilim.com.tr/gunluk-kurlar) | Active |
 | TCMB | [today.xml](https://www.tcmb.gov.tr/kurlar/today.xml) | Active |
 | İş Bankası | [kur.doviz.com/isbankasi](https://kur.doviz.com/isbankasi) | Active |
+| Kapalıçarşı | [kur.doviz.com](https://kur.doviz.com) | Active |
 
 ## Requirements
 
@@ -254,6 +257,52 @@ To add a new bank source later:
 5. Insert bank metadata via a new migration SQL file in `database/migrations/`
 
 ## Changelog
+
+### v1.9.0 (2026-02-14)
+
+Live repair progress tracker with real-time SSE streaming and responsive observability redesign.
+
+**Live Repair Tracker**
+- New SSE endpoint (`api_repair_stream.php`) streams self-healing pipeline steps in real-time
+- Progress callback mechanism in `ScraperAutoRepair` emits step-by-step events (fetch_html → check_enabled → cooldown → generate_config → validate → save → commit → complete)
+- Stepper/timeline UI with animated status icons (pending → spinner → success/error)
+- `Scraper::prepareRepairContext()` public API for SSE endpoint to access HTML fetch + hash without Reflection
+- Admin auth + CSRF + rate limit (5/min) security on SSE endpoint
+
+**Observability UI/UX Redesign**
+- Complete responsive redesign of `observability.php` with card-based section layout
+- Section icons (stats, healing, live, logs) with gradient backgrounds
+- Sub-panels for self-healing area (active configs, repair logs, manual trigger)
+- Mobile (≤640px): tables transform to card view using `data-label` attribute pattern
+- Tablet (641–900px) and desktop (901px+) responsive breakpoints
+- New `assets/css/observability.css` stylesheet (~400 lines)
+- Manual trigger buttons with bank emoji icons and hover states
+
+**Localization**
+- 17 new `repair.*` translation keys across all 5 languages (TR, EN, DE, FR, AR)
+
+### v1.8.0 (2026-02-14)
+
+Autonomous self-healing scraper system with AI-powered configuration recovery.
+
+**Self-Healing Pipeline**
+- New `ScraperAutoRepair` class detects broken scraper configs and auto-recovers via OpenRouter AI
+- Pipeline: detect failure → fetch HTML → generate new config via AI → validate → save → commit to GitHub
+- Cooldown management prevents repeated API calls for the same table hash
+- Detailed step logging with duration tracking for each pipeline phase
+- GitHub auto-commit of repaired configs via Personal Access Token
+
+**Scraper Improvements**
+- `DunyaKatilimScraper` returns empty array instead of throwing on parse failure (enables self-healing trigger)
+- Table change detection with SHA-256 hash comparison
+
+**Observability Integration**
+- Repair history logs displayed in observability panel
+- Active repair configurations listed with bank/status/timestamp
+- Manual repair trigger buttons per bank with CSRF protection
+
+**CI/CD**
+- Deploy workflow updated with `CYBOKRON_GITHUB_PAT` secret for self-healing GitHub commits
 
 ### v1.7.4 (2026-02-14)
 
