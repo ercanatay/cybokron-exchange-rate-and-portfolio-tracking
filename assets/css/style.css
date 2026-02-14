@@ -659,6 +659,10 @@ button:focus-visible,
     .converter-section .converter-grid {
         grid-template-columns: 1fr;
     }
+
+    .tags-pills-list {
+        grid-template-columns: 1fr;
+    }
 }
 
 /* ─── Premium Dashboard Widgets ────────────────────────────────────────── */
@@ -3053,11 +3057,6 @@ button:focus-visible,
 
     .bulk-select {
         flex: 1;
-    }
-
-    .tags-pills-list {
-        grid-template-columns: 1fr;
-        gap: 10px;
     }
 
     .col-tags {
