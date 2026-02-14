@@ -1052,149 +1052,157 @@ $annualizedReturn = ($oldestDate && $analyticsCost > 0)
                                      data-source-types="<?= htmlspecialchars(implode(',', array_unique(array_column($gSources, 'source_type')))) ?>"
                                      data-currencies="<?= htmlspecialchars($goal['target_currency'] ?? '') ?>"
                                      data-goal-type="<?= htmlspecialchars($goal['target_type'] ?? 'value') ?>">
-                                    <div class="goal-card-header">
-                                        <div class="goal-card-info">
-                                            <form method="POST" style="display:inline">
-                                                <input type="hidden" name="action" value="toggle_goal_favorite">
-                                                <input type="hidden" name="goal_id" value="<?= (int)$goal['id'] ?>">
-                                                <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
-                                                <button type="submit" class="goal-favorite-btn<?= !empty($goal['is_favorite']) ? ' active' : '' ?>"
-                                                    aria-label="<?= !empty($goal['is_favorite']) ? t('portfolio.goals.favorite_remove') : t('portfolio.goals.favorite_add') ?>" title="<?= !empty($goal['is_favorite']) ? t('portfolio.goals.favorite_remove') : t('portfolio.goals.favorite_add') ?>">
-                                                    <?= !empty($goal['is_favorite']) ? '★' : '☆' ?>
-                                                </button>
-                                            </form>
-                                            <span class="goal-name">🎯 <?= htmlspecialchars($goal['name']) ?></span>
-                                            <span class="goal-meta">
-                                                <?= t('portfolio.goals.type_' . ($goal['target_type'] ?? 'value')) ?>
-                                                <?php if ($isPercentGoal && !empty($goal['percent_date_mode'])): ?>
-                                                    <span class="goal-percent-mode-badge"><?= t('portfolio.goals.percent_mode_' . $goal['percent_date_mode']) ?></span>
-                                                <?php endif; ?>
-                                                <?php if ($hasCurrencyUnit && $goalCurrency): ?>
-                                                    <span class="goal-currency-badge"><?= htmlspecialchars($goalCurrency) ?></span>
-                                                <?php endif; ?>
-                                                <?php if ($goalBankName): ?>
-                                                    <span class="goal-bank-badge">🏦 <?= htmlspecialchars($goalBankName) ?></span>
-                                                <?php endif; ?>
-                                                · <?= $gp['item_count'] ?> <?= t('portfolio.goals.items') ?>
-                                            </span>
+                                    <div class="goal-card-body">
+                                        <div class="goal-card-header">
+                                            <div class="goal-card-info">
+                                                <div class="goal-name-row">
+                                                    <form method="POST" style="display:inline">
+                                                        <input type="hidden" name="action" value="toggle_goal_favorite">
+                                                        <input type="hidden" name="goal_id" value="<?= (int)$goal['id'] ?>">
+                                                        <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
+                                                        <button type="submit" class="goal-favorite-btn<?= !empty($goal['is_favorite']) ? ' active' : '' ?>"
+                                                            aria-label="<?= !empty($goal['is_favorite']) ? t('portfolio.goals.favorite_remove') : t('portfolio.goals.favorite_add') ?>" title="<?= !empty($goal['is_favorite']) ? t('portfolio.goals.favorite_remove') : t('portfolio.goals.favorite_add') ?>">
+                                                            <?= !empty($goal['is_favorite']) ? '★' : '☆' ?>
+                                                        </button>
+                                                    </form>
+                                                    <span class="goal-name"><?= htmlspecialchars($goal['name']) ?></span>
+                                                </div>
+                                                <span class="goal-meta">
+                                                    <?= t('portfolio.goals.type_' . ($goal['target_type'] ?? 'value')) ?>
+                                                    <?php if ($isPercentGoal && !empty($goal['percent_date_mode'])): ?>
+                                                        <span class="goal-percent-mode-badge"><?= t('portfolio.goals.percent_mode_' . $goal['percent_date_mode']) ?></span>
+                                                    <?php endif; ?>
+                                                    <?php if ($hasCurrencyUnit && $goalCurrency): ?>
+                                                        <span class="goal-currency-badge"><?= htmlspecialchars($goalCurrency) ?></span>
+                                                    <?php endif; ?>
+                                                    <?php if ($goalBankName): ?>
+                                                        <span class="goal-bank-badge">🏦 <?= htmlspecialchars($goalBankName) ?></span>
+                                                    <?php endif; ?>
+                                                    · <?= $gp['item_count'] ?> <?= t('portfolio.goals.items') ?>
+                                                </span>
+                                            </div>
+                                            <div class="goal-card-actions">
+                                                <button type="button" class="btn btn-xs btn-secondary"
+                                                    onclick="toggleEditGoal(<?= (int)$goal['id'] ?>)">✏️</button>
+                                                <form method="POST" style="display:inline"
+                                                    onsubmit="return confirm('<?= htmlspecialchars(t('portfolio.goals.delete_confirm'), ENT_QUOTES) ?>')">
+                                                    <input type="hidden" name="action" value="delete_goal">
+                                                    <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
+                                                    <input type="hidden" name="goal_id" value="<?= (int)$goal['id'] ?>">
+                                                    <button type="submit" class="btn btn-xs btn-danger" aria-label="<?= t('common.delete') ?>">🗑</button>
+                                                </form>
+                                            </div>
                                         </div>
-                                        <div class="goal-card-actions">
-                                            <button type="button" class="btn btn-xs btn-secondary"
-                                                onclick="toggleEditGoal(<?= (int)$goal['id'] ?>)">✏️</button>
-                                            <form method="POST" style="display:inline"
-                                                onsubmit="return confirm('<?= htmlspecialchars(t('portfolio.goals.delete_confirm'), ENT_QUOTES) ?>')">
-                                                <input type="hidden" name="action" value="delete_goal">
-                                                <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
-                                                <input type="hidden" name="goal_id" value="<?= (int)$goal['id'] ?>">
-                                                <button type="submit" class="btn btn-xs btn-danger" aria-label="<?= t('common.delete') ?>">🗑</button>
-                                            </form>
-                                        </div>
-                                    </div>
-                                    <?php
-                                        // Show period dropdown for non-date goals
-                                        $showPeriodDropdown = !($isPercentGoal && in_array($goal['percent_date_mode'] ?? 'all', ['range', 'since_first']));
-                                        $goalDeadline = $goal['goal_deadline'] ?? null;
-                                        $deadlineMonths = $gp['deadline_months'] ?? null;
-                                    ?>
-                                    <?php if ($showPeriodDropdown || $goalDeadline): ?>
-                                        <div class="goal-card-extras">
-                                            <?php if ($showPeriodDropdown): ?>
-                                                <select class="goal-period-select" data-goal-id="<?= (int)$goal['id'] ?>" onchange="goalPeriodChanged(this)">
-                                                    <option value=""><?= t('portfolio.goals.period_all') ?></option>
-                                                    <option value="7d"><?= t('portfolio.goals.period_7d') ?></option>
-                                                    <option value="14d"><?= t('portfolio.goals.period_14d') ?></option>
-                                                    <option value="1m"><?= t('portfolio.goals.period_1m') ?></option>
-                                                    <option value="3m"><?= t('portfolio.goals.period_3m') ?></option>
-                                                    <option value="6m"><?= t('portfolio.goals.period_6m') ?></option>
-                                                    <option value="9m"><?= t('portfolio.goals.period_9m') ?></option>
-                                                    <option value="1y"><?= t('portfolio.goals.period_1y') ?></option>
-                                                </select>
+                                        <div class="goal-progress-section">
+                                            <?php
+                                                // Show period dropdown for non-date goals
+                                                $showPeriodDropdown = !($isPercentGoal && in_array($goal['percent_date_mode'] ?? 'all', ['range', 'since_first']));
+                                                $goalDeadline = $goal['goal_deadline'] ?? null;
+                                                $deadlineMonths = $gp['deadline_months'] ?? null;
+                                            ?>
+                                            <?php if ($showPeriodDropdown || $goalDeadline): ?>
+                                                <div class="goal-card-extras">
+                                                    <?php if ($showPeriodDropdown): ?>
+                                                        <select class="goal-period-select" data-goal-id="<?= (int)$goal['id'] ?>" onchange="goalPeriodChanged(this)">
+                                                            <option value=""><?= t('portfolio.goals.period_all') ?></option>
+                                                            <option value="7d"><?= t('portfolio.goals.period_7d') ?></option>
+                                                            <option value="14d"><?= t('portfolio.goals.period_14d') ?></option>
+                                                            <option value="1m"><?= t('portfolio.goals.period_1m') ?></option>
+                                                            <option value="3m"><?= t('portfolio.goals.period_3m') ?></option>
+                                                            <option value="6m"><?= t('portfolio.goals.period_6m') ?></option>
+                                                            <option value="9m"><?= t('portfolio.goals.period_9m') ?></option>
+                                                            <option value="1y"><?= t('portfolio.goals.period_1y') ?></option>
+                                                        </select>
+                                                    <?php endif; ?>
+                                                    <?php if ($goalDeadline): ?>
+                                                        <span class="goal-deadline-badge<?= $deadlineMonths === 0 ? ' goal-deadline-expired' : '' ?>">
+                                                            <?php if ($deadlineMonths === 0): ?>
+                                                                ⚠️ <?= t('portfolio.goals.deadline_expired') ?>
+                                                            <?php else: ?>
+                                                                ⏳ <?= str_replace(':months', (string)$deadlineMonths, t('portfolio.goals.deadline_remaining')) ?>
+                                                            <?php endif; ?>
+                                                        </span>
+                                                    <?php endif; ?>
+                                                </div>
                                             <?php endif; ?>
-                                            <?php if ($goalDeadline): ?>
-                                                <span class="goal-deadline-badge<?= $deadlineMonths === 0 ? ' goal-deadline-expired' : '' ?>">
-                                                    <?php if ($deadlineMonths === 0): ?>
-                                                        ⚠️ <?= t('portfolio.goals.deadline_expired') ?>
+                                            <div class="goal-progress" id="goal-progress-<?= (int)$goal['id'] ?>">
+                                                <div class="goal-progress-bar" style="width: <?= $pct ?>%;"></div>
+                                            </div>
+                                            <div class="goal-progress-stats" id="goal-stats-<?= (int)$goal['id'] ?>">
+                                                <span class="goal-current<?= $pct >= 100 ? ' goal-complete' : '' ?><?= $isDrawdownGoal && $gp['current'] > 0 ? ' goal-danger' : '' ?>">
+                                                    <?php if ($isPercentGoal || $isCagrGoal): ?>
+                                                        %<?= formatNumberLocalized($gp['current'], 2) ?>
+                                                    <?php elseif ($isDrawdownGoal): ?>
+                                                        <?= $gp['current'] > 0 ? '▼ ' : '' ?>%<?= formatNumberLocalized($gp['current'], 2) ?>
+                                                    <?php elseif ($isAmountGoal): ?>
+                                                        <?= formatNumberLocalized($gp['current'], 4) ?> <?= htmlspecialchars($goalCurrency) ?>
+                                                    <?php elseif ($isCurrencyValueGoal): ?>
+                                                        <?= formatNumberLocalized($gp['current'], 2) ?> <?= htmlspecialchars($goalCurrency) ?>
                                                     <?php else: ?>
-                                                        ⏳ <?= str_replace(':months', (string)$deadlineMonths, t('portfolio.goals.deadline_remaining')) ?>
+                                                        <?= formatTRY($gp['current']) ?>
                                                     <?php endif; ?>
                                                 </span>
-                                            <?php endif; ?>
+                                                <span class="goal-percent<?= $pct >= 100 ? ' goal-complete' : '' ?>">
+                                                    <?= formatNumberLocalized($pct, 1) ?>%
+                                                </span>
+                                                <span class="goal-target">
+                                                    <?php if ($isPercentGoal || $isCagrGoal): ?>
+                                                        %<?= formatNumberLocalized($gp['target'], 2) ?>
+                                                    <?php elseif ($isDrawdownGoal): ?>
+                                                        <?= t('portfolio.goals.drawdown_limit') ?> %<?= formatNumberLocalized($gp['target'], 2) ?>
+                                                    <?php elseif ($isAmountGoal): ?>
+                                                        <?= formatNumberLocalized($gp['target'], 4) ?> <?= htmlspecialchars($goalCurrency) ?>
+                                                    <?php elseif ($isCurrencyValueGoal): ?>
+                                                        <?= formatNumberLocalized($gp['target'], 2) ?> <?= htmlspecialchars($goalCurrency) ?>
+                                                    <?php else: ?>
+                                                        <?= formatTRY($gp['target']) ?>
+                                                    <?php endif; ?>
+                                                </span>
+                                            </div>
                                         </div>
-                                    <?php endif; ?>
-                                    <div class="goal-progress" id="goal-progress-<?= (int)$goal['id'] ?>">
-                                        <div class="goal-progress-bar" style="width: <?= $pct ?>%;"></div>
-                                    </div>
-                                    <div class="goal-progress-stats" id="goal-stats-<?= (int)$goal['id'] ?>">
-                                        <span class="goal-current<?= $pct >= 100 ? ' goal-complete' : '' ?><?= $isDrawdownGoal && $gp['current'] > 0 ? ' goal-danger' : '' ?>">
-                                            <?php if ($isPercentGoal || $isCagrGoal): ?>
-                                                %<?= formatNumberLocalized($gp['current'], 2) ?>
-                                            <?php elseif ($isDrawdownGoal): ?>
-                                                <?= $gp['current'] > 0 ? '▼ ' : '' ?>%<?= formatNumberLocalized($gp['current'], 2) ?>
-                                            <?php elseif ($isAmountGoal): ?>
-                                                <?= formatNumberLocalized($gp['current'], 4) ?> <?= htmlspecialchars($goalCurrency) ?>
-                                            <?php elseif ($isCurrencyValueGoal): ?>
-                                                <?= formatNumberLocalized($gp['current'], 2) ?> <?= htmlspecialchars($goalCurrency) ?>
-                                            <?php else: ?>
-                                                <?= formatTRY($gp['current']) ?>
-                                            <?php endif; ?>
-                                        </span>
-                                        <span class="goal-percent<?= $pct >= 100 ? ' goal-complete' : '' ?>">
-                                            <?= formatNumberLocalized($pct, 1) ?>%
-                                        </span>
-                                        <span class="goal-target">
-                                            <?php if ($isPercentGoal || $isCagrGoal): ?>
-                                                %<?= formatNumberLocalized($gp['target'], 2) ?>
-                                            <?php elseif ($isDrawdownGoal): ?>
-                                                <?= t('portfolio.goals.drawdown_limit') ?> %<?= formatNumberLocalized($gp['target'], 2) ?>
-                                            <?php elseif ($isAmountGoal): ?>
-                                                <?= formatNumberLocalized($gp['target'], 4) ?> <?= htmlspecialchars($goalCurrency) ?>
-                                            <?php elseif ($isCurrencyValueGoal): ?>
-                                                <?= formatNumberLocalized($gp['target'], 2) ?> <?= htmlspecialchars($goalCurrency) ?>
-                                            <?php else: ?>
-                                                <?= formatTRY($gp['target']) ?>
-                                            <?php endif; ?>
-                                        </span>
                                     </div>
                                     <?php if (!empty($gSources)): ?>
-                                        <div class="goal-sources-display">
-                                            <?php foreach ($gSources as $src): ?>
-                                                <span class="goal-source-pill goal-source-<?= htmlspecialchars($src['source_type']) ?>">
-                                                    <?php if ($src['source_type'] === 'group'): ?>
-                                                        <?php
-                                                        $srcName = '';
-                                                        foreach ($groups as $g) {
-                                                            if ((int)$g['id'] === (int)$src['source_id']) {
-                                                                $srcName = ($g['icon'] ? $g['icon'] . ' ' : '📦 ') . $g['name'];
-                                                                break;
+                                        <div class="goal-card-footer">
+                                            <div class="goal-sources-display">
+                                                <?php foreach ($gSources as $src): ?>
+                                                    <span class="goal-source-pill goal-source-<?= htmlspecialchars($src['source_type']) ?>">
+                                                        <?php if ($src['source_type'] === 'group'): ?>
+                                                            <?php
+                                                            $srcName = '';
+                                                            foreach ($groups as $g) {
+                                                                if ((int)$g['id'] === (int)$src['source_id']) {
+                                                                    $srcName = ($g['icon'] ? $g['icon'] . ' ' : '📦 ') . $g['name'];
+                                                                    break;
+                                                                }
                                                             }
-                                                        }
-                                                        echo htmlspecialchars($srcName);
-                                                        ?>
-                                                    <?php elseif ($src['source_type'] === 'tag'): ?>
-                                                        <?php
-                                                        $srcName = '';
-                                                        foreach ($tags as $t) {
-                                                            if ((int)$t['id'] === (int)$src['source_id']) {
-                                                                $srcName = '🏷️ ' . $t['name'];
-                                                                break;
+                                                            echo htmlspecialchars($srcName);
+                                                            ?>
+                                                        <?php elseif ($src['source_type'] === 'tag'): ?>
+                                                            <?php
+                                                            $srcName = '';
+                                                            foreach ($tags as $t) {
+                                                                if ((int)$t['id'] === (int)$src['source_id']) {
+                                                                    $srcName = '🏷️ ' . $t['name'];
+                                                                    break;
+                                                                }
                                                             }
-                                                        }
-                                                        echo htmlspecialchars($srcName);
-                                                        ?>
-                                                    <?php else: ?>
-                                                        <?php
-                                                        $srcName = '📋 #' . $src['source_id'];
-                                                        foreach ($summary['items'] ?? [] as $si) {
-                                                            if ((int)$si['id'] === (int)$src['source_id']) {
-                                                                $srcName = '📋 ' . $si['currency_code'] . ' ' . formatNumberLocalized((float)$si['amount'], 4);
-                                                                break;
+                                                            echo htmlspecialchars($srcName);
+                                                            ?>
+                                                        <?php else: ?>
+                                                            <?php
+                                                            $srcName = '📋 #' . $src['source_id'];
+                                                            foreach ($summary['items'] ?? [] as $si) {
+                                                                if ((int)$si['id'] === (int)$src['source_id']) {
+                                                                    $srcName = '📋 ' . $si['currency_code'] . ' ' . formatNumberLocalized((float)$si['amount'], 4);
+                                                                    break;
+                                                                }
                                                             }
-                                                        }
-                                                        echo htmlspecialchars($srcName);
-                                                        ?>
-                                                    <?php endif; ?>
-                                                </span>
-                                            <?php endforeach; ?>
+                                                            echo htmlspecialchars($srcName);
+                                                            ?>
+                                                        <?php endif; ?>
+                                                    </span>
+                                                <?php endforeach; ?>
+                                            </div>
                                         </div>
                                     <?php endif; ?>
                                     <!-- Edit form (hidden) -->
