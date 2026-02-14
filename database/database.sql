@@ -210,10 +210,16 @@ CREATE TABLE IF NOT EXISTS `portfolio_goals` (
     `target_type` varchar(20) NOT NULL DEFAULT 'value',
     `target_currency` varchar(10) DEFAULT NULL,
     `bank_slug` varchar(50) DEFAULT NULL COMMENT 'Filter items by bank',
+    `is_favorite` tinyint(1) unsigned NOT NULL DEFAULT 0 COMMENT 'Whether this goal is marked as favorite',
+    `percent_date_mode` varchar(20) DEFAULT NULL COMMENT 'Date mode for percent goals: all, range, since_first',
+    `percent_date_start` date DEFAULT NULL,
+    `percent_date_end` date DEFAULT NULL,
+    `percent_period_months` int unsigned DEFAULT NULL,
     `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
     `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (`id`),
-    KEY `idx_portfolio_goals_user` (`user_id`)
+    KEY `idx_portfolio_goals_user` (`user_id`),
+    KEY `idx_portfolio_goals_favorite` (`user_id`, `is_favorite`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ─── Portfolio Goal Sources ──────────────────────────────────────────────────

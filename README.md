@@ -254,6 +254,25 @@ To add a new bank source later:
 
 ## Changelog
 
+### v1.5.5 (2026-02-14)
+
+Security hardening based on consolidated audit from Codex, Claude Code, and Jules AI.
+
+**Critical Fixes**
+- Fix CSRF bypass on all goal mutations (add/edit/delete/favorite/source) — actions now gated by `$messageType === ''` check
+- Fix IDOR on goal operations — user ownership scoping added to updateGoal, toggleGoalFavorite, deleteGoal, addGoalSource, removeGoalSource
+- Add admin auth guard on index.php rate update action (previously any visitor could trigger exec())
+
+**High Fixes**
+- Fix destructive side effects in deleteGroup/deleteTag — ownership check now runs BEFORE unlinking items/pivot records
+- Fix stored XSS in goal source builder — innerHTML replaced with createElement/textContent
+- Hide exec() error output from users — details now logged server-side only
+
+**Medium Fixes**
+- Fix race condition in tag assignment — use Portfolio::add() return value instead of SELECT MAX(id)
+- Add CSV formula injection protection — prefix dangerous cell values with single quote
+- Update database.sql with all migrated columns (is_favorite, percent_date_mode, etc.)
+
 ### v1.5.4 (2026-02-13)
 
 Security, performance, and accessibility improvements.

@@ -444,10 +444,12 @@ class Portfolio
             }
         }
 
-        // Unlink portfolio items first
-        Database::execute('UPDATE portfolio SET group_id = NULL WHERE group_id = ?', [$id]);
-
-        return Database::execute('DELETE FROM portfolio_groups WHERE ' . $where, $params) > 0;
+        // Delete group first (with ownership check), then unlink items
+        $deleted = Database::execute('DELETE FROM portfolio_groups WHERE ' . $where, $params) > 0;
+        if ($deleted) {
+            Database::execute('UPDATE portfolio SET group_id = NULL WHERE group_id = ?', [$id]);
+        }
+        return $deleted;
     }
 
     // ─── Bulk Group Operations ─────────────────────────────────────────
@@ -615,10 +617,12 @@ class Portfolio
             }
         }
 
-        // Remove pivot records
-        Database::execute('DELETE FROM portfolio_tag_items WHERE tag_id = ?', [$id]);
-
-        return Database::execute('DELETE FROM portfolio_tags WHERE ' . $where, $params) > 0;
+        // Delete tag first (with ownership check), then remove pivot records
+        $deleted = Database::execute('DELETE FROM portfolio_tags WHERE ' . $where, $params) > 0;
+        if ($deleted) {
+            Database::execute('DELETE FROM portfolio_tag_items WHERE tag_id = ?', [$id]);
+        }
+        return $deleted;
     }
 
     /**
@@ -768,6 +772,24 @@ class Portfolio
     }
 
     /**
+     * Build a WHERE clause scoping goals to the current user (non-admin).
+     * Returns [whereClause, params] to append to queries.
+     */
+    private static function goalOwnerScope(): array
+    {
+        $where = '';
+        $params = [];
+        if (class_exists('Auth') && Auth::check() && !Auth::isAdmin()) {
+            $userId = Auth::id();
+            if ($userId !== null) {
+                $where = ' AND (user_id IS NULL OR user_id = ?)';
+                $params[] = $userId;
+            }
+        }
+        return [$where, $params];
+    }
+
+    /**
      * Get a single goal by ID.
      */
     public static function getGoal(int $id): ?array
@@ -900,9 +922,12 @@ class Portfolio
             }
         }
 
+        [$ownerWhere, $ownerParams] = self::goalOwnerScope();
+        $params = [$name, $targetValue, $targetType, $targetCurrency, $bankSlug, $percentDateMode, $percentDateStart, $percentDateEnd, $targetType === 'percent' ? $percentPeriodMonths : null, $id];
+
         return Database::execute(
-            'UPDATE portfolio_goals SET name = ?, target_value = ?, target_type = ?, target_currency = ?, bank_slug = ?, percent_date_mode = ?, percent_date_start = ?, percent_date_end = ?, percent_period_months = ? WHERE id = ?',
-            [$name, $targetValue, $targetType, $targetCurrency, $bankSlug, $percentDateMode, $percentDateStart, $percentDateEnd, $targetType === 'percent' ? $percentPeriodMonths : null, $id]
+            'UPDATE portfolio_goals SET name = ?, target_value = ?, target_type = ?, target_currency = ?, bank_slug = ?, percent_date_mode = ?, percent_date_start = ?, percent_date_end = ?, percent_period_months = ? WHERE id = ?' . $ownerWhere,
+            array_merge($params, $ownerParams)
         ) >= 0;
     }
 
@@ -911,9 +936,11 @@ class Portfolio
      */
     public static function toggleGoalFavorite(int $id): bool
     {
-        $db = Database::getInstance();
-        $stmt = $db->prepare('UPDATE portfolio_goals SET is_favorite = NOT is_favorite WHERE id = ?');
-        return $stmt->execute([$id]);
+        [$ownerWhere, $ownerParams] = self::goalOwnerScope();
+        return Database::execute(
+            'UPDATE portfolio_goals SET is_favorite = NOT is_favorite WHERE id = ?' . $ownerWhere,
+            array_merge([$id], $ownerParams)
+        ) >= 0;
     }
 
     /**
@@ -921,7 +948,12 @@ class Portfolio
      */
     public static function deleteGoal(int $id): bool
     {
-        return Database::execute('DELETE FROM portfolio_goals WHERE id = ?', [$id]) > 0;
+        [$ownerWhere, $ownerParams] = self::goalOwnerScope();
+        $deleted = Database::execute('DELETE FROM portfolio_goals WHERE id = ?' . $ownerWhere, array_merge([$id], $ownerParams)) > 0;
+        if ($deleted) {
+            Database::execute('DELETE FROM portfolio_goal_sources WHERE goal_id = ?', [$id]);
+        }
+        return $deleted;
     }
 
     /**
@@ -957,6 +989,12 @@ class Portfolio
         if (!in_array($sourceType, ['group', 'tag', 'item'])) {
             return false;
         }
+        // Verify goal ownership
+        [$ownerWhere, $ownerParams] = self::goalOwnerScope();
+        $goal = Database::queryOne('SELECT id FROM portfolio_goals WHERE id = ?' . $ownerWhere, array_merge([$goalId], $ownerParams));
+        if (!$goal) {
+            return false;
+        }
         // Check for duplicate
         $existing = Database::queryOne(
             'SELECT id FROM portfolio_goal_sources WHERE goal_id = ? AND source_type = ? AND source_id = ?',
@@ -978,6 +1016,12 @@ class Portfolio
      */
     public static function removeGoalSource(int $goalId, string $sourceType, int $sourceId): bool
     {
+        // Verify goal ownership
+        [$ownerWhere, $ownerParams] = self::goalOwnerScope();
+        $goal = Database::queryOne('SELECT id FROM portfolio_goals WHERE id = ?' . $ownerWhere, array_merge([$goalId], $ownerParams));
+        if (!$goal) {
+            return false;
+        }
         return Database::execute(
             'DELETE FROM portfolio_goal_sources WHERE goal_id = ? AND source_type = ? AND source_id = ?',
             [$goalId, $sourceType, $sourceId]

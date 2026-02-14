@@ -46,6 +46,14 @@ fputcsv($out, [
     t('csv.notes'),
 ]);
 
+// Sanitize cell value to prevent CSV formula injection
+function csvSafe(string $val): string {
+    if ($val !== '' && in_array($val[0], ['=', '+', '-', '@', "\t", "\r"], true)) {
+        return "'" . $val;
+    }
+    return $val;
+}
+
 foreach ($items as $item) {
     $groupName = '';
     $gid = (int) ($item['group_id'] ?? 0);
@@ -62,8 +70,8 @@ foreach ($items as $item) {
 
     fputcsv($out, [
         $item['currency_code'] ?? '',
-        $groupName,
-        $tagNames,
+        csvSafe($groupName),
+        csvSafe($tagNames),
         $item['amount'] ?? '',
         $item['buy_rate'] ?? '',
         $item['buy_date'] ?? '',
@@ -71,7 +79,7 @@ foreach ($items as $item) {
         $item['cost_try'] ?? '',
         $item['value_try'] ?? '',
         $item['profit_percent'] ?? '',
-        $item['notes'] ?? '',
+        csvSafe((string) ($item['notes'] ?? '')),
     ]);
 }
 
