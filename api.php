@@ -227,7 +227,11 @@ try {
             break;
 
         case 'currencies':
-            $nameField = in_array($locale, ['en', 'tr'], true) && $locale === 'en' ? 'name_en' : 'name_tr';
+            $nameField = ($locale === 'en') ? 'name_en' : 'name_tr';
+            $allowedNameFields = ['name_en', 'name_tr'];
+            if (!in_array($nameField, $allowedNameFields, true)) {
+                $nameField = 'name_tr';
+            }
             $currencies = Database::query(
                 "SELECT code, name_tr, name_en, `{$nameField}` AS name, symbol, type FROM currencies WHERE is_active = 1 ORDER BY code"
             );

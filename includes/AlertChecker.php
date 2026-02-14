@@ -157,6 +157,14 @@ class AlertChecker
         }
 
         $url = "https://api.telegram.org/bot{$botToken}/sendMessage";
+
+        // Validate that constructed URL still points to Telegram
+        $parsedHost = parse_url($url, PHP_URL_HOST);
+        if (!is_string($parsedHost) || $parsedHost !== 'api.telegram.org') {
+            cybokron_log('Alert Telegram: constructed URL points to unexpected host', 'WARNING');
+            return false;
+        }
+
         $payload = [
             'chat_id' => $chatId,
             'text' => $body,
@@ -189,6 +197,13 @@ class AlertChecker
             return false;
         }
 
+        // Security: only allow HTTPS webhook URLs to prevent SSRF to internal services.
+        $scheme = strtolower((string) (parse_url($url, PHP_URL_SCHEME) ?? ''));
+        if ($scheme !== 'https') {
+            cybokron_log('Alert webhook: only HTTPS URLs are allowed', 'WARNING');
+            return false;
+        }
+
         $payload = [
             'subject' => $subject,
             'body' => $body,
@@ -205,6 +220,9 @@ class AlertChecker
             CURLOPT_SSL_VERIFYPEER => true,
             CURLOPT_SSL_VERIFYHOST => 2,
         ]);
+        if (defined('CURLPROTO_HTTPS')) {
+            curl_setopt($ch, CURLOPT_PROTOCOLS, CURLPROTO_HTTPS);
+        }
         $response = curl_exec($ch);
         $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
         curl_close($ch);

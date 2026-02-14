@@ -361,7 +361,12 @@ function verifyTurnstile(string $token): bool
         ]),
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_TIMEOUT        => 5,
+        CURLOPT_SSL_VERIFYPEER => true,
+        CURLOPT_SSL_VERIFYHOST => 2,
     ]);
+    if (defined('CURLPROTO_HTTPS')) {
+        curl_setopt($ch, CURLOPT_PROTOCOLS, CURLPROTO_HTTPS);
+    }
     $body = curl_exec($ch);
     curl_close($ch);
     if (!is_string($body)) {
@@ -1166,10 +1171,7 @@ function executeRateUpdate(): array
         $output = [];
         $returnCode = 0;
 
-        $phpBinary = '/Applications/ServBay/bin/php';
-        if (!file_exists($phpBinary)) {
-            $phpBinary = PHP_BINARY ?: 'php';
-        }
+        $phpBinary = PHP_BINARY ?: 'php';
 
         $baseDir = dirname(__DIR__);
         exec(

@@ -183,7 +183,7 @@ foreach ($widgetConfig as $w) {
                 </div>
                 <form method="POST" style="margin: 0;">
                     <input type="hidden" name="action" value="update_rates">
-                    <input type="hidden" name="csrf_token" value="<?= getCsrfToken() ?>">
+                    <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(getCsrfToken()) ?>">
                     <button type="submit" class="btn btn-primary" style="display: flex; align-items: center; gap: 0.5rem; background: white; color: #667eea; border: none; padding: 0.75rem 1.5rem; border-radius: 8px; font-weight: 600; cursor: pointer; transition: all 0.2s;">
                         🔄 <?= t('admin.update_rates_now') ?>
                     </button>

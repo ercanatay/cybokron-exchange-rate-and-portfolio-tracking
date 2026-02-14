@@ -64,6 +64,13 @@ class WebhookDispatcher
 
     private static function post(string $url, string $body): bool
     {
+        // Security: only allow HTTPS webhook URLs to prevent SSRF to internal services.
+        $scheme = strtolower((string) (parse_url($url, PHP_URL_SCHEME) ?? ''));
+        if ($scheme !== 'https') {
+            cybokron_log("Webhook blocked non-HTTPS URL: {$url}", 'WARNING');
+            return false;
+        }
+
         $ch = curl_init($url);
         curl_setopt_array($ch, [
             CURLOPT_POST => true,
@@ -79,6 +86,9 @@ class WebhookDispatcher
             CURLOPT_SSL_VERIFYPEER => true,
             CURLOPT_SSL_VERIFYHOST => 2,
         ]);
+        if (defined('CURLPROTO_HTTPS')) {
+            curl_setopt($ch, CURLOPT_PROTOCOLS, CURLPROTO_HTTPS);
+        }
 
         $response = curl_exec($ch);
         $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
