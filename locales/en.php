@@ -148,6 +148,8 @@ return [
     'admin.health' => 'System Health',
     'admin.last_rate_update' => 'Last rate update',
     'admin.update_rates_now' => 'Update Rates Now',
+    'admin.clear_cache' => 'Clear Cache',
+    'admin.cache_cleared' => 'Cache cleared',
     'admin.rates_updated_success' => 'Rates updated successfully!',
     'admin.rates_updated_error' => 'Rate update error',
     'admin.status' => 'Status',

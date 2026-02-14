@@ -98,8 +98,12 @@ class DovizComScraper extends Scraper
     {
         $rates = [];
 
-        // Find all table rows in tbody
-        $rows = $xpath->query('//table//tbody//tr');
+        // Target the exchange rates table (id="indexes" on kur.doviz.com)
+        $rows = $xpath->query('//table[@id="indexes"]//tr');
+
+        if ($rows->length === 0) {
+            $rows = $xpath->query('//table//tbody//tr');
+        }
 
         if ($rows->length === 0) {
             $rows = $xpath->query('//table//tr');

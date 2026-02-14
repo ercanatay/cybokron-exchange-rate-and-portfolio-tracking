@@ -149,6 +149,8 @@ return [
     'admin.health' => 'Santé du système',
     'admin.last_rate_update' => 'Dernière mise à jour des taux',
     'admin.update_rates_now' => 'Mettre à jour les taux maintenant',
+    'admin.clear_cache' => 'Vider le cache',
+    'admin.cache_cleared' => 'Cache vidé',
     'admin.rates_updated_success' => 'Taux mis à jour avec succès !',
     'admin.rates_updated_error' => 'Erreur de mise à jour des taux',
     'admin.status' => 'Statut',

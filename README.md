@@ -255,6 +255,23 @@ To add a new bank source later:
 
 ## Changelog
 
+### v1.7.3 (2026-02-14)
+
+Kapalıçarşı scraper fix, Service Worker cache improvements, and admin cache management.
+
+**Bug Fixes**
+- Fix DovizComScraper targeting wrong table on multi-table pages (kur.doviz.com) — XPath now targets `table[@id="indexes"]` first, with fallback to `tbody//tr` and `//table//tr`
+- Kapalıçarşı now correctly scrapes 19 currency rates from kur.doviz.com
+
+**Service Worker**
+- Change from cache-first to network-first strategy — no more shift+refresh needed to see updates
+- Bump cache version to `cybokron-v3`
+- Add `CLEAR_CACHE` message listener for admin-triggered cache clearing
+
+**Admin Panel**
+- Add "Clear Cache" button in System Health section — clears Service Worker and browser cache
+- Cache clear button with visual feedback (loading → success → reset)
+
 ### v1.7.2 (2026-02-14)
 
 Header UI/UX redesign, bank toggle fix, and portfolio rate update button.

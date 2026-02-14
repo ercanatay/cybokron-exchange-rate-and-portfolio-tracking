@@ -148,6 +148,8 @@ return [
     'admin.health' => 'Sistem Sağlığı',
     'admin.last_rate_update' => 'Son kur güncellemesi',
     'admin.update_rates_now' => 'Kurları Şimdi Güncelle',
+    'admin.clear_cache' => 'Önbelleği Temizle',
+    'admin.cache_cleared' => 'Önbellek temizlendi',
     'admin.rates_updated_success' => 'Kurlar başarıyla güncellendi!',
     'admin.rates_updated_error' => 'Kur güncelleme hatası',
     'admin.status' => 'Durum',
