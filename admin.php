@@ -38,18 +38,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
 
     if ($_POST['action'] === 'toggle_bank' && isset($_POST['id'])) {
         $id = (int) $_POST['id'];
-        $bank = Database::queryOne('SELECT is_active FROM banks WHERE id = ?', [$id]);
+        $bank = Database::queryOne('SELECT is_active, name FROM banks WHERE id = ?', [$id]);
         if ($bank) {
             $new = $bank['is_active'] ? 0 : 1;
             Database::update('banks', ['is_active' => $new], 'id = ?', [$id]);
+            $message = htmlspecialchars($bank['name']) . ': ' . ($new ? t('admin.active') : t('admin.inactive'));
+            $messageType = 'success';
         }
     }
     if ($_POST['action'] === 'toggle_currency' && isset($_POST['id'])) {
         $id = (int) $_POST['id'];
-        $cur = Database::queryOne('SELECT is_active FROM currencies WHERE id = ?', [$id]);
+        $cur = Database::queryOne('SELECT is_active, code FROM currencies WHERE id = ?', [$id]);
         if ($cur) {
             $new = $cur['is_active'] ? 0 : 1;
             Database::update('currencies', ['is_active' => $new], 'id = ?', [$id]);
+            $message = htmlspecialchars($cur['code']) . ': ' . ($new ? t('admin.active') : t('admin.inactive'));
+            $messageType = 'success';
         }
     }
 
@@ -172,7 +176,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         $messageType = 'success';
     }
 
-    if (!in_array($_POST['action'], ['update_rates', 'toggle_homepage', 'set_default_bank', 'update_rate_order', 'set_chart_defaults', 'save_widget_config', 'toggle_noindex', 'set_retention_days', 'save_openrouter_settings'], true)) {
+    if (!in_array($_POST['action'], ['update_rates', 'toggle_bank', 'toggle_currency', 'toggle_homepage', 'set_default_bank', 'update_rate_order', 'set_chart_defaults', 'save_widget_config', 'toggle_noindex', 'set_retention_days', 'save_openrouter_settings'], true)) {
         header('Location: admin.php');
         exit;
     }
