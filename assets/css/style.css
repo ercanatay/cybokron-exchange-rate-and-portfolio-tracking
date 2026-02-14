@@ -2671,6 +2671,39 @@ button:focus-visible,
 }
 
 /* Goal Sources Display */
+.goal-card-extras {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 6px;
+    flex-wrap: wrap;
+}
+
+.goal-period-select {
+    padding: 2px 6px;
+    font-size: 0.75rem;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    color: var(--text);
+    cursor: pointer;
+}
+
+.goal-deadline-badge {
+    font-size: 0.75rem;
+    padding: 2px 8px;
+    border-radius: 4px;
+    background: var(--card-bg, #f0f9ff);
+    color: var(--text-secondary, #64748b);
+    border: 1px solid var(--border);
+}
+
+.goal-deadline-expired {
+    background: #fef2f2;
+    color: #dc2626;
+    border-color: #fecaca;
+}
+
 .goal-sources-display {
     display: flex;
     flex-wrap: wrap;

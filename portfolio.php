@@ -412,6 +412,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'percent_date_start' => $_POST['goal_percent_date_start'] ?? '',
                 'percent_date_end' => $_POST['goal_percent_date_end'] ?? '',
                 'percent_period_months' => $_POST['goal_percent_period_months'] ?? 12,
+                'goal_deadline' => $_POST['goal_deadline'] ?? '',
             ]);
             // Add sources if provided
             $srcTypes = $_POST['goal_source_type'] ?? [];
@@ -444,6 +445,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'percent_date_start' => $_POST['goal_percent_date_start'] ?? '',
                 'percent_date_end' => $_POST['goal_percent_date_end'] ?? '',
                 'percent_period_months' => $_POST['goal_percent_period_months'] ?? 12,
+                'goal_deadline' => $_POST['goal_deadline'] ?? '',
             ]);
             // Re-sync sources: remove all then add
             $existingSources = Portfolio::getGoalSources($goalId);
@@ -943,6 +945,19 @@ $annualizedReturn = ($oldestDate && $analyticsCost > 0)
                                     <label id="goal-target-label-add"><?= t('portfolio.goals.target_value') ?></label>
                                     <input type="number" name="goal_target_value" step="0.000001" min="0.000001" required placeholder="500000">
                                 </div>
+                                <div class="goal-form-field goal-deadline-field" id="goal-deadline-add" style="display:none">
+                                    <label><?= t('portfolio.goals.deadline') ?></label>
+                                    <select name="goal_deadline_preset" onchange="deadlinePresetChanged(this, 'add')">
+                                        <option value=""><?= t('portfolio.goals.deadline_none') ?></option>
+                                        <option value="1m"><?= t('portfolio.goals.deadline_1m') ?></option>
+                                        <option value="3m"><?= t('portfolio.goals.deadline_3m') ?></option>
+                                        <option value="6m"><?= t('portfolio.goals.deadline_6m') ?></option>
+                                        <option value="9m"><?= t('portfolio.goals.deadline_9m') ?></option>
+                                        <option value="1y"><?= t('portfolio.goals.deadline_1y') ?></option>
+                                        <option value="custom"><?= t('portfolio.goals.deadline_custom') ?></option>
+                                    </select>
+                                    <input type="date" name="goal_deadline" id="goal-deadline-date-add" style="display:none; margin-top:4px">
+                                </div>
                             </div>
                             <div class="goal-sources-section">
                                 <label><?= t('portfolio.goals.sources') ?></label>
@@ -1075,10 +1090,41 @@ $annualizedReturn = ($oldestDate && $analyticsCost > 0)
                                             </form>
                                         </div>
                                     </div>
-                                    <div class="goal-progress">
+                                    <?php
+                                        // Show period dropdown for non-date goals
+                                        $showPeriodDropdown = !($isPercentGoal && in_array($goal['percent_date_mode'] ?? 'all', ['range', 'since_first']));
+                                        $goalDeadline = $goal['goal_deadline'] ?? null;
+                                        $deadlineMonths = $gp['deadline_months'] ?? null;
+                                    ?>
+                                    <?php if ($showPeriodDropdown || $goalDeadline): ?>
+                                        <div class="goal-card-extras">
+                                            <?php if ($showPeriodDropdown): ?>
+                                                <select class="goal-period-select" data-goal-id="<?= (int)$goal['id'] ?>" onchange="goalPeriodChanged(this)">
+                                                    <option value=""><?= t('portfolio.goals.period_all') ?></option>
+                                                    <option value="7d"><?= t('portfolio.goals.period_7d') ?></option>
+                                                    <option value="14d"><?= t('portfolio.goals.period_14d') ?></option>
+                                                    <option value="1m"><?= t('portfolio.goals.period_1m') ?></option>
+                                                    <option value="3m"><?= t('portfolio.goals.period_3m') ?></option>
+                                                    <option value="6m"><?= t('portfolio.goals.period_6m') ?></option>
+                                                    <option value="9m"><?= t('portfolio.goals.period_9m') ?></option>
+                                                    <option value="1y"><?= t('portfolio.goals.period_1y') ?></option>
+                                                </select>
+                                            <?php endif; ?>
+                                            <?php if ($goalDeadline): ?>
+                                                <span class="goal-deadline-badge<?= $deadlineMonths === 0 ? ' goal-deadline-expired' : '' ?>">
+                                                    <?php if ($deadlineMonths === 0): ?>
+                                                        ⚠️ <?= t('portfolio.goals.deadline_expired') ?>
+                                                    <?php else: ?>
+                                                        ⏳ <?= str_replace(':months', (string)$deadlineMonths, t('portfolio.goals.deadline_remaining')) ?>
+                                                    <?php endif; ?>
+                                                </span>
+                                            <?php endif; ?>
+                                        </div>
+                                    <?php endif; ?>
+                                    <div class="goal-progress" id="goal-progress-<?= (int)$goal['id'] ?>">
                                         <div class="goal-progress-bar" style="width: <?= $pct ?>%;"></div>
                                     </div>
-                                    <div class="goal-progress-stats">
+                                    <div class="goal-progress-stats" id="goal-stats-<?= (int)$goal['id'] ?>">
                                         <span class="goal-current<?= $pct >= 100 ? ' goal-complete' : '' ?><?= $isDrawdownGoal && $gp['current'] > 0 ? ' goal-danger' : '' ?>">
                                             <?php if ($isPercentGoal || $isCagrGoal): ?>
                                                 %<?= formatNumberLocalized($gp['current'], 2) ?>
@@ -1221,6 +1267,15 @@ $annualizedReturn = ($oldestDate && $analyticsCost > 0)
                                             <div class="goal-form-field goal-percent-period" id="goal-percent-period-edit-<?= (int)$goal['id'] ?>" style="<?= ($isPercentGoal && $editPercentMode === 'since_first') ? '' : 'display:none' ?>">
                                                 <label><?= t('portfolio.goals.percent_period') ?></label>
                                                 <input type="number" name="goal_percent_period_months" value="<?= $editPercentPeriod ?>" min="1" max="120">
+                                            </div>
+                                            <?php $editGoalDeadline = $goal['goal_deadline'] ?? ''; ?>
+                                            <div class="goal-form-field goal-deadline-field" id="goal-deadline-edit-<?= (int)$goal['id'] ?>" style="<?= $isPercentGoal ? 'display:none' : '' ?>">
+                                                <label><?= t('portfolio.goals.deadline') ?></label>
+                                                <select name="goal_deadline_preset" onchange="deadlinePresetChanged(this, 'edit-<?= (int)$goal['id'] ?>')">
+                                                    <option value="" <?= $editGoalDeadline === '' ? 'selected' : '' ?>><?= t('portfolio.goals.deadline_none') ?></option>
+                                                    <option value="custom" <?= $editGoalDeadline !== '' ? 'selected' : '' ?>><?= t('portfolio.goals.deadline_custom') ?></option>
+                                                </select>
+                                                <input type="date" name="goal_deadline" id="goal-deadline-date-edit-<?= (int)$goal['id'] ?>" value="<?= htmlspecialchars($editGoalDeadline) ?>" style="<?= $editGoalDeadline !== '' ? '' : 'display:none' ?>; margin-top:4px">
                                             </div>
                                         </div>
                                         <!-- Sources re-sync for edit -->
@@ -1927,6 +1982,70 @@ $annualizedReturn = ($oldestDate && $analyticsCost > 0)
                 var sel = currField.querySelector('select');
                 if (sel) sel.required = needsCurrency;
             }
+            // Toggle deadline field (hide for percent goals)
+            var deadlineField = document.getElementById('goal-deadline-' + formId);
+            if (deadlineField) deadlineField.style.display = isPercent ? 'none' : '';
+        }
+
+        /* ─── Deadline Preset Changed ──────────────────────────────────────── */
+        function deadlinePresetChanged(select, formId) {
+            var val = select.value;
+            var dateInput = document.getElementById('goal-deadline-date-' + formId);
+            if (!dateInput) return;
+            if (val === 'custom') {
+                dateInput.style.display = '';
+            } else if (val === '') {
+                dateInput.style.display = 'none';
+                dateInput.value = '';
+            } else {
+                // Calculate date from today + preset
+                var d = new Date();
+                var map = {'1m': 1, '3m': 3, '6m': 6, '9m': 9, '1y': 12};
+                var months = map[val] || 0;
+                d.setMonth(d.getMonth() + months);
+                dateInput.value = d.toISOString().split('T')[0];
+                dateInput.style.display = '';
+            }
+        }
+
+        /* ─── Goal Period Changed (AJAX) ───────────────────────────────────── */
+        function goalPeriodChanged(select) {
+            var goalId = select.getAttribute('data-goal-id');
+            var period = select.value;
+            var url = 'api.php?action=goal_progress&goal_id=' + goalId;
+            if (period) url += '&period=' + encodeURIComponent(period);
+            var card = select.closest('.goal-card');
+            if (card) card.style.opacity = '0.6';
+            fetch(url, {credentials: 'same-origin'})
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
+                    if (data.status === 'ok' && data.progress) {
+                        var gp = data.progress;
+                        var pct = gp.percent || 0;
+                        var progressBar = document.querySelector('#goal-progress-' + goalId + ' .goal-progress-bar');
+                        if (progressBar) progressBar.style.width = pct + '%';
+                        var statsEl = document.getElementById('goal-stats-' + goalId);
+                        if (statsEl) {
+                            var currentEl = statsEl.querySelector('.goal-current');
+                            var percentEl = statsEl.querySelector('.goal-percent');
+                            if (currentEl) {
+                                var unit = gp.unit || '₺';
+                                if (unit === '%') {
+                                    currentEl.textContent = '%' + parseFloat(gp.current).toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2});
+                                } else if (unit === '₺') {
+                                    currentEl.textContent = parseFloat(gp.current).toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2}) + ' ₺';
+                                } else {
+                                    currentEl.textContent = parseFloat(gp.current).toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:4}) + ' ' + unit;
+                                }
+                            }
+                            if (percentEl) percentEl.textContent = parseFloat(pct).toLocaleString(undefined, {minimumFractionDigits:1, maximumFractionDigits:1}) + '%';
+                        }
+                    }
+                })
+                .catch(function() {})
+                .finally(function() {
+                    if (card) card.style.opacity = '';
+                });
         }
 
         /* ─── Percent Date Mode Toggle ─────────────────────────────────────── */
