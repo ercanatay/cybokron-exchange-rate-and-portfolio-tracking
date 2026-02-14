@@ -1065,3 +1065,104 @@ function cybokron_log(string $message, string $level = 'INFO'): void
     $entry = "[{$timestamp}] [{$safeLevel}] {$safeMessage}" . PHP_EOL;
     file_put_contents($logFile, $entry, FILE_APPEND | LOCK_EX);
 }
+
+/**
+ * Run rate update scrapers inline (without exec/CLI).
+ * Used as fallback when exec() is disabled on the hosting.
+ *
+ * @return array{success:bool,message:string,total_rates:int}
+ */
+function runRateUpdateInline(): array
+{
+    require_once __DIR__ . '/Scraper.php';
+    require_once __DIR__ . '/OpenRouterRateRepair.php';
+    require_once __DIR__ . '/WebhookDispatcher.php';
+
+    $activeBanks = Database::query('SELECT id, name, slug, url, scraper_class FROM banks WHERE is_active = 1');
+
+    if (empty($activeBanks)) {
+        return ['success' => false, 'message' => 'No active banks configured.', 'total_rates' => 0];
+    }
+
+    $totalRates = 0;
+    $messages = [];
+
+    foreach ($activeBanks as $bankRow) {
+        $bankClass = $bankRow['scraper_class'];
+        try {
+            $scraper = loadBankScraper($bankClass, $bankRow);
+            $result = $scraper->run();
+
+            if ($result['status'] === 'success') {
+                $totalRates += $result['rates_count'];
+                $messages[] = "{$result['bank']}: {$result['rates_count']} rates";
+            } else {
+                $messages[] = "{$result['bank']}: ERROR - {$result['message']}";
+            }
+        } catch (Throwable $e) {
+            $messages[] = "{$bankClass}: EXCEPTION - {$e->getMessage()}";
+            cybokron_log("{$bankClass}: EXCEPTION - {$e->getMessage()}", 'ERROR');
+        }
+    }
+
+    Database::update(
+        'settings',
+        ['value' => date('Y-m-d H:i:s')],
+        '`key` = ?',
+        ['last_rate_update']
+    );
+
+    if ($totalRates > 0) {
+        WebhookDispatcher::dispatchRateUpdate([
+            'total_rates' => $totalRates,
+            'banks' => array_column(array_filter($activeBanks, fn($b) => true), 'name'),
+        ]);
+    }
+
+    cybokron_log("Inline rate update completed. Total: {$totalRates} rates.");
+
+    return [
+        'success' => $totalRates > 0,
+        'message' => implode('; ', $messages),
+        'total_rates' => $totalRates,
+    ];
+}
+
+/**
+ * Execute rate update via CLI exec() or inline fallback.
+ *
+ * @return array{success:bool,message:string}
+ */
+function executeRateUpdate(): array
+{
+    // Try exec() first (preferred — runs in separate process).
+    // All arguments are hardcoded strings; no user input reaches the shell.
+    $disabledFns = array_map('trim', explode(',', (string) ini_get('disable_functions')));
+    if (function_exists('exec') && !in_array('exec', $disabledFns, true)) {
+        $output = [];
+        $returnCode = 0;
+
+        $phpBinary = '/Applications/ServBay/bin/php';
+        if (!file_exists($phpBinary)) {
+            $phpBinary = PHP_BINARY ?: 'php';
+        }
+
+        $baseDir = dirname(__DIR__);
+        exec(
+            'cd ' . escapeshellarg($baseDir) . ' && ' . escapeshellarg($phpBinary) . ' cron/update_rates.php 2>&1',
+            $output,
+            $returnCode
+        );
+
+        if ($returnCode === 0) {
+            return ['success' => true, 'message' => implode("\n", $output)];
+        }
+
+        cybokron_log('exec() rate update failed (code ' . $returnCode . '): ' . implode(' ', $output), 'WARNING');
+    }
+
+    // Fallback: run scrapers inline
+    $result = runRateUpdateInline();
+
+    return ['success' => $result['success'], 'message' => $result['message']];
+}
