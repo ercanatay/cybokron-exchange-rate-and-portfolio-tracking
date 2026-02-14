@@ -24,6 +24,19 @@ function cybokron_init(): void
 }
 
 /**
+ * Get application version: VERSION file first, then DB fallback.
+ */
+function getAppVersion(): string
+{
+    $versionFile = __DIR__ . '/../VERSION';
+    if (file_exists($versionFile)) {
+        return trim((string) file_get_contents($versionFile));
+    }
+    $row = Database::queryOne('SELECT value FROM settings WHERE `key` = ?', ['app_version']);
+    return $row['value'] ?? '0.0.0';
+}
+
+/**
  * Start session for web requests when needed.
  */
 function ensureWebSessionStarted(): void

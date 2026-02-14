@@ -53,7 +53,7 @@ $recentLogs = Database::query("
 ");
 
 $currentLocale = getAppLocale();
-$version = trim(file_get_contents(__DIR__ . '/VERSION'));
+$version = getAppVersion();
 ?>
 <!DOCTYPE html>
 <html lang="<?= htmlspecialchars($currentLocale) ?>">

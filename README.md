@@ -255,6 +255,24 @@ To add a new bank source later:
 
 ## Changelog
 
+### v1.7.1 (2026-02-14)
+
+Bug fixes for admin panel settings and version display on production.
+
+**Admin Panel Fixes**
+- Fix widget drag-drop not saving — `csrfToken` was undefined in widget management IIFE scope
+- All admin settings (SEO toggle, default bank, chart defaults, retention, widget config) verified working
+
+**Version Display**
+- Add `getAppVersion()` helper with VERSION file + database fallback
+- Replace all `file_get_contents('VERSION')` calls across 7 files (index, portfolio, admin, observability, openrouter, api, Updater)
+- Eliminates PHP warnings on production where VERSION file is removed after deploy
+
+**UI/UX**
+- Redesign Groups and Tags sections with grid layouts, card styling, and hover-reveal actions
+- Redesign Portfolio table with sticky headers, zebra striping, gradient accents, and card wrapper
+- Responsive breakpoints for tablet (768px) and mobile (480px)
+
 ### v1.7.0 (2026-02-14)
 
 Goal period filtering and deadline tracking for portfolio goals.

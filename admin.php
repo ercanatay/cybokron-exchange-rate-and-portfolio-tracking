@@ -214,7 +214,7 @@ $retentionDaysRow = Database::queryOne('SELECT value FROM settings WHERE `key` =
 $retentionDaysValue = (int) ($retentionDaysRow['value'] ?? (defined('RATE_HISTORY_RETENTION_DAYS') ? RATE_HISTORY_RETENTION_DAYS : 1825));
 $currentLocale = getAppLocale();
 $csrfToken = getCsrfToken();
-$version = trim(file_get_contents(__DIR__ . '/VERSION'));
+$version = getAppVersion();
 
 // Widget configuration
 $widgetConfigRaw = Database::queryOne('SELECT value FROM settings WHERE `key` = ?', ['widget_config']);
@@ -1121,6 +1121,7 @@ foreach ($allRates as $r) {
             var list = document.getElementById('widget-sortable-list');
             if (!list) return;
 
+            var csrfToken = '<?= htmlspecialchars($csrfToken) ?>';
             var statusEl = document.getElementById('widget-save-status');
             var saveTimeout = null;
             var draggedItem = null;
