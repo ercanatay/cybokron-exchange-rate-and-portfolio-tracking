@@ -19,6 +19,9 @@ class ScraperAutoRepair
     private string $bankName;
     private string $bankUrl;
 
+    /** @var callable|null Progress callback: function(string $step, string $status, string $message, ?int $durationMs, ?array $meta): void */
+    private $progressCallback = null;
+
     /** @var string[] Dangerous XPath patterns that must be rejected. */
     private const DANGEROUS_XPATH_PATTERNS = [
         'document(',
@@ -37,6 +40,28 @@ class ScraperAutoRepair
     }
 
     /**
+     * Set a callback to receive live progress updates.
+     */
+    public function setProgressCallback(callable $cb): void
+    {
+        $this->progressCallback = $cb;
+    }
+
+    /**
+     * Emit progress via callback (if set) and log to DB.
+     *
+     * @param array<string, mixed>|null $metadata
+     */
+    private function emitProgress(string $step, string $status, string $message, ?int $durationMs = null, ?array $metadata = null): void
+    {
+        $this->logStep($step, $status, $message, $durationMs, $metadata);
+
+        if ($this->progressCallback !== null) {
+            ($this->progressCallback)($step, $status, $message, $durationMs, $metadata);
+        }
+    }
+
+    /**
      * Full self-healing pipeline.
      *
      * @param string[] $currencyCodes Known ISO currency codes
@@ -48,42 +73,50 @@ class ScraperAutoRepair
         string $newHash,
         array $currencyCodes
     ): ?array {
+        $this->emitProgress('check_enabled', 'in_progress', 'Checking if self-healing is enabled');
         if (!$this->isEnabled()) {
-            $this->logStep('check_enabled', 'skipped', 'Self-healing is disabled');
+            $this->emitProgress('check_enabled', 'skipped', 'Self-healing is disabled');
             return null;
         }
+        $this->emitProgress('check_enabled', 'success', 'Self-healing is enabled');
 
+        $this->emitProgress('cooldown_check', 'in_progress', 'Checking cooldown');
         if ($this->isCooldownActive()) {
-            $this->logStep('cooldown_check', 'skipped', 'Cooldown active, skipping repair');
+            $this->emitProgress('cooldown_check', 'skipped', 'Cooldown active, skipping repair');
             return null;
         }
+        $this->emitProgress('cooldown_check', 'success', 'Cooldown clear');
 
         $pipelineStart = microtime(true);
 
         // Step 1: Generate repair config via AI
+        $this->emitProgress('generate_config', 'in_progress', 'Generating config via AI');
         $config = $this->generateRepairConfig($html, $currencyCodes);
         if ($config === null) {
             return null;
         }
 
         // Step 2: Validate config against live HTML
+        $this->emitProgress('validate_config', 'in_progress', 'Validating config against live HTML');
         $rates = $this->validateConfig($config, $html, $currencyCodes);
         if ($rates === null) {
             return null;
         }
 
         // Step 3: Save config to DB and filesystem
+        $this->emitProgress('save_config', 'in_progress', 'Saving config to database');
         $configId = $this->saveRepairConfig($config, $newHash);
         if ($configId === null) {
             return null;
         }
 
         // Step 4: Commit to GitHub and create issue
+        $this->emitProgress('github_commit', 'in_progress', 'Committing to GitHub');
         $this->commitToGitHub($config, $configId);
 
         $totalMs = (int) ((microtime(true) - $pipelineStart) * 1000);
         $rateCount = count($rates);
-        $this->logStep('pipeline_complete', 'success', "Repair completed in {$totalMs}ms, {$rateCount} rates", $totalMs, [
+        $this->emitProgress('pipeline_complete', 'success', "Repair completed in {$totalMs}ms, {$rateCount} rates", $totalMs, [
             'config_id' => $configId,
             'rate_count' => $rateCount,
         ]);
@@ -103,7 +136,7 @@ class ScraperAutoRepair
         try {
             $snapshot = $this->buildHtmlSnapshot($html);
             if ($snapshot === '') {
-                $this->logStep('generate_config', 'error', 'Could not build HTML snapshot');
+                $this->emitProgress('generate_config', 'error', 'Could not build HTML snapshot');
                 return null;
             }
 
@@ -111,21 +144,21 @@ class ScraperAutoRepair
             $config = $this->parseModelResponse($modelResponse);
 
             if ($config === null) {
-                $this->logStep('generate_config', 'error', 'AI returned invalid config');
+                $this->emitProgress('generate_config', 'error', 'AI returned invalid config');
                 return null;
             }
 
             if (!$this->isConfigSafe($config)) {
-                $this->logStep('generate_config', 'error', 'Config contains dangerous XPath patterns');
+                $this->emitProgress('generate_config', 'error', 'Config contains dangerous XPath patterns');
                 return null;
             }
 
             $durationMs = (int) ((microtime(true) - $stepStart) * 1000);
-            $this->logStep('generate_config', 'success', 'Config generated via AI', $durationMs);
+            $this->emitProgress('generate_config', 'success', 'Config generated via AI', $durationMs);
             return $config;
         } catch (Throwable $e) {
             $durationMs = (int) ((microtime(true) - $stepStart) * 1000);
-            $this->logStep('generate_config', 'error', $e->getMessage(), $durationMs);
+            $this->emitProgress('generate_config', 'error', $e->getMessage(), $durationMs);
             return null;
         }
     }
@@ -148,21 +181,21 @@ class ScraperAutoRepair
             $durationMs = (int) ((microtime(true) - $stepStart) * 1000);
 
             if (count($rates) < $minimumRates) {
-                $this->logStep('validate_config', 'error',
+                $this->emitProgress('validate_config', 'error',
                     "Config produced only " . count($rates) . " rates (minimum: {$minimumRates})",
                     $durationMs
                 );
                 return null;
             }
 
-            $this->logStep('validate_config', 'success',
+            $this->emitProgress('validate_config', 'success',
                 "Config validated: " . count($rates) . " rates parsed",
                 $durationMs
             );
             return $rates;
         } catch (Throwable $e) {
             $durationMs = (int) ((microtime(true) - $stepStart) * 1000);
-            $this->logStep('validate_config', 'error', $e->getMessage(), $durationMs);
+            $this->emitProgress('validate_config', 'error', $e->getMessage(), $durationMs);
             return null;
         }
     }
@@ -315,11 +348,11 @@ class ScraperAutoRepair
             file_put_contents($filePath, $jsonContent, LOCK_EX);
 
             $durationMs = (int) ((microtime(true) - $stepStart) * 1000);
-            $this->logStep('save_config', 'success', "Config saved (ID: {$configId})", $durationMs);
+            $this->emitProgress('save_config', 'success', "Config saved (ID: {$configId})", $durationMs);
             return $configId;
         } catch (Throwable $e) {
             $durationMs = (int) ((microtime(true) - $stepStart) * 1000);
-            $this->logStep('save_config', 'error', $e->getMessage(), $durationMs);
+            $this->emitProgress('save_config', 'error', $e->getMessage(), $durationMs);
             return null;
         }
     }
@@ -334,7 +367,7 @@ class ScraperAutoRepair
         try {
             $github = new GitHubIntegration();
             if (!$github->isConfigured()) {
-                $this->logStep('github_commit', 'skipped', 'GitHub integration not configured');
+                $this->emitProgress('github_commit', 'skipped', 'GitHub integration not configured');
                 return;
             }
 
@@ -384,13 +417,13 @@ class ScraperAutoRepair
             }
 
             $durationMs = (int) ((microtime(true) - $stepStart) * 1000);
-            $this->logStep('github_commit', 'success', 'Committed to GitHub and issue created', $durationMs, [
+            $this->emitProgress('github_commit', 'success', 'Committed to GitHub and issue created', $durationMs, [
                 'commit_sha' => $commitSha,
                 'issue_url'  => $issueResult['html_url'] ?? null,
             ]);
         } catch (Throwable $e) {
             $durationMs = (int) ((microtime(true) - $stepStart) * 1000);
-            $this->logStep('github_commit', 'error', $e->getMessage(), $durationMs);
+            $this->emitProgress('github_commit', 'error', $e->getMessage(), $durationMs);
         }
     }
 

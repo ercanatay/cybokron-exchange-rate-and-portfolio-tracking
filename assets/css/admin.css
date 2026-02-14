@@ -79,6 +79,10 @@
     background: linear-gradient(135deg, #06b6d420, #0891b220);
 }
 
+.admin-card-icon.repair {
+    background: linear-gradient(135deg, #f59e0b20, #ea580c20);
+}
+
 .admin-card-header h2 {
     font-size: 1rem;
     font-weight: 700;
