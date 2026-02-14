@@ -103,6 +103,8 @@ function applySecurityHeaders(string $context = 'html'): void
     if ($context === 'api') {
         header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
         header('Pragma: no-cache');
+    } else {
+        header('Cache-Control: no-cache, must-revalidate');
     }
 }
 

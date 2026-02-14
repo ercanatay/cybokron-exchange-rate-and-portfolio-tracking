@@ -255,6 +255,18 @@ To add a new bank source later:
 
 ## Changelog
 
+### v1.7.4 (2026-02-14)
+
+Fix cache persistence and dark mode header rendering.
+
+**Cache**
+- Add `Cache-Control: no-cache, must-revalidate` header for HTML pages to prevent browser/proxy caching
+- Service Worker registration with `updateViaCache: 'none'` and version query parameter to force update checks
+- Bump SW cache to `cybokron-v4`
+
+**Dark Mode**
+- Add `--surface-rgb` CSS variable for proper header glass-morphism transparency in dark mode
+
 ### v1.7.3 (2026-02-14)
 
 Kapalıçarşı scraper fix, Service Worker cache improvements, and admin cache management.

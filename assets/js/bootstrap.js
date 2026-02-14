@@ -11,6 +11,6 @@
         window.cybokronRates = [];
     }
     if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('sw.js').catch(function () {});
+        navigator.serviceWorker.register('sw.js?v=4', { updateViaCache: 'none' }).catch(function () {});
     }
 })();
