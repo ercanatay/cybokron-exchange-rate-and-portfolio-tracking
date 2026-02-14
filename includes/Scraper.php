@@ -12,6 +12,7 @@ abstract class Scraper
     protected string $bankSlug = '';
     protected string $url = '';
     protected int $bankId = 0;
+    protected bool $supportsAutoRepair = true;
 
     /** @var array<string, string> */
     private array $pageCache = [];
@@ -397,7 +398,33 @@ abstract class Scraper
     }
 
     /**
+     * Check if self-healing is enabled for this scraper.
+     */
+    public function isSelfHealingEnabled(): bool
+    {
+        return $this->supportsAutoRepair
+            && defined('SELF_HEALING_ENABLED')
+            && SELF_HEALING_ENABLED === true;
+    }
+
+    /**
+     * Load active repair config from DB if available.
+     *
+     * @return array{id: int, config: array}|null
+     */
+    protected function loadActiveRepairConfig(): ?array
+    {
+        if (!$this->isSelfHealingEnabled()) {
+            return null;
+        }
+
+        return ScraperAutoRepair::loadActiveConfig($this->bankId);
+    }
+
+    /**
      * Run the full scrape cycle: fetch, parse, detect changes, save, log.
+     * Includes self-healing: tries active repair config first, then triggers
+     * auto-repair if rates are insufficient and table structure changed.
      */
     public function run(): array
     {
@@ -418,6 +445,63 @@ abstract class Scraper
             Database::update('banks', ['table_hash' => $newHash], 'id = ?', [$this->bankId]);
 
             $rates = $this->scrape($html, $xpath, $newHash);
+
+            $minimumRates = defined('OPENROUTER_MIN_EXPECTED_RATES')
+                ? max(1, (int) OPENROUTER_MIN_EXPECTED_RATES)
+                : 8;
+
+            // Self-healing Step 1: Try active repair config if rates are insufficient
+            if (count($rates) < $minimumRates) {
+                $repairData = $this->loadActiveRepairConfig();
+                if ($repairData !== null) {
+                    $repairRates = ScraperAutoRepair::applyRepairConfig(
+                        $repairData['config'],
+                        $html,
+                        $this->getKnownCurrencyCodes()
+                    );
+
+                    if (!empty($repairRates)) {
+                        $rates = $this->mergeRatesByCode($rates, $repairRates);
+                        cybokron_log(
+                            "Repair config #{$repairData['id']} applied for {$this->bankSlug}: " . count($rates) . " rates",
+                            'INFO'
+                        );
+                    }
+                }
+            }
+
+            // Self-healing Step 2: Trigger auto-repair if still insufficient + table changed
+            if (count($rates) < $minimumRates && $tableChanged && $this->isSelfHealingEnabled()) {
+                try {
+                    $autoRepair = new ScraperAutoRepair(
+                        $this->bankId,
+                        $this->bankSlug,
+                        $this->bankName,
+                        $this->url
+                    );
+
+                    $repairRates = $autoRepair->attemptRepair(
+                        $html,
+                        $oldHash,
+                        $newHash,
+                        $this->getKnownCurrencyCodes()
+                    );
+
+                    if ($repairRates !== null && !empty($repairRates)) {
+                        $rates = $this->mergeRatesByCode($rates, $repairRates);
+                        cybokron_log(
+                            "Self-healing auto-repair for {$this->bankSlug}: " . count($rates) . " rates",
+                            'INFO'
+                        );
+                    }
+                } catch (Throwable $repairError) {
+                    cybokron_log(
+                        "Self-healing error for {$this->bankSlug}: {$repairError->getMessage()}",
+                        'ERROR'
+                    );
+                }
+            }
+
             $scrapedAt = date('Y-m-d H:i:s');
 
             $savedCount = $this->saveRates($rates, $scrapedAt);

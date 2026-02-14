@@ -17,6 +17,10 @@ function cybokron_init(): void
     require_once $configFile;
     require_once __DIR__ . '/Database.php';
     require_once __DIR__ . '/Auth.php';
+    require_once __DIR__ . '/Scraper.php';
+    require_once __DIR__ . '/OpenRouterRateRepair.php';
+    require_once __DIR__ . '/GitHubIntegration.php';
+    require_once __DIR__ . '/ScraperAutoRepair.php';
     require_once __DIR__ . '/Portfolio.php';
 
     date_default_timezone_set(defined('APP_TIMEZONE') ? APP_TIMEZONE : 'Europe/Istanbul');

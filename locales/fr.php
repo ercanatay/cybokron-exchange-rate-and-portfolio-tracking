@@ -551,4 +551,18 @@ return [
     'admin.retention_year' => 'an',
     'admin.retention_hint' => 'Les données d\'historique des taux plus anciennes que cette période seront automatiquement supprimées par la tâche de nettoyage planifiée.',
     'admin.retention_updated' => 'Durée de conservation des données mise à jour.',
+
+    // Self-Healing
+    'selfhealing.title' => 'Historique de réparation automatique',
+    'selfhealing.active_configs' => 'Configurations de réparation actives',
+    'selfhealing.no_active_configs' => 'Aucune configuration de réparation active.',
+    'selfhealing.repair_logs' => 'Journaux de réparation (30 derniers)',
+    'selfhealing.no_repair_logs' => 'Aucun journal de réparation.',
+    'selfhealing.step' => 'Étape',
+    'selfhealing.manual_trigger' => 'Déclenchement manuel de réparation',
+    'selfhealing.config_deactivated' => 'Configuration de réparation désactivée.',
+    'selfhealing.no_active_config' => 'Aucune configuration de réparation active pour cette banque.',
+    'selfhealing.deactivate_confirm' => 'Êtes-vous sûr de vouloir désactiver cette configuration de réparation ?',
+    'selfhealing.repair_triggered' => 'Réparation déclenchée pour {{bank}}.',
+    'selfhealing.repair_failed' => 'Échec de la réparation : {{error}}',
 ];

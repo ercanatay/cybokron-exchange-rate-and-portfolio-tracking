@@ -551,4 +551,18 @@ return [
     'admin.retention_year' => 'سنة',
     'admin.retention_hint' => 'سيتم حذف بيانات سجل الأسعار الأقدم من هذه المدة تلقائياً بواسطة مهمة التنظيف المجدولة.',
     'admin.retention_updated' => 'تم تحديث مدة الاحتفاظ بالبيانات.',
+
+    // Self-Healing
+    'selfhealing.title' => 'سجل الإصلاح التلقائي',
+    'selfhealing.active_configs' => 'إعدادات الإصلاح النشطة',
+    'selfhealing.no_active_configs' => 'لا توجد إعدادات إصلاح نشطة.',
+    'selfhealing.repair_logs' => 'سجلات الإصلاح (آخر 30)',
+    'selfhealing.no_repair_logs' => 'لا توجد سجلات إصلاح بعد.',
+    'selfhealing.step' => 'خطوة',
+    'selfhealing.manual_trigger' => 'تشغيل الإصلاح يدوياً',
+    'selfhealing.config_deactivated' => 'تم تعطيل إعداد الإصلاح.',
+    'selfhealing.no_active_config' => 'لم يتم العثور على إعداد إصلاح نشط لهذا البنك.',
+    'selfhealing.deactivate_confirm' => 'هل أنت متأكد من تعطيل إعداد الإصلاح هذا؟',
+    'selfhealing.repair_triggered' => 'تم تشغيل الإصلاح لـ {{bank}}.',
+    'selfhealing.repair_failed' => 'فشل الإصلاح: {{error}}',
 ];

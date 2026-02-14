@@ -546,4 +546,18 @@ return [
     'admin.retention_year' => 'year',
     'admin.retention_hint' => 'Rate history data older than this period will be automatically deleted by the cleanup cron job.',
     'admin.retention_updated' => 'Data retention period updated.',
+
+    // Self-Healing
+    'selfhealing.title' => 'Self-Healing Repair History',
+    'selfhealing.active_configs' => 'Active Repair Configs',
+    'selfhealing.no_active_configs' => 'No active repair configs.',
+    'selfhealing.repair_logs' => 'Repair Logs (Last 30)',
+    'selfhealing.no_repair_logs' => 'No repair logs yet.',
+    'selfhealing.step' => 'Step',
+    'selfhealing.manual_trigger' => 'Manual Repair Trigger',
+    'selfhealing.config_deactivated' => 'Repair config deactivated.',
+    'selfhealing.no_active_config' => 'No active repair config found for this bank.',
+    'selfhealing.deactivate_confirm' => 'Are you sure you want to deactivate this repair config?',
+    'selfhealing.repair_triggered' => 'Repair triggered for {{bank}}.',
+    'selfhealing.repair_failed' => 'Repair failed: {{error}}',
 ];
