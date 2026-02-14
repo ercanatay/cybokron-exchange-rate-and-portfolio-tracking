@@ -17,10 +17,9 @@ require_once __DIR__ . '/../includes/Updater.php';
 ensureCliExecution();
 
 // Load active banks from database
-$activeBanks = Database::query('SELECT scraper_class FROM banks WHERE is_active = 1');
-$ACTIVE_BANKS = array_column($activeBanks, 'scraper_class');
+$activeBanks = Database::query('SELECT id, name, slug, url, scraper_class FROM banks WHERE is_active = 1');
 
-if (empty($ACTIVE_BANKS)) {
+if (empty($activeBanks)) {
     cybokron_log('No active banks configured.', 'WARNING');
     echo "No active banks configured.\n";
     exit(1);
@@ -29,9 +28,10 @@ if (empty($ACTIVE_BANKS)) {
 $results = [];
 $totalRates = 0;
 
-foreach ($ACTIVE_BANKS as $bankClass) {
+foreach ($activeBanks as $bankRow) {
+    $bankClass = $bankRow['scraper_class'];
     try {
-        $scraper = loadBankScraper($bankClass);
+        $scraper = loadBankScraper($bankClass, $bankRow);
         $result = $scraper->run();
         $results[] = $result;
 

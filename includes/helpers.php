@@ -687,7 +687,7 @@ function getRequestCsrfToken(): ?string
 /**
  * Load a bank scraper class by name.
  */
-function loadBankScraper(string $className): Scraper
+function loadBankScraper(string $className, array $bankRow = []): Scraper
 {
     $file = __DIR__ . '/../banks/' . $className . '.php';
     if (!file_exists($file)) {
@@ -704,6 +704,10 @@ function loadBankScraper(string $className): Scraper
 
     if (!$instance instanceof Scraper) {
         throw new RuntimeException("{$className} must extend Scraper class.");
+    }
+
+    if (!empty($bankRow)) {
+        $instance->setBankData($bankRow);
     }
 
     return $instance;

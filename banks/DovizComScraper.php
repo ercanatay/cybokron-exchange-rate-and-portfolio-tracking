@@ -1,26 +1,27 @@
 <?php
 /**
- * IsBank.php — İş Bankası Scraper
+ * DovizComScraper.php — Generic kur.doviz.com Scraper
  * Cybokron Exchange Rate & Portfolio Tracking
  *
- * Scrapes exchange rates from: https://kur.doviz.com/isbankasi
- *
- * Table structure:
+ * Scrapes exchange rates from any bank page on kur.doviz.com.
+ * All banks share the same HTML table structure:
  * | Currency | Buy | Sell | Time |
- * Currencies: USD, EUR, GBP, CHF, CAD, AUD, DKK, SEK, NOK, JPY, KWD, SAR
+ *
+ * Bank-specific data (name, slug, url) is injected via setBankData().
  */
 
-class IsBank extends Scraper
+class DovizComScraper extends Scraper
 {
-    protected string $bankName = 'İş Bankası';
-    protected string $bankSlug = 'is-bankasi';
-    protected string $url = 'https://kur.doviz.com/isbankasi';
+    protected string $bankName = '';
+    protected string $bankSlug = '';
+    protected string $url = '';
 
     /**
      * Currency code mapping from Turkish names to ISO codes.
      */
     private array $currencyMap = [
         'amerikan doları'           => 'USD',
+        'amerikan dolari'           => 'USD',
         'usd'                       => 'USD',
         'euro'                      => 'EUR',
         'eur'                       => 'EUR',
@@ -28,15 +29,19 @@ class IsBank extends Scraper
         'İngiliz sterlini'          => 'GBP',
         'gbp'                       => 'GBP',
         'isviçre frangı'            => 'CHF',
+        'isvicre frangi'            => 'CHF',
         'İsviçre frangı'            => 'CHF',
         'chf'                       => 'CHF',
         'kanada doları'             => 'CAD',
+        'kanada dolari'             => 'CAD',
         'cad'                       => 'CAD',
         'avustralya doları'         => 'AUD',
+        'avustralya dolari'         => 'AUD',
         'aud'                       => 'AUD',
         'danimarka kronu'           => 'DKK',
         'dkk'                       => 'DKK',
         'isveç kronu'               => 'SEK',
+        'isvec kronu'               => 'SEK',
         'İsveç kronu'               => 'SEK',
         'sek'                       => 'SEK',
         'norveç kronu'              => 'NOK',
@@ -50,10 +55,44 @@ class IsBank extends Scraper
         'suudi arabistan riyali'    => 'SAR',
         'suudi riyali'              => 'SAR',
         'sar'                       => 'SAR',
+        'çin yuanı'                 => 'CNY',
+        'cin yuani'                 => 'CNY',
+        'cny'                       => 'CNY',
+        'katar riyali'              => 'QAR',
+        'qar'                       => 'QAR',
+        'bae dirhemi'               => 'AED',
+        'aed'                       => 'AED',
+        'rus rublesi'               => 'RUB',
+        'rub'                       => 'RUB',
+        'rumen leyi'                => 'RON',
+        'ron'                       => 'RON',
+        'pakistan rupisi'            => 'PKR',
+        'pkr'                       => 'PKR',
+        'güney kore wonu'           => 'KRW',
+        'guney kore wonu'           => 'KRW',
+        'krw'                       => 'KRW',
+        'azerbaycan manatı'         => 'AZN',
+        'azerbaycan manati'         => 'AZN',
+        'azn'                       => 'AZN',
+        'kazakistan tengesi'        => 'KZT',
+        'kzt'                       => 'KZT',
+        'özel çekme hakkı'          => 'XDR',
+        'ozel cekme hakki'          => 'XDR',
+        'xdr'                       => 'XDR',
+        'altın'                     => 'XAU',
+        'altin'                     => 'XAU',
+        'xau'                       => 'XAU',
+        'gümüş'                     => 'XAG',
+        'gumus'                     => 'XAG',
+        'xag'                       => 'XAG',
+        'platin'                    => 'XPT',
+        'xpt'                       => 'XPT',
+        'paladyum'                  => 'XPD',
+        'xpd'                       => 'XPD',
     ];
 
     /**
-     * Scrape the exchange rate table from doviz.com.
+     * Scrape the exchange rate table from kur.doviz.com.
      */
     public function scrape(string $html, DOMXPath $xpath, string $tableHash): array
     {
@@ -63,7 +102,6 @@ class IsBank extends Scraper
         $rows = $xpath->query('//table//tbody//tr');
 
         if ($rows->length === 0) {
-            // Fallback: try all tr elements
             $rows = $xpath->query('//table//tr');
         }
 
@@ -71,10 +109,9 @@ class IsBank extends Scraper
             $cells = $xpath->query('.//td', $row);
 
             if ($cells->length < 3) {
-                continue; // Skip rows without enough cells
+                continue;
             }
 
-            // Extract currency code from first cell
             $currencyCell = $cells->item(0);
             if (!$currencyCell) {
                 continue;
@@ -95,7 +132,6 @@ class IsBank extends Scraper
                 $code = $this->mapCurrencyName($name);
             }
 
-            // Skip if we couldn't determine the currency code
             if ($code === '' || !in_array($code, $this->getKnownCurrencyCodes(), true)) {
                 continue;
             }
@@ -108,7 +144,6 @@ class IsBank extends Scraper
             $sellCell = $cells->item(2);
             $sellRate = $sellCell ? $this->parseRate($sellCell->textContent) : null;
 
-            // Skip if rates are invalid
             if ($buyRate === null || $sellRate === null || $buyRate <= 0 || $sellRate <= 0) {
                 continue;
             }
@@ -117,14 +152,14 @@ class IsBank extends Scraper
                 'code'   => $code,
                 'buy'    => $buyRate,
                 'sell'   => $sellRate,
-                'change' => null, // doviz.com doesn't provide change percentage
+                'change' => null,
             ];
         }
 
-        // If we got fewer than 8 rates, something might be wrong
-        if (count($rates) < 8) {
+        // Some banks may offer fewer currencies
+        if (count($rates) < 3) {
             cybokron_log(
-                "İş Bankası scraper: Only " . count($rates) . " rates found, expected at least 8",
+                "{$this->bankName} scraper: Only " . count($rates) . " rates found, expected at least 3",
                 'WARNING'
             );
         }
@@ -144,11 +179,10 @@ class IsBank extends Scraper
     }
 
     /**
-     * Parse rate string to float.
+     * Parse rate string to float (Turkish format: 42,5690).
      */
     private function parseRate(string $text): ?float
     {
-        // Remove whitespace and convert Turkish decimal separator
         $cleaned = str_replace([' ', '.', ','], ['', '', '.'], trim($text));
 
         if ($cleaned === '' || !is_numeric($cleaned)) {
