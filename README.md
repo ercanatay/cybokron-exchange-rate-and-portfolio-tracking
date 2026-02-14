@@ -299,6 +299,8 @@ To add a new bank source later:
 | [CHANGELOG.md](CHANGELOG.md) | Full version history with detailed release notes |
 | [SETUP.md](SETUP.md) | Step-by-step installation guide for cPanel and VPS hosting |
 | [TROUBLESHOOTING.md](TROUBLESHOOTING.md) | 100 common issues and solutions |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | How to contribute to the project |
+| [SECURITY.md](SECURITY.md) | Security policy and vulnerability reporting |
 
 ## Legal Disclaimer
 
