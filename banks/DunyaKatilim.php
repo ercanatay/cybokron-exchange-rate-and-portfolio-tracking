@@ -134,10 +134,6 @@ class DunyaKatilim extends Scraper
             }
         }
 
-        if (empty($rates)) {
-            throw new RuntimeException("No rates found on {$this->url}. Table structure may have changed.");
-        }
-
         return $rates;
     }
 
