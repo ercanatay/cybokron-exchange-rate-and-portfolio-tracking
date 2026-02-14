@@ -69,9 +69,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     }
 
     if ($_POST['action'] === 'set_default_bank' && isset($_POST['default_bank'])) {
-        $defaultBank = normalizeBankSlug($_POST['default_bank']);
-        if ($defaultBank === null && trim((string) $_POST['default_bank']) === 'all') {
+        $rawBank = trim((string) $_POST['default_bank']);
+        if ($rawBank === 'all') {
             $defaultBank = 'all';
+        } else {
+            $defaultBank = normalizeBankSlug($rawBank);
         }
         if ($defaultBank !== null && ($defaultBank === 'all' || Database::queryOne('SELECT id FROM banks WHERE slug = ? AND is_active = 1', [$defaultBank]))) {
             Database::query(
@@ -161,7 +163,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         $orApiKey = trim((string) ($_POST['openrouter_api_key'] ?? ''));
         $orModel = trim((string) ($_POST['openrouter_model'] ?? ''));
 
-        if ($orApiKey !== '' && preg_match('/^[a-zA-Z0-9_\-]{10,200}$/', $orApiKey)) {
+        if ($orApiKey !== '' && strlen($orApiKey) <= 500 && preg_match('/^[a-zA-Z0-9_\-:.]+$/', $orApiKey)) {
             Database::query(
                 'INSERT INTO settings (`key`, value) VALUES (?, ?) ON DUPLICATE KEY UPDATE value = ?',
                 ['openrouter_api_key', $orApiKey, $orApiKey]
