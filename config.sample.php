@@ -61,6 +61,12 @@ define('OPENROUTER_AI_MAX_ROWS', 160);          // Token/cost guard
 define('OPENROUTER_AI_MAX_TOKENS', 600);        // Token/cost guard
 define('OPENROUTER_AI_TIMEOUT_SECONDS', 25);    // API timeout
 
+// ─── Self-Healing Auto-Repair ────────────────────────────────────────────────
+define('SELF_HEALING_ENABLED', true);              // Enable AI-powered self-healing when scraper breaks
+define('SELF_HEALING_COOLDOWN_SECONDS', 3600);     // Minimum seconds between repair attempts per bank
+define('SELF_HEALING_MAX_RETRIES', 2);             // Max repair retries per table change
+define('GITHUB_API_TOKEN', '');                    // GitHub PAT (repo scope) - for auto-commit repair configs
+
 // ─── API Security ────────────────────────────────────────────────────────────
 define('API_ALLOW_CORS', false);                // Keep disabled unless cross-origin API access is required
 define('API_ALLOWED_ORIGINS', []);              // Example: ['https://example.com']

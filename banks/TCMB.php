@@ -12,6 +12,7 @@ class TCMB extends Scraper
     protected string $bankName = 'TCMB';
     protected string $bankSlug = 'tcmb';
     protected string $url = 'https://www.tcmb.gov.tr/kurlar/today.xml';
+    protected bool $supportsAutoRepair = false;
 
     /**
      * TCMB returns XML, not HTML. Override run() to fetch XML and parse.

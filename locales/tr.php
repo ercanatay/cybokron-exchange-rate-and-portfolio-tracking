@@ -546,4 +546,18 @@ return [
     'admin.retention_year' => 'yıl',
     'admin.retention_hint' => 'Bu süreyi aşan kur geçmişi verileri temizlik cron görevi tarafından otomatik olarak silinir.',
     'admin.retention_updated' => 'Veri saklama süresi güncellendi.',
+
+    // Self-Healing
+    'selfhealing.title' => 'Otomatik Onarım Geçmişi',
+    'selfhealing.active_configs' => 'Aktif Onarım Yapılandırmaları',
+    'selfhealing.no_active_configs' => 'Aktif onarım yapılandırması yok.',
+    'selfhealing.repair_logs' => 'Onarım Günlükleri (Son 30)',
+    'selfhealing.no_repair_logs' => 'Henüz onarım günlüğü yok.',
+    'selfhealing.step' => 'Adım',
+    'selfhealing.manual_trigger' => 'Manuel Onarım Tetikle',
+    'selfhealing.config_deactivated' => 'Onarım yapılandırması devre dışı bırakıldı.',
+    'selfhealing.no_active_config' => 'Bu banka için aktif onarım yapılandırması bulunamadı.',
+    'selfhealing.deactivate_confirm' => 'Bu onarım yapılandırmasını devre dışı bırakmak istediğinizden emin misiniz?',
+    'selfhealing.repair_triggered' => '{{bank}} için onarım tetiklendi.',
+    'selfhealing.repair_failed' => 'Onarım başarısız: {{error}}',
 ];

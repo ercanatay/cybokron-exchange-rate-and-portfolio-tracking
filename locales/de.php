@@ -551,4 +551,18 @@ return [
     'admin.retention_year' => 'Jahr',
     'admin.retention_hint' => 'Kursverlaufsdaten, die älter als dieser Zeitraum sind, werden automatisch durch den Bereinigungscronjob gelöscht.',
     'admin.retention_updated' => 'Datenspeicherungsdauer aktualisiert.',
+
+    // Self-Healing
+    'selfhealing.title' => 'Automatische Reparatur-Historie',
+    'selfhealing.active_configs' => 'Aktive Reparaturkonfigurationen',
+    'selfhealing.no_active_configs' => 'Keine aktiven Reparaturkonfigurationen.',
+    'selfhealing.repair_logs' => 'Reparaturprotokolle (Letzte 30)',
+    'selfhealing.no_repair_logs' => 'Noch keine Reparaturprotokolle.',
+    'selfhealing.step' => 'Schritt',
+    'selfhealing.manual_trigger' => 'Manuelle Reparatur auslösen',
+    'selfhealing.config_deactivated' => 'Reparaturkonfiguration deaktiviert.',
+    'selfhealing.no_active_config' => 'Keine aktive Reparaturkonfiguration für diese Bank gefunden.',
+    'selfhealing.deactivate_confirm' => 'Sind Sie sicher, dass Sie diese Reparaturkonfiguration deaktivieren möchten?',
+    'selfhealing.repair_triggered' => 'Reparatur für {{bank}} ausgelöst.',
+    'selfhealing.repair_failed' => 'Reparatur fehlgeschlagen: {{error}}',
 ];
