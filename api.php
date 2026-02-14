@@ -161,6 +161,7 @@ try {
             break;
 
         case 'portfolio_update':
+            requirePortfolioAccessForApi();
             if ($method !== 'POST' && $method !== 'PUT' && $method !== 'PATCH') {
                 jsonResponse(['status' => 'error', 'message' => t('api.error.post_put_patch_required')], 405);
             }
@@ -200,6 +201,7 @@ try {
             break;
 
         case 'portfolio_delete':
+            requirePortfolioAccessForApi();
             if ($method !== 'POST' && $method !== 'DELETE') {
                 jsonResponse(['status' => 'error', 'message' => t('api.error.post_delete_required')], 405);
             }
@@ -255,6 +257,7 @@ try {
             break;
 
         case 'alerts':
+            requirePortfolioAccessForApi();
             $where = '1=1';
             $params = [];
 
