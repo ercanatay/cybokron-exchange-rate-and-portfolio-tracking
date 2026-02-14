@@ -253,6 +253,44 @@ CREATE TABLE IF NOT EXISTS `scrape_logs` (
     CONSTRAINT `scrape_logs_ibfk_1` FOREIGN KEY (`bank_id`) REFERENCES `banks` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- ─── Repair Configs (self-healing) ──────────────────────────────────────────
+
+CREATE TABLE IF NOT EXISTS `repair_configs` (
+    `id` int unsigned NOT NULL AUTO_INCREMENT,
+    `bank_id` int unsigned NOT NULL,
+    `xpath_rows` varchar(500) NOT NULL,
+    `columns` json NOT NULL COMMENT 'Column index/selector mapping',
+    `currency_map` json NOT NULL COMMENT 'Local name to ISO code mapping',
+    `number_format` varchar(20) NOT NULL DEFAULT 'turkish',
+    `skip_header_rows` tinyint unsigned NOT NULL DEFAULT 0,
+    `table_hash` varchar(64) NOT NULL,
+    `is_active` tinyint(1) NOT NULL DEFAULT 1,
+    `github_issue_url` varchar(500) DEFAULT NULL,
+    `github_commit_sha` varchar(64) DEFAULT NULL,
+    `deactivated_at` datetime DEFAULT NULL,
+    `deactivation_reason` varchar(500) DEFAULT NULL,
+    `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`),
+    KEY `idx_bank_active` (`bank_id`,`is_active`),
+    KEY `idx_created` (`created_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ─── Repair Logs (self-healing) ────────────────────────────────────────────
+
+CREATE TABLE IF NOT EXISTS `repair_logs` (
+    `id` int unsigned NOT NULL AUTO_INCREMENT,
+    `bank_id` int unsigned NOT NULL,
+    `step` varchar(50) NOT NULL COMMENT 'Pipeline step name',
+    `status` varchar(20) NOT NULL COMMENT 'success, error, skipped',
+    `message` text DEFAULT NULL,
+    `duration_ms` int unsigned DEFAULT NULL,
+    `metadata` json DEFAULT NULL,
+    `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`),
+    KEY `idx_bank_created` (`bank_id`,`created_at`),
+    KEY `idx_step_status` (`step`,`status`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- ─── Schema Migrations (used by migrator.php) ───────────────────────────────
 
 CREATE TABLE IF NOT EXISTS `schema_migrations` (
