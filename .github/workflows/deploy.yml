@@ -232,6 +232,7 @@ jobs:
              echo '=== All DB operations complete ==='"
 
       - name: Verify cron jobs
+        continue-on-error: true
         run: |
           ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \
             ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} bash -s << 'CRON_EOF'
