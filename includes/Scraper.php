@@ -43,6 +43,17 @@ abstract class Scraper
     }
 
     /**
+     * Inject bank data directly (used by cron for generic scrapers).
+     */
+    public function setBankData(array $row): void
+    {
+        $this->bankId   = (int) ($row['id'] ?? 0);
+        $this->bankName = $row['name'] ?? $this->bankName;
+        $this->bankSlug = $row['slug'] ?? $this->bankSlug;
+        $this->url      = $row['url'] ?? $this->url;
+    }
+
+    /**
      * Fetch a web page with cURL.
      */
     protected function fetchPage(string $url): string
@@ -390,7 +401,9 @@ abstract class Scraper
      */
     public function run(): array
     {
-        $this->init();
+        if ($this->bankId === 0) {
+            $this->init();
+        }
         $startTime = microtime(true);
 
         try {
