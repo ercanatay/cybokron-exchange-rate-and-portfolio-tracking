@@ -20,7 +20,7 @@ $action = trim((string) ($_GET['action'] ?? ''));
 $locale = getAppLocale();
 $method = strtoupper((string) ($_SERVER['REQUEST_METHOD'] ?? 'GET'));
 
-$portfolioActions = ['portfolio', 'portfolio_add', 'portfolio_update', 'portfolio_delete', 'alerts', 'alerts_add', 'alerts_delete'];
+$portfolioActions = ['portfolio', 'portfolio_add', 'portfolio_update', 'portfolio_delete', 'goal_progress', 'alerts', 'alerts_add', 'alerts_delete'];
 $writeActions = ['portfolio_add', 'portfolio_update', 'portfolio_delete', 'alerts_add', 'alerts_delete'];
 $readActions = ['rates', 'history', 'banks', 'currencies', 'version', 'ai_model', 'alerts'];
 
@@ -252,6 +252,59 @@ try {
                 'default_model' => $configured,
                 'openrouter_enabled' => defined('OPENROUTER_AI_REPAIR_ENABLED') ? (bool) OPENROUTER_AI_REPAIR_ENABLED : false,
             ]);
+            break;
+
+        case 'goal_progress':
+            requirePortfolioAccessForApi();
+            $goalId = (int) ($_GET['goal_id'] ?? 0);
+            $period = trim((string) ($_GET['period'] ?? ''));
+            $customStart = trim((string) ($_GET['start'] ?? ''));
+            $customEnd = trim((string) ($_GET['end'] ?? ''));
+
+            if ($goalId <= 0) {
+                jsonResponse(['status' => 'error', 'message' => 'goal_id required'], 400);
+            }
+
+            $goal = Portfolio::getGoal($goalId);
+            if (!$goal) {
+                jsonResponse(['status' => 'error', 'message' => 'Goal not found'], 404);
+            }
+
+            $summary = Portfolio::getSummary();
+            $allItemTags = Portfolio::getAllItemTags();
+            $allGoalSources = Portfolio::getAllGoalSources();
+
+            // Build currency rates
+            $currencyRates = [];
+            $ratesRows = Database::query('SELECT c.code, r.sell_rate FROM rates r JOIN currencies c ON c.id = r.currency_id WHERE r.sell_rate > 0');
+            foreach ($ratesRows as $rr) {
+                $currencyRates[strtoupper($rr['code'])] = (float) $rr['sell_rate'];
+            }
+
+            $periodFilter = null;
+            $periodStart = null;
+            $periodEnd = null;
+            $validPeriods = ['7d', '14d', '1m', '3m', '6m', '9m', '1y'];
+            if (in_array($period, $validPeriods, true)) {
+                $periodFilter = $period;
+            } elseif ($period === 'custom' && preg_match('/^\d{4}-\d{2}-\d{2}$/', $customStart) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $customEnd)) {
+                $periodStart = $customStart;
+                $periodEnd = $customEnd;
+            }
+
+            $progress = Portfolio::computeGoalProgress(
+                [$goal],
+                $summary['items'],
+                $allItemTags,
+                $allGoalSources,
+                $currencyRates,
+                $periodFilter,
+                $periodStart,
+                $periodEnd
+            );
+
+            $gp = $progress[$goalId] ?? ['current' => 0, 'target' => 0, 'percent' => 0, 'item_count' => 0, 'unit' => '₺'];
+            jsonResponse(['status' => 'ok', 'goal_id' => $goalId, 'progress' => $gp]);
             break;
 
         case 'alerts':

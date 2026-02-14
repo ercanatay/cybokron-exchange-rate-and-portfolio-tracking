@@ -855,6 +855,15 @@ class Portfolio
             }
         }
 
+        // Goal deadline (not for percent goals — they have their own date modes)
+        $goalDeadline = null;
+        if ($targetType !== 'percent') {
+            $dl = trim((string) ($data['goal_deadline'] ?? ''));
+            if ($dl !== '' && preg_match('/^\d{4}-\d{2}-\d{2}$/', $dl)) {
+                $goalDeadline = $dl;
+            }
+        }
+
         $goalId = Database::insert('portfolio_goals', [
             'user_id' => (class_exists('Auth') && Auth::check()) ? Auth::id() : null,
             'name' => $name,
@@ -866,6 +875,7 @@ class Portfolio
             'percent_date_start' => $percentDateStart,
             'percent_date_end' => $percentDateEnd,
             'percent_period_months' => $targetType === 'percent' ? $percentPeriodMonths : null,
+            'goal_deadline' => $goalDeadline,
         ]);
 
         return (int) $goalId;
@@ -922,11 +932,20 @@ class Portfolio
             }
         }
 
+        // Goal deadline (not for percent goals)
+        $goalDeadline = null;
+        if ($targetType !== 'percent') {
+            $dl = trim((string) ($data['goal_deadline'] ?? ''));
+            if ($dl !== '' && preg_match('/^\d{4}-\d{2}-\d{2}$/', $dl)) {
+                $goalDeadline = $dl;
+            }
+        }
+
         [$ownerWhere, $ownerParams] = self::goalOwnerScope();
-        $params = [$name, $targetValue, $targetType, $targetCurrency, $bankSlug, $percentDateMode, $percentDateStart, $percentDateEnd, $targetType === 'percent' ? $percentPeriodMonths : null, $id];
+        $params = [$name, $targetValue, $targetType, $targetCurrency, $bankSlug, $percentDateMode, $percentDateStart, $percentDateEnd, $targetType === 'percent' ? $percentPeriodMonths : null, $goalDeadline, $id];
 
         return Database::execute(
-            'UPDATE portfolio_goals SET name = ?, target_value = ?, target_type = ?, target_currency = ?, bank_slug = ?, percent_date_mode = ?, percent_date_start = ?, percent_date_end = ?, percent_period_months = ? WHERE id = ?' . $ownerWhere,
+            'UPDATE portfolio_goals SET name = ?, target_value = ?, target_type = ?, target_currency = ?, bank_slug = ?, percent_date_mode = ?, percent_date_start = ?, percent_date_end = ?, percent_period_months = ?, goal_deadline = ? WHERE id = ?' . $ownerWhere,
             array_merge($params, $ownerParams)
         ) >= 0;
     }
@@ -1043,9 +1062,12 @@ class Portfolio
      * @param array $allItemTags    All item tags from Portfolio::getAllItemTags()
      * @param array $allGoalSources Goal sources keyed by goal_id
      * @param array $currencyRates  Optional: currency sell rates keyed by code => sell_rate (TRY per unit)
+     * @param string|null $periodFilter Optional: period filter for date-based progress ('7d','14d','1m','3m','6m','9m','1y')
+     * @param string|null $periodStart  Optional: custom period start date (Y-m-d)
+     * @param string|null $periodEnd    Optional: custom period end date (Y-m-d)
      * @return array Keyed by goal_id => ['current' => float, 'target' => float, 'percent' => float, 'item_count' => int, 'unit' => string]
      */
-    public static function computeGoalProgress(array $goals, array $allItems, array $allItemTags, array $allGoalSources, array $currencyRates = []): array
+    public static function computeGoalProgress(array $goals, array $allItems, array $allItemTags, array $allGoalSources, array $currencyRates = [], ?string $periodFilter = null, ?string $periodStart = null, ?string $periodEnd = null): array
     {
         $result = [];
 
@@ -1096,6 +1118,35 @@ class Portfolio
             $current = 0.0;
             $countedItems = 0;
 
+            // Compute period date filter bounds (applies to non-percent-range goals)
+            $periodDateStart = null;
+            $periodDateEnd = null;
+            if ($periodFilter !== null || ($periodStart !== null && $periodEnd !== null)) {
+                $periodDateEnd = date('Y-m-d');
+                if ($periodStart !== null && $periodEnd !== null) {
+                    $periodDateStart = $periodStart;
+                    $periodDateEnd = $periodEnd;
+                } else {
+                    $periodMap = ['7d' => '-7 days', '14d' => '-14 days', '1m' => '-1 month', '3m' => '-3 months', '6m' => '-6 months', '9m' => '-9 months', '1y' => '-1 year'];
+                    $modifier = $periodMap[$periodFilter] ?? null;
+                    if ($modifier) {
+                        $periodDateStart = date('Y-m-d', strtotime($modifier));
+                    }
+                }
+            }
+
+            // Deadline info
+            $goalDeadline = $goal['goal_deadline'] ?? null;
+            $deadlineMonths = null;
+            if ($goalDeadline) {
+                $now = new DateTime();
+                $dl = DateTime::createFromFormat('Y-m-d', $goalDeadline);
+                if ($dl) {
+                    $diff = $now->diff($dl);
+                    $deadlineMonths = $diff->invert ? 0 : (int) round($diff->days / 30.44);
+                }
+            }
+
             // Percent goal: compute profit percentage
             if ($targetType === 'percent') {
                 $dateMode = $goal['percent_date_mode'] ?? 'all';
@@ -1138,6 +1189,12 @@ class Portfolio
                         if ($bd < $dateStart || $bd > $dateEnd) continue;
                     }
 
+                    // Period filter for all/weighted modes
+                    if (($dateMode === 'all' || $dateMode === 'weighted') && $periodDateStart && $periodDateEnd) {
+                        $bd = $item['buy_date'] ?? '';
+                        if ($bd < $periodDateStart || $bd > $periodDateEnd) continue;
+                    }
+
                     $itemCost = (float) ($item['cost_try'] ?? 0);
                     $itemValue = (float) ($item['value_try'] ?? 0);
 
@@ -1174,6 +1231,8 @@ class Portfolio
                     'bank_slug' => $goalBankSlug,
                     'percent_date_mode' => $dateMode,
                     'is_favorite' => (int) ($goal['is_favorite'] ?? 0),
+                    'goal_deadline' => $goalDeadline,
+                    'deadline_months' => $deadlineMonths,
                 ];
                 continue;
             }
@@ -1188,6 +1247,12 @@ class Portfolio
                     $item = $itemsById[$itemId] ?? null;
                     if (!$item) continue;
                     if ($goalBankSlug !== null && ($item['bank_slug'] ?? '') !== $goalBankSlug) continue;
+
+                    // Period filter
+                    if ($periodDateStart && $periodDateEnd) {
+                        $bd = $item['buy_date'] ?? '';
+                        if ($bd < $periodDateStart || $bd > $periodDateEnd) continue;
+                    }
 
                     $itemCost = (float) ($item['cost_try'] ?? 0);
                     $itemValue = (float) ($item['value_try'] ?? 0);
@@ -1230,6 +1295,8 @@ class Portfolio
                     'target_currency' => $targetCurrency,
                     'bank_slug' => $goalBankSlug,
                     'is_favorite' => (int) ($goal['is_favorite'] ?? 0),
+                    'goal_deadline' => $goalDeadline,
+                    'deadline_months' => $deadlineMonths,
                 ];
                 continue;
             }
@@ -1243,6 +1310,12 @@ class Portfolio
                     $item = $itemsById[$itemId] ?? null;
                     if (!$item) continue;
                     if ($goalBankSlug !== null && ($item['bank_slug'] ?? '') !== $goalBankSlug) continue;
+
+                    // Period filter
+                    if ($periodDateStart && $periodDateEnd) {
+                        $bd = $item['buy_date'] ?? '';
+                        if ($bd < $periodDateStart || $bd > $periodDateEnd) continue;
+                    }
 
                     $itemCost = (float) ($item['cost_try'] ?? 0);
                     $itemValue = (float) ($item['value_try'] ?? 0);
@@ -1273,6 +1346,8 @@ class Portfolio
                     'target_currency' => $targetCurrency,
                     'bank_slug' => $goalBankSlug,
                     'is_favorite' => (int) ($goal['is_favorite'] ?? 0),
+                    'goal_deadline' => $goalDeadline,
+                    'deadline_months' => $deadlineMonths,
                 ];
                 continue;
             }
@@ -1284,6 +1359,12 @@ class Portfolio
                 // Bank filter: skip items not from the goal's bank
                 if ($goalBankSlug !== null && ($item['bank_slug'] ?? '') !== $goalBankSlug) {
                     continue;
+                }
+
+                // Period filter
+                if ($periodDateStart && $periodDateEnd) {
+                    $bd = $item['buy_date'] ?? '';
+                    if ($bd < $periodDateStart || $bd > $periodDateEnd) continue;
                 }
 
                 if ($targetType === 'amount') {
@@ -1334,6 +1415,8 @@ class Portfolio
                 'target_currency' => $targetCurrency,
                 'bank_slug' => $goalBankSlug,
                 'is_favorite' => (int) ($goal['is_favorite'] ?? 0),
+                'goal_deadline' => $goalDeadline,
+                'deadline_months' => $deadlineMonths,
             ];
         }
 
