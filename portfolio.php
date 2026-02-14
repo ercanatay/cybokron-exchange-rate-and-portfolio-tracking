@@ -754,27 +754,29 @@ $annualizedReturn = ($oldestDate && $analyticsCost > 0)
                             <?php foreach ($groups as $group): ?>
                                 <div class="group-card" style="--group-color: <?= htmlspecialchars($group['color']) ?>">
                                     <div class="group-card-header">
-                                        <span class="group-badge" style="background: <?= htmlspecialchars($group['color']) ?>">
-                                            <?php if ($group['icon']): ?>
-                                                <span class="group-icon"><?= htmlspecialchars($group['icon']) ?></span>
-                                            <?php endif; ?>
-                                            <?= htmlspecialchars($group['name']) ?>
-                                        </span>
-                                        <a href="?group=<?= (int) $group['id'] ?>"
-                                            class="group-count-link"><?= t('portfolio.groups.items', ['count' => (int) $group['item_count']]) ?></a>
-                                    </div>
-                                    <div class="group-card-actions">
-                                        <button type="button" class="btn btn-xs btn-secondary"
-                                            onclick="toggleEditGroup(<?= (int) $group['id'] ?>)">✏️</button>
-                                        <form method="POST" style="display:inline" data-confirm-type="group"
-                                            data-item-count="<?= (int) $group['item_count'] ?>"
-                                            data-item-name="<?= htmlspecialchars($group['name']) ?>"
-                                            onsubmit="return confirmDeleteWithCount(this, 'group')">
-                                            <input type="hidden" name="action" value="delete_group">
-                                            <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
-                                            <input type="hidden" name="group_id" value="<?= (int) $group['id'] ?>">
-                                            <button type="submit" class="btn btn-xs btn-danger" aria-label="<?= t('common.delete') ?>">🗑</button>
-                                        </form>
+                                        <div class="group-card-info">
+                                            <span class="group-badge" style="background: <?= htmlspecialchars($group['color']) ?>">
+                                                <?php if ($group['icon']): ?>
+                                                    <span class="group-icon"><?= htmlspecialchars($group['icon']) ?></span>
+                                                <?php endif; ?>
+                                                <?= htmlspecialchars($group['name']) ?>
+                                            </span>
+                                            <a href="?group=<?= (int) $group['id'] ?>"
+                                                class="group-count-link"><?= t('portfolio.groups.items', ['count' => (int) $group['item_count']]) ?></a>
+                                        </div>
+                                        <div class="group-card-actions">
+                                            <button type="button" class="btn btn-xs btn-secondary"
+                                                onclick="toggleEditGroup(<?= (int) $group['id'] ?>)">✏️</button>
+                                            <form method="POST" style="display:inline" data-confirm-type="group"
+                                                data-item-count="<?= (int) $group['item_count'] ?>"
+                                                data-item-name="<?= htmlspecialchars($group['name']) ?>"
+                                                onsubmit="return confirmDeleteWithCount(this, 'group')">
+                                                <input type="hidden" name="action" value="delete_group">
+                                                <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
+                                                <input type="hidden" name="group_id" value="<?= (int) $group['id'] ?>">
+                                                <button type="submit" class="btn btn-xs btn-danger" aria-label="<?= t('common.delete') ?>">🗑</button>
+                                            </form>
+                                        </div>
                                     </div>
                                     <form method="POST" class="group-edit-form hidden"
                                         id="edit-group-<?= (int) $group['id'] ?>">
@@ -836,7 +838,7 @@ $annualizedReturn = ($oldestDate && $analyticsCost > 0)
                                     </span>
                                     <a href="?tag=<?= (int) $tag['id'] ?>"
                                         class="tag-count-link"><?= t('portfolio.tags.items', ['count' => (int) $tag['item_count']]) ?></a>
-                                    <div class="tag-card-actions">
+                                    <div class="tag-card-actions" role="group">
                                         <button type="button" class="btn btn-xs btn-secondary"
                                             onclick="toggleEditTag(<?= (int) $tag['id'] ?>)">✏️</button>
                                         <form method="POST" style="display:inline" data-confirm-type="tag"

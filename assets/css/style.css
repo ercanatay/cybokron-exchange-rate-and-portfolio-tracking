@@ -445,20 +445,23 @@ button:focus-visible,
 .rates-table {
     width: 100%;
     border-collapse: collapse;
-    font-size: 0.9rem;
+    font-size: 0.88rem;
 }
 
 .rates-table thead th {
     background: var(--surface-hover);
-    padding: 12px 16px;
+    padding: 10px 14px;
     text-align: left;
     font-weight: 600;
     color: var(--text-muted);
     text-transform: uppercase;
-    font-size: 0.75rem;
-    letter-spacing: 0.05em;
+    font-size: 0.72rem;
+    letter-spacing: 0.06em;
     border-bottom: 2px solid var(--border);
     white-space: nowrap;
+    position: sticky;
+    top: 0;
+    z-index: 10;
 }
 
 .rates-table tbody tr {
@@ -466,12 +469,16 @@ button:focus-visible,
     transition: background 0.15s;
 }
 
+.rates-table tbody tr:nth-child(even) {
+    background: rgba(255, 255, 255, 0.015);
+}
+
 .rates-table tbody tr:hover {
-    background: var(--surface-hover);
+    background: rgba(59, 130, 246, 0.04);
 }
 
 .rates-table td {
-    padding: 12px 16px;
+    padding: 10px 14px;
     white-space: nowrap;
 }
 
@@ -1111,8 +1118,49 @@ button:focus-visible,
     color: var(--danger);
 }
 
+.portfolio-section {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 1.5rem;
+    position: relative;
+    overflow: hidden;
+}
+
+.portfolio-section::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, #3b82f6, #06b6d4, #10b981);
+}
+
+.portfolio-section > h2 {
+    margin: 0 0 1.25rem;
+    font-size: 1.15rem;
+    font-weight: 700;
+}
+
 .portfolio-export-link {
-    margin-bottom: 12px;
+    margin-bottom: 16px;
+    display: flex;
+    justify-content: flex-end;
+}
+
+/* Row action buttons hover-reveal */
+.rates-table td:last-child {
+    white-space: nowrap;
+}
+
+.rates-table td:last-child .btn {
+    opacity: 0.5;
+    transition: opacity 0.2s ease;
+}
+
+.rates-table tbody tr:hover td:last-child .btn {
+    opacity: 1;
 }
 
 /* ─── Forms ─────────────────────────────────────────────────────────────── */
@@ -1479,16 +1527,16 @@ button:focus-visible,
 
 .groups-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-    gap: 12px;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 14px;
 }
 
 .group-card {
     position: relative;
-    padding: 14px 16px;
+    padding: 16px 18px;
     background: rgba(255, 255, 255, 0.03);
     border: 1px solid var(--border);
-    border-radius: 10px;
+    border-radius: 12px;
     border-left: 4px solid var(--group-color, var(--primary));
     transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
@@ -1503,23 +1551,30 @@ button:focus-visible,
     align-items: center;
     justify-content: space-between;
     gap: 8px;
-    margin-bottom: 8px;
+}
+
+.group-card-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex: 1;
+    min-width: 0;
 }
 
 .group-badge {
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    padding: 5px 12px;
+    padding: 6px 14px;
     border-radius: 20px;
-    font-size: 0.82rem;
+    font-size: 0.85rem;
     font-weight: 600;
     color: #fff;
     white-space: nowrap;
 }
 
 .group-icon {
-    font-size: 1rem;
+    font-size: 1.05rem;
 }
 
 .group-count {
@@ -1531,12 +1586,17 @@ button:focus-visible,
 .group-card-actions {
     display: flex;
     gap: 6px;
-    margin-bottom: 4px;
+    opacity: 0.4;
+    transition: opacity 0.2s ease;
+}
+
+.group-card:hover .group-card-actions {
+    opacity: 1;
 }
 
 .group-edit-form {
-    margin-top: 10px;
-    padding-top: 10px;
+    margin-top: 12px;
+    padding-top: 12px;
     border-top: 1px solid var(--border);
 }
 
@@ -1552,7 +1612,7 @@ button:focus-visible,
 .filter-bar {
     margin-bottom: 20px;
     padding: 16px 20px;
-    background: rgba(255, 255, 255, 0.03);
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.03), rgba(139, 92, 246, 0.02));
     border: 1px solid var(--border);
     border-radius: 12px;
 }
@@ -1720,6 +1780,19 @@ button:focus-visible,
         flex-direction: column;
         align-items: flex-start;
         gap: 8px;
+    }
+
+    .portfolio-section {
+        padding: 1rem;
+        border-radius: 12px;
+    }
+
+    .rates-table td:last-child .btn {
+        opacity: 1;
+    }
+
+    .portfolio-export-link {
+        justify-content: center;
     }
 }
 
@@ -1900,37 +1973,36 @@ button:focus-visible,
 
 /* ─── Tags Section (inside tab) ──────────────────────────────────────── */
 .tags-pills-list {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
-    align-items: flex-start;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 12px;
 }
 
 .tag-card {
     display: flex;
     align-items: center;
-    gap: 8px;
-    background: var(--background);
+    gap: 10px;
+    background: rgba(255, 255, 255, 0.03);
     border: 1px solid var(--border);
     border-radius: 12px;
-    padding: 8px 14px;
+    padding: 12px 16px;
     flex-wrap: wrap;
     transition: all 0.2s ease;
-    border-left: 3px solid var(--tag-color, #8b5cf6);
+    border-left: 4px solid var(--tag-color, #8b5cf6);
 }
 
 .tag-card:hover {
-    box-shadow: 0 2px 8px rgba(139, 92, 246, 0.15);
-    transform: translateY(-1px);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+    transform: translateY(-2px);
 }
 
 .tag-pill {
     display: inline-flex;
     align-items: center;
     gap: 4px;
-    padding: 4px 12px;
+    padding: 5px 14px;
     border-radius: 16px;
-    font-size: 0.8rem;
+    font-size: 0.82rem;
     font-weight: 600;
     color: #fff;
     white-space: nowrap;
@@ -1957,6 +2029,13 @@ button:focus-visible,
     display: flex;
     gap: 4px;
     align-items: center;
+    margin-left: auto;
+    opacity: 0.4;
+    transition: opacity 0.2s ease;
+}
+
+.tag-card:hover .tag-card-actions {
+    opacity: 1;
 }
 
 .tag-card .group-edit-form {
@@ -2977,17 +3056,17 @@ button:focus-visible,
     }
 
     .tags-pills-list {
-        overflow-x: auto;
-        flex-wrap: nowrap;
-        padding-bottom: 4px;
+        grid-template-columns: 1fr;
+        gap: 10px;
     }
 
     .col-tags {
         max-width: 120px;
     }
 
-    .tag-card {
-        flex-shrink: 0;
+    .tag-card-actions,
+    .group-card-actions {
+        opacity: 1;
     }
 
     .group-analytics-strip {
