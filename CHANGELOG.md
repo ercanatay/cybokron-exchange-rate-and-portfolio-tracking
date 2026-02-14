@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.9.2] - 2026-02-14
+
+Additional security hardening based on PR #24 codebase analysis report.
+
+### Critical Fixes
+- Enforce authentication on all API write operations regardless of AUTH_REQUIRE_PORTFOLIO setting
+- Fix unauthenticated alerts access — require login, return empty array for anonymous users
+
+### High Fixes
+- Fix Local File Inclusion (LFI) risk in loadBankScraper — alphanumeric class name validation + realpath() path traversal check
+- Fix CAGR calculation overflow — require minimum 30-day holding period to prevent extreme exponents
+- Add email validation (filter_var) in AlertChecker before sending
+
 ## [1.9.1] - 2026-02-14
 
 Security hardening based on consolidated audit across the PHP codebase.

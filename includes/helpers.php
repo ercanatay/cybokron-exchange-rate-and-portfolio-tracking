@@ -302,6 +302,25 @@ function requirePortfolioAccessForApi(): void
 }
 
 /**
+ * Require authenticated user for write API operations.
+ * Unlike requirePortfolioAccessForApi, this always enforces auth regardless of AUTH_REQUIRE_PORTFOLIO.
+ */
+function requireAuthenticatedApiUser(): void
+{
+    Auth::init();
+    if (Auth::check()) {
+        return;
+    }
+
+    if (verifyPortfolioAuthCredentials(getBasicAuthCredentials())) {
+        return;
+    }
+
+    sendBasicAuthChallenge('Cybokron API');
+    jsonResponse(['status' => 'error', 'message' => t('api.error.auth_required')], 401);
+}
+
+/**
  * Get request content length in bytes, normalized.
  */
 function getRequestContentLength(): int
@@ -731,12 +750,21 @@ function getRequestCsrfToken(): ?string
  */
 function loadBankScraper(string $className, array $bankRow = []): Scraper
 {
-    $file = __DIR__ . '/../banks/' . $className . '.php';
-    if (!file_exists($file)) {
+    // Validate class name: alphanumeric + underscore only (prevent path traversal / LFI)
+    if (!preg_match('/^[A-Za-z0-9_]+$/', $className)) {
+        throw new RuntimeException("Invalid scraper class name: {$className}");
+    }
+
+    $banksDir = realpath(__DIR__ . '/../banks');
+    $file = $banksDir . '/' . $className . '.php';
+
+    // Verify resolved path is within the banks directory
+    $resolvedFile = realpath($file);
+    if ($resolvedFile === false || !str_starts_with($resolvedFile, $banksDir . '/')) {
         throw new RuntimeException("Bank scraper not found: {$className}");
     }
 
-    require_once $file;
+    require_once $resolvedFile;
 
     if (!class_exists($className)) {
         throw new RuntimeException("Bank scraper class not found: {$className}");
