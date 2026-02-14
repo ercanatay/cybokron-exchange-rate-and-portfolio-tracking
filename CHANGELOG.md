@@ -255,18 +255,130 @@ Security hardening, accessibility improvements, and performance optimizations.
 
 Admin panel improvements: editable OpenRouter settings and redesigned system configuration UI.
 
+### Admin OpenRouter Settings
+- API key and model editable from admin panel (password field with show/hide toggle)
+- DB-backed API key resolution: database value takes priority over config.php constant
+- Key source indicator shows whether API key comes from DB, config.php, or is not configured
+- Default model `z-ai/glm-5` pre-filled, validated with regex before save
+
+### System Configuration Redesign
+- Replaced flat key-value grid with themed card layout (6 sections: Security, Scraping, Market Hours, Notifications, API Limits, System)
+- Human-readable localized labels instead of raw PHP constant names
+- Color-coded status indicators with icons per section
+- Responsive grid (3→2→1 columns)
+
+### Localization
+- Added 40+ translation keys for config labels, day names, and OpenRouter settings in Turkish and English
+
 ## [1.5.0] - 2026-02-13
 
 OpenRouter AI management, model tuning, and admin observability.
+
+### OpenRouter AI Management Panel
+- New `openrouter.php` admin page with connection testing, model management, per-bank AI repair statistics, and table change logs
+- Live connection test with response time measurement against OpenRouter API
+- Model switching from admin UI (DB-backed, no code edits needed)
+- Per-bank AI repair cards showing last call time, cooldown status, and extracted rate counts
+
+### AI Repair Tuning
+- Increased `OPENROUTER_AI_MAX_TOKENS` from 600 to 4000 for GLM-5 reasoning model compatibility
+- Increased `OPENROUTER_AI_TIMEOUT_SECONDS` from 25 to 60 to accommodate reasoning token generation
+- GLM-5 now successfully extracts 14/14 currency rates from Dünya Katılım
+
+### Pipeline & Deployment
+- Added `OPENROUTER_API_KEY` to GitHub Actions deploy pipeline with secret injection
+- Config template placeholder + sed replacement for production API key
+
+### Navigation & UI
+- Added OpenRouter AI link in header navigation and admin footer
+- New `assets/css/openrouter.css` with responsive card layout and status indicators
+
+### Localization
+- Added 36 OpenRouter-related translation keys for Turkish and English
 
 ## [1.4.0] - 2026-02-13
 
 Admin UX, homepage configurability, expanded bank coverage, and production deployment automation.
 
+### New Features
+- Added İş Bankası scraper (`banks/IsBank.php`) and integrated additional currency icon assets
+- Added manual "Update Rates Now" action on both `admin.php` and `index.php`
+- Added homepage visibility toggle and drag-drop custom ordering for rates (`show_on_homepage`, `display_order`)
+- Added default bank and chart default settings managed in admin and consumed by homepage widgets
+- Added widget layout persistence (visibility + order) through settings-backed configuration
+- Added shared header include and broader UI refresh across rates, portfolio, login, and observability screens
+- Added Cloudflare Turnstile CAPTCHA on login page (managed mode)
+- Added automated CI/CD pipeline with backup, migration, and rollback support
+
+### API / Portfolio
+- Extended portfolio update endpoint to accept `bank_slug` updates
+- Expanded portfolio model capabilities around grouping metadata and edit flows
+
+### Database
+- Added `rates.show_on_homepage` and `rates.display_order` columns with indexes
+- Consolidated schema into single `database/database.sql` for fresh installs
+- Migration system (`database/migrator.php`) with `schema_migrations` tracking table
+
 ## [1.3.1] - 2026
 
 Localization completeness and stability fixes.
 
+### Localization & UX
+- Localized API error/success payloads and endpoint descriptions through i18n keys
+- Expanded translation coverage across Turkish, English, Arabic, German, and French
+- Localized chart dataset labels, theme toggle accessibility labels, and CSV export headers
+- Locale-aware number formatting improvements in portfolio analytics widgets
+
+### Fixes
+- Hardened login redirect validation against unsafe redirect targets
+- Improved portfolio form error mapping with field-level localized validation messages
+- Fixed dashboard mini-portfolio summary metrics (`total_value`, `profit_percent`)
+
 ## [1.3.0] - 2026
 
 Initial public release with multi-bank scraping, portfolio tracking, authentication, RBAC, alerts, PWA support, Docker, and webhook integrations.
+
+### Authentication & RBAC
+- Session-based login (`login.php`, `Auth.php`)
+- User table, admin/user roles
+- Portfolio `user_id` scoping (admin sees all, users see own)
+- Login rate limiting (brute-force protection)
+
+### Multi-bank
+- TCMB scraper (XML source: today.xml)
+- 12 additional currencies (DKK, NOK, SEK, KWD, RON, RUB, etc.)
+
+### Alerts
+- Alerts table, cron checker (`check_alerts.php`)
+- Email, Telegram, webhook channels
+- API: `alerts`, `alerts_add`, `alerts_delete`
+
+### Portfolio
+- Edit form, soft delete (`deleted_at`)
+- CSV export
+- Analytics: distribution pie chart, annualized return
+
+### Dashboard & UI
+- Chart.js rate history
+- Currency converter widget
+- Top movers, mini portfolio summary
+- Dark/Light theme toggle
+
+### PWA
+- `manifest.json`, service worker (`sw.js`)
+- Offline cache, "Add to Home Screen"
+
+### Admin & Observability
+- Admin dashboard (`admin.php`) — bank/currency toggle, user list
+- Observability panel (`observability.php`) — scrape logs, success rates
+
+### Integrations
+- Webhook dispatch on rate updates
+- Signed update pipeline (`docs/SIGNED-UPDATE.md`, `generate_signature.php`)
+
+### Other
+- Docker: Dockerfile, docker-compose
+- Localization: Arabic, German, French
+- Extended test coverage
+- Hardened API input validation and CSRF requirements for state-changing actions
+- Scraper/page-fetch caching, currency lookup caching, and transaction-wrapped rate writes
