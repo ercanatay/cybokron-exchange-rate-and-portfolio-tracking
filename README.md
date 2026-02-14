@@ -18,7 +18,7 @@ Cybokron is an open-source PHP/MySQL application for tracking Turkish bank excha
 - **Multi-bank architecture** — Dünya Katılım, TCMB (Central Bank of Turkey), İş Bankası
 - **Exchange rate scraping** with table-structure change detection
 - **OpenRouter AI fallback** for automatic table-change recovery (cost-guarded)
-- **Portfolio tracking** with profit/loss, soft delete, user-scoped RBAC, goal favorites & filtering
+- **Portfolio tracking** with profit/loss, soft delete, user-scoped RBAC, goal favorites, filtering, period-based progress & deadlines
 - **Session-based authentication** (login, logout, admin/user roles)
 - **Cloudflare Turnstile CAPTCHA** on login page (managed mode, auto-pass for most users)
 - **Alert system** — email, Telegram, webhook notifications on rate thresholds
@@ -202,6 +202,7 @@ php scripts/set_openrouter_model.php z-ai/glm-5
 | GET | `/api.php?action=currencies` | List currencies |
 | GET | `/api.php?action=version` | App version |
 | GET | `/api.php?action=ai_model` | OpenRouter model status |
+| GET | `/api.php?action=goal_progress&goal_id=1&period=14d` | Goal progress with period filter (Auth required) |
 
 API supports session login or Basic Auth. Rate limiting: 120 reads/min, 30 writes/min per IP.
 
@@ -253,6 +254,46 @@ To add a new bank source later:
 5. Insert bank metadata via a new migration SQL file in `database/migrations/`
 
 ## Changelog
+
+### v1.7.0 (2026-02-14)
+
+Goal period filtering and deadline tracking for portfolio goals.
+
+**Goal Period Filter**
+- New period dropdown on goal cards: 7d, 14d, 1m, 3m, 6m, 9m, 1y, custom range
+- AJAX-powered progress recalculation via `goal_progress` API endpoint
+- Period filter respects goal sources (groups, tags, individual items)
+
+**Goal Deadlines**
+- Optional deadline field on goals with preset shortcuts (1m, 3m, 6m, 9m, 1y) or custom date
+- Remaining time display on goal cards (":months months remaining" / "Expired")
+- Deadline stored in `goal_deadline` column on `portfolio_goals` table
+
+**Bug Fixes**
+- Fix 401 auth error on goal period AJAX calls — `requirePortfolioAccessForApi()` now checks session auth before Basic Auth fallback
+- Sync `database/database.sql` schema with actual DB (goal_deadline column, percent_date_mode enum, percent_period_months default)
+
+**Localization**
+- 20 new translation keys for period and deadline in all 5 languages (TR, EN, DE, AR, FR)
+
+**CI/CD**
+- Add `continue-on-error: true` to deploy cron verification step to prevent SSH rate-limit failures
+
+### v1.6.1 (2026-02-14)
+
+SEO controls, data retention settings, and localization completeness.
+
+**Admin SEO Settings**
+- noindex toggle in admin panel — adds `<meta name="robots" content="noindex">` to all pages when enabled
+- Per-page SEO description meta tags for all public pages
+
+**Data Retention**
+- Configurable rate history retention period in admin panel (months/years)
+- Settings persisted in DB, consumed by cleanup cron
+
+**Localization**
+- SEO description keys and data retention keys added across all 5 languages
+- Complete German, Arabic, and French translations for admin config labels
 
 ### v1.5.5 (2026-02-14)
 
