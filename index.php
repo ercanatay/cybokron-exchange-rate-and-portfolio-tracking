@@ -15,6 +15,10 @@ $message = '';
 $messageType = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'update_rates') {
+    if (!Auth::check() || !Auth::isAdmin()) {
+        header('Location: index.php');
+        exit;
+    }
     if (!verifyCsrfToken($_POST['csrf_token'] ?? null)) {
         header('Location: index.php');
         exit;
@@ -35,7 +39,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         $message = t('admin.rates_updated_success');
         $messageType = 'success';
     } else {
-        $message = t('admin.rates_updated_error') . ': ' . implode("\n", $output);
+        error_log('Rate update failed: ' . implode("\n", $output));
+        $message = t('admin.rates_updated_error');
         $messageType = 'error';
     }
 }

@@ -114,7 +114,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if ($messageType === '' && $action === 'add') {
         try {
-            Portfolio::add([
+            $lastInsertedId = Portfolio::add([
                 'currency_code' => $formValues['currency_code'],
                 'bank_slug' => $formValues['bank_slug'],
                 'amount' => $formValues['amount'],
@@ -387,9 +387,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($messageType === 'success' && ($action === 'add' || $action === 'edit')) {
         $tagIds = $_POST['tag_ids'] ?? [];
         if (!empty($tagIds) && is_array($tagIds)) {
-            // Get the item id (for add, it's the last inserted; for edit, from POST)
+            // Get the item id (for add, use the returned ID; for edit, from POST)
             $itemId = $action === 'add'
-                ? (int) Database::queryOne('SELECT MAX(id) as id FROM portfolio WHERE deleted_at IS NULL')['id']
+                ? (int) ($lastInsertedId ?? 0)
                 : (int) $_POST['id'];
             if ($itemId > 0) {
                 foreach ($tagIds as $tid) {
@@ -399,8 +399,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
-    // ── Goal Actions ──
-    if ($action === 'add_goal') {
+    // ── Goal Actions (all require valid CSRF) ──
+    if ($messageType === '' && $action === 'add_goal') {
         try {
             $goalId = Portfolio::addGoal([
                 'name' => $_POST['goal_name'] ?? '',
@@ -431,7 +431,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
-    if ($action === 'edit_goal') {
+    if ($messageType === '' && $action === 'edit_goal') {
         try {
             $goalId = (int) ($_POST['goal_id'] ?? 0);
             Portfolio::updateGoal($goalId, [
@@ -467,7 +467,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
-    if ($action === 'delete_goal') {
+    if ($messageType === '' && $action === 'delete_goal') {
         $goalId = (int) ($_POST['goal_id'] ?? 0);
         if ($goalId > 0 && Portfolio::deleteGoal($goalId)) {
             $message = t('portfolio.goals.deleted');
@@ -478,7 +478,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
-    if ($action === 'toggle_goal_favorite') {
+    if ($messageType === '' && $action === 'toggle_goal_favorite') {
         $goalId = (int) ($_POST['goal_id'] ?? 0);
         if ($goalId > 0 && Portfolio::toggleGoalFavorite($goalId)) {
             $message = t('portfolio.goals.favorite_toggled');
@@ -489,7 +489,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
-    if ($action === 'add_goal_source') {
+    if ($messageType === '' && $action === 'add_goal_source') {
         $goalId = (int) ($_POST['goal_id'] ?? 0);
         $srcType = $_POST['source_type'] ?? '';
         $srcId = (int) ($_POST['source_id'] ?? 0);
@@ -502,7 +502,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
-    if ($action === 'remove_goal_source') {
+    if ($messageType === '' && $action === 'remove_goal_source') {
         $goalId = (int) ($_POST['goal_id'] ?? 0);
         $srcType = $_POST['source_type'] ?? '';
         $srcId = (int) ($_POST['source_id'] ?? 0);
@@ -2009,10 +2009,19 @@ $annualizedReturn = ($oldestDate && $analyticsCost > 0)
             var icons = {group: '📦', tag: '🏷️', item: '📋'};
             var row = document.createElement('div');
             row.className = 'goal-source-row';
-            row.innerHTML = '<input type="hidden" name="goal_source_type[]" value="' + type + '">' +
-                '<input type="hidden" name="goal_source_id[]" value="' + id + '">' +
-                '<span class="goal-source-pill goal-source-' + type + '">' + (icons[type] || '') + ' ' + label + '</span>' +
-                '<button type="button" class="btn btn-xs btn-danger" aria-label="' + removeLabel + ' ' + label + '" onclick="removeGoalSourceRow(this)">×</button>';
+            var hiddenType = document.createElement('input');
+            hiddenType.type = 'hidden'; hiddenType.name = 'goal_source_type[]'; hiddenType.value = type;
+            var hiddenId = document.createElement('input');
+            hiddenId.type = 'hidden'; hiddenId.name = 'goal_source_id[]'; hiddenId.value = id;
+            var pill = document.createElement('span');
+            pill.className = 'goal-source-pill goal-source-' + type;
+            pill.textContent = (icons[type] || '') + ' ' + label;
+            var removeBtn = document.createElement('button');
+            removeBtn.type = 'button'; removeBtn.className = 'btn btn-xs btn-danger';
+            removeBtn.setAttribute('aria-label', removeLabel + ' ' + label);
+            removeBtn.textContent = '×';
+            removeBtn.onclick = function() { removeGoalSourceRow(this); };
+            row.appendChild(hiddenType); row.appendChild(hiddenId); row.appendChild(pill); row.appendChild(removeBtn);
             document.getElementById(listId).appendChild(row);
         }
 
