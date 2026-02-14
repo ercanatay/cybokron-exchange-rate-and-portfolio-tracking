@@ -1,0 +1,228 @@
+# Changelog
+
+All notable changes to this project will be documented in this file.
+
+## [1.9.0] - 2026-02-14
+
+Live repair progress tracker with real-time SSE streaming and responsive observability redesign.
+
+### Live Repair Tracker
+- New SSE endpoint (`api_repair_stream.php`) streams self-healing pipeline steps in real-time
+- Progress callback mechanism in `ScraperAutoRepair` emits step-by-step events (fetch_html, check_enabled, cooldown, generate_config, validate, save, commit, complete)
+- Stepper/timeline UI with animated status icons (pending, spinner, success/error)
+- `Scraper::prepareRepairContext()` public API for SSE endpoint to access HTML fetch + hash without Reflection
+- Admin auth + CSRF + rate limit (5/min) security on SSE endpoint
+
+### Observability UI/UX Redesign
+- Complete responsive redesign of `observability.php` with card-based section layout
+- Section icons (stats, healing, live, logs) with gradient backgrounds
+- Sub-panels for self-healing area (active configs, repair logs, manual trigger)
+- Mobile (640px and below): tables transform to card view using `data-label` attribute pattern
+- Tablet (641-900px) and desktop (901px+) responsive breakpoints
+- New `assets/css/observability.css` stylesheet (~400 lines)
+- Manual trigger buttons with bank emoji icons and hover states
+
+### Localization
+- 17 new `repair.*` translation keys across all 5 languages (TR, EN, DE, FR, AR)
+
+## [1.8.0] - 2026-02-14
+
+Autonomous self-healing scraper system with AI-powered configuration recovery.
+
+### Self-Healing Pipeline
+- New `ScraperAutoRepair` class detects broken scraper configs and auto-recovers via OpenRouter AI
+- Pipeline: detect failure, fetch HTML, generate new config via AI, validate, save, commit to GitHub
+- Cooldown management prevents repeated API calls for the same table hash
+- Detailed step logging with duration tracking for each pipeline phase
+- GitHub auto-commit of repaired configs via Personal Access Token
+
+### Scraper Improvements
+- `DunyaKatilimScraper` returns empty array instead of throwing on parse failure (enables self-healing trigger)
+- Table change detection with SHA-256 hash comparison
+
+### Observability Integration
+- Repair history logs displayed in observability panel
+- Active repair configurations listed with bank/status/timestamp
+- Manual repair trigger buttons per bank with CSRF protection
+
+### CI/CD
+- Deploy workflow updated with `CYBOKRON_GITHUB_PAT` secret for self-healing GitHub commits
+
+## [1.7.4] - 2026-02-14
+
+Fix cache persistence and dark mode header rendering.
+
+### Cache
+- Add `Cache-Control: no-cache, must-revalidate` header for HTML pages to prevent browser/proxy caching
+- Service Worker registration with `updateViaCache: 'none'` and version query parameter to force update checks
+- Bump SW cache to `cybokron-v4`
+
+### Dark Mode
+- Add `--surface-rgb` CSS variable for proper header glass-morphism transparency in dark mode
+
+## [1.7.3] - 2026-02-14
+
+Kapalicarsi scraper fix, Service Worker cache improvements, and admin cache management.
+
+### Bug Fixes
+- Fix DovizComScraper targeting wrong table on multi-table pages (kur.doviz.com)
+- Kapalicarsi now correctly scrapes 19 currency rates from kur.doviz.com
+
+### Service Worker
+- Change from cache-first to network-first strategy
+- Bump cache version to `cybokron-v3`
+- Add `CLEAR_CACHE` message listener for admin-triggered cache clearing
+
+### Admin Panel
+- Add "Clear Cache" button in System Health section
+- Cache clear button with visual feedback (loading, success, reset)
+
+## [1.7.2] - 2026-02-14
+
+Header UI/UX redesign, bank toggle fix, and portfolio rate update button.
+
+### Header Redesign
+- Complete header rewrite with glass-morphism design and centered pill-group navigation
+- Language switcher changed from inline pills to dropdown menu with animation
+- Separate mobile menu overlay with nav links, language row, and action buttons
+- Consistent header across all pages
+- Responsive: brand text hidden at 1100px, full mobile menu at 900px
+
+### Bug Fixes
+- Fix bank/currency toggle not saving
+- Add success messages for bank and currency toggle operations
+
+### Portfolio
+- Add manual rate update button to portfolio page (admin only)
+
+## [1.7.1] - 2026-02-14
+
+Bug fixes for admin panel settings and version display on production.
+
+### Admin Panel Fixes
+- Fix widget drag-drop not saving
+- All admin settings verified working
+
+### Version Display
+- Add `getAppVersion()` helper with VERSION file + database fallback
+- Replace all `file_get_contents('VERSION')` calls across 7 files
+
+### UI/UX
+- Redesign Groups and Tags sections with grid layouts, card styling, and hover-reveal actions
+- Redesign Portfolio table with sticky headers, zebra striping, gradient accents, and card wrapper
+- Responsive breakpoints for tablet (768px) and mobile (480px)
+
+## [1.7.0] - 2026-02-14
+
+Goal period filtering and deadline tracking for portfolio goals.
+
+### Goal Period Filter
+- New period dropdown on goal cards: 7d, 14d, 1m, 3m, 6m, 9m, 1y, custom range
+- AJAX-powered progress recalculation via `goal_progress` API endpoint
+- Period filter respects goal sources (groups, tags, individual items)
+
+### Goal Deadlines
+- Optional deadline field on goals with preset shortcuts (1m, 3m, 6m, 9m, 1y) or custom date
+- Remaining time display on goal cards
+- Deadline stored in `goal_deadline` column on `portfolio_goals` table
+
+### Bug Fixes
+- Fix 401 auth error on goal period AJAX calls
+- Sync `database/database.sql` schema with actual DB
+
+### Localization
+- 20 new translation keys for period and deadline in all 5 languages (TR, EN, DE, AR, FR)
+
+## [1.6.1] - 2026-02-14
+
+SEO controls, data retention settings, and localization completeness.
+
+### Admin SEO Settings
+- noindex toggle in admin panel
+- Per-page SEO description meta tags for all public pages
+
+### Data Retention
+- Configurable rate history retention period in admin panel (months/years)
+- Settings persisted in DB, consumed by cleanup cron
+
+### Localization
+- SEO description keys and data retention keys added across all 5 languages
+
+## [1.5.5] - 2026-02-14
+
+Security hardening based on consolidated audit from Codex, Claude Code, and Jules AI.
+
+### Critical Fixes
+- Fix CSRF bypass on all goal mutations
+- Fix IDOR on goal operations
+- Add admin auth guard on index.php rate update action
+
+### High Fixes
+- Fix destructive side effects in deleteGroup/deleteTag
+- Fix stored XSS in goal source builder
+- Hide error output from users
+
+### Medium Fixes
+- Fix race condition in tag assignment
+- Add CSV formula injection protection
+- Update database.sql with all migrated columns
+
+## [1.5.4] - 2026-02-13
+
+Security, performance, and accessibility improvements.
+
+### Security
+- Fix IDOR vulnerability in alerts API
+- User-scoped WHERE clauses added to alerts endpoints
+
+### Performance
+- Optimize `computeGoalProgress()` from O(N*M) to O(N+M) using hash map pre-indexing
+
+### Accessibility
+- Add `aria-label` attributes to all icon-only buttons
+
+## [1.5.3] - 2026-02-13
+
+Goal favorites and client-side filtering for the Goals tab.
+
+### Portfolio Goals
+- Star/unstar goals to mark favorites
+- New `is_favorite` column on `portfolio_goals` with DB index
+
+### Goal Filtering
+- New filter bar above the goals list with pill-style toggle buttons
+- Filter by: Favorites, Source Type (Group / Tag), Currency
+
+## [1.5.2] - 2026-02-13
+
+Security hardening, accessibility improvements, and performance optimizations.
+
+### Security
+- Added CSRF token validation to login form
+- Converted logout from GET to POST with CSRF protection
+- Added explicit SSL verification to webhook and alert curl calls
+
+### Performance
+- Fixed N+1 query issue in OpenRouter panel
+- Added `defer` attribute to all script tags
+- Lazy-loaded heavy includes
+
+## [1.5.1] - 2026-02-13
+
+Admin panel improvements: editable OpenRouter settings and redesigned system configuration UI.
+
+## [1.5.0] - 2026-02-13
+
+OpenRouter AI management, model tuning, and admin observability.
+
+## [1.4.0] - 2026-02-13
+
+Admin UX, homepage configurability, expanded bank coverage, and production deployment automation.
+
+## [1.3.1] - 2026
+
+Localization completeness and stability fixes.
+
+## [1.3.0] - 2026
+
+Initial public release with multi-bank scraping, portfolio tracking, authentication, RBAC, alerts, PWA support, Docker, and webhook integrations.
