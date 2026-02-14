@@ -235,7 +235,7 @@ try {
             break;
 
         case 'version':
-            $version = trim((string) file_get_contents(__DIR__ . '/VERSION'));
+            $version = getAppVersion();
             jsonResponse(['status' => 'ok', 'version' => $version]);
             break;
 
@@ -411,7 +411,7 @@ try {
             jsonResponse([
                 'status' => 'ok',
                 'app' => APP_NAME,
-                'version' => trim((string) file_get_contents(__DIR__ . '/VERSION')),
+                'version' => getAppVersion(),
                 'endpoints' => [
                     'GET /api.php?action=rates' => t('api.endpoint.rates'),
                     'GET /api.php?action=rates&compact=1' => t('api.endpoint.rates_compact'),

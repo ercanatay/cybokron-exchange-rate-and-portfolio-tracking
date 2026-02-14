@@ -44,7 +44,7 @@ $rates = $selectedBank === 'all'
     ? getLatestRates(homepageOnly: true) 
     : getLatestRates(bankSlug: $selectedBank, homepageOnly: true);
 
-$version = trim(file_get_contents(__DIR__ . '/VERSION'));
+$version = getAppVersion();
 $currentLocale = getAppLocale();
 $availableLocales = getAvailableLocales();
 $newTabText = t('common.opens_new_tab');

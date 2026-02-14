@@ -539,7 +539,7 @@ $goalProgress = Portfolio::computeGoalProgress($goals, $summary['items'] ?? [], 
 // Distribution & annualized return will be recalculated after filters are applied
 $currencies = Database::query('SELECT code, name_tr, name_en FROM currencies WHERE is_active = 1 ORDER BY code');
 $banks = Database::query('SELECT slug, name FROM banks WHERE is_active = 1 ORDER BY name');
-$version = trim(file_get_contents(__DIR__ . '/VERSION'));
+$version = getAppVersion();
 $currentLocale = getAppLocale();
 $availableLocales = getAvailableLocales();
 $newTabText = t('common.opens_new_tab');

@@ -14,7 +14,7 @@ class Updater
     {
         $this->repo = defined('GITHUB_REPO') ? GITHUB_REPO : 'ercanatay/cybokron-exchange-rate-and-portfolio-tracking';
         $this->basePath = dirname(__DIR__);
-        $this->currentVersion = trim((string) file_get_contents($this->basePath . '/VERSION'));
+        $this->currentVersion = function_exists('getAppVersion') ? getAppVersion() : trim((string) @file_get_contents($this->basePath . '/VERSION'));
     }
 
     /**
