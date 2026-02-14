@@ -258,6 +258,10 @@ To add a new bank source later:
 
 ## Changelog
 
+### v1.9.2 (2026-02-14)
+
+Additional security hardening: enforce auth on all API write ops, fix unauthenticated alerts access, LFI prevention in loadBankScraper, CAGR overflow protection, and email validation.
+
 ### v1.9.1 (2026-02-14)
 
 Security hardening: fix IDOR on tag/group/goal APIs, SSRF via webhook URLs, XSS, open redirect, schema integrity (FKs + indexes), admin input validation, and rate-limit file cleanup.

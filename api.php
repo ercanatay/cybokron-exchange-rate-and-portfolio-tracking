@@ -28,6 +28,11 @@ if (in_array($action, $portfolioActions, true)) {
     requirePortfolioAccessForApi();
 }
 
+// Write operations always require authentication (even if AUTH_REQUIRE_PORTFOLIO is false)
+if (in_array($action, $writeActions, true)) {
+    requireAuthenticatedApiUser();
+}
+
 // Read rate limiting (higher limit than write)
 if (in_array($action, $readActions, true) || $action === '') {
     $readLimit = defined('API_READ_RATE_LIMIT') ? max(1, (int) API_READ_RATE_LIMIT) : 120;
@@ -311,10 +316,16 @@ try {
             break;
 
         case 'alerts':
+            // Require authentication to view alerts
+            Auth::init();
+            if (!Auth::check()) {
+                jsonResponse(['status' => 'ok', 'locale' => $locale, 'data' => []]);
+            }
+
             $where = '1=1';
             $params = [];
 
-            if (class_exists('Auth') && Auth::check() && !Auth::isAdmin()) {
+            if (!Auth::isAdmin()) {
                 $userId = Auth::id();
                 if ($userId !== null) {
                     $where .= ' AND user_id = ?';
@@ -356,10 +367,8 @@ try {
                 jsonResponse(['status' => 'error', 'message' => t('api.error.alert_fields_required')], 400);
             }
 
-            $userId = null;
-            if (class_exists('Auth') && Auth::check()) {
-                $userId = Auth::id();
-            }
+            // Auth is enforced by requireAuthenticatedApiUser above, so Auth::id() should always be set
+            $userId = Auth::id();
 
             $configJson = is_string($channelConfig) ? $channelConfig : (is_array($channelConfig) ? json_encode($channelConfig) : null);
 

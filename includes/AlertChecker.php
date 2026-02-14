@@ -130,8 +130,8 @@ class AlertChecker
     private static function sendEmailAlert(array $config, string $subject, string $body): bool
     {
         $to = $config['email'] ?? (defined('ALERT_EMAIL_TO') ? ALERT_EMAIL_TO : '');
-        if ($to === '') {
-            cybokron_log('Alert email: no recipient configured', 'WARNING');
+        if ($to === '' || !filter_var($to, FILTER_VALIDATE_EMAIL)) {
+            cybokron_log('Alert email: no valid recipient configured', 'WARNING');
             return false;
         }
 

@@ -1354,7 +1354,7 @@ class Portfolio
                     $start = DateTime::createFromFormat('Y-m-d', $earliestDate);
                     if ($start) {
                         $days = (int) (new DateTime())->diff($start)->days;
-                        if ($days >= 1) {
+                        if ($days >= 30) {
                             $years = $days / 365.25;
                             $ratio = $totalValue / $totalCost;
                             $current = (pow($ratio, 1 / $years) - 1) * 100;
