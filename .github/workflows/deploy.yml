@@ -175,6 +175,14 @@ jobs:
             --exclude='config.sample.php' \
             --exclude='config.docker.php' \
             --exclude='database/database.sql' \
+            --exclude='database.sql' \
+            --exclude='scripts/' \
+            --exclude='download_currency_icons.sh' \
+            --exclude='README.md' \
+            --exclude='CHANGELOG*.md' \
+            --exclude='CODE_OF_CONDUCT.md' \
+            --exclude='VERSION' \
+            --exclude='LICENSE' \
             --exclude='docs/' \
             --exclude='error_log' \
             -e "ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no" \
@@ -231,9 +239,17 @@ jobs:
              rm -f .admin_hash.tmp .admin_password.tmp && \
              rm -f ~/cybokron-logs/login_debug.log && \
              echo '=== All DB operations complete ===' && \
-             echo '=== Cleanup database files ===' && \
+             echo '=== Cleanup non-production files ===' && \
              rm -rf ~/public_html/database && \
-             echo 'Database folder removed from public_html'"
+             rm -rf ~/public_html/scripts && \
+             rm -f ~/public_html/database.sql && \
+             rm -f ~/public_html/download_currency_icons.sh && \
+             rm -f ~/public_html/README.md && \
+             rm -f ~/public_html/CHANGELOG*.md && \
+             rm -f ~/public_html/CODE_OF_CONDUCT.md && \
+             rm -f ~/public_html/VERSION && \
+             rm -f ~/public_html/LICENSE && \
+             echo 'Non-production files cleaned from public_html'"
 
       - name: Verify cron jobs
         continue-on-error: true

@@ -19,6 +19,9 @@ RewriteRule ^(.*)$ https://%{HTTP_HOST}/$1 [R=301,L]
     Require all denied
 </FilesMatch>
 
+# Deny web access to CLI-only directories
+RedirectMatch 403 ^/(cron|database|scripts)/
+
 # Deny access to hidden files/directories
 <IfModule mod_rewrite.c>
     RewriteRule (^|/)\.(?!well-known) - [F]
