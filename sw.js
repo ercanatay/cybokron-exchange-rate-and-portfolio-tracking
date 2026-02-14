@@ -3,7 +3,7 @@
  * Network-first strategy with offline fallback
  */
 
-const CACHE_NAME = 'cybokron-v3';
+const CACHE_NAME = 'cybokron-v4';
 const STATIC_ASSETS = [
   '/',
   '/index.php',
