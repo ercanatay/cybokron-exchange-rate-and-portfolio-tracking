@@ -35,19 +35,6 @@ self.addEventListener('activate', (e) => {
   );
 });
 
-// Listen for cache clear messages from admin panel
-self.addEventListener('message', (e) => {
-  if (e.data && e.data.type === 'CLEAR_CACHE') {
-    caches.keys().then((keys) => {
-      return Promise.all(keys.map((k) => caches.delete(k)));
-    }).then(() => {
-      // Notify all clients
-      self.clients.matchAll().then((clients) => {
-        clients.forEach((client) => client.postMessage({ type: 'CACHE_CLEARED' }));
-      });
-    });
-  }
-});
 
 self.addEventListener('fetch', (e) => {
   if (e.request.method !== 'GET') return;

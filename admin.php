@@ -1296,37 +1296,20 @@ foreach ($allRates as $r) {
         function clearServiceWorkerCache(btn) {
             btn.disabled = true;
             btn.textContent = '⏳ ...';
-            if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
-                navigator.serviceWorker.controller.postMessage({ type: 'CLEAR_CACHE' });
-                navigator.serviceWorker.addEventListener('message', function handler(e) {
-                    if (e.data && e.data.type === 'CACHE_CLEARED') {
-                        navigator.serviceWorker.removeEventListener('message', handler);
-                        btn.textContent = '✅ <?= t('admin.cache_cleared') ?>';
-                        setTimeout(function() {
-                            btn.disabled = false;
-                            btn.textContent = '🧹 <?= t('admin.clear_cache') ?>';
-                        }, 2000);
-                    }
-                });
+            var done = function() {
+                btn.textContent = '✅ <?= t('admin.cache_cleared') ?>';
+                setTimeout(function() {
+                    btn.disabled = false;
+                    btn.textContent = '🧹 <?= t('admin.clear_cache') ?>';
+                }, 2000);
+            };
+            // Clear all caches directly (works with or without SW)
+            if ('caches' in window) {
+                caches.keys().then(function(keys) {
+                    return Promise.all(keys.map(function(k) { return caches.delete(k); }));
+                }).then(done).catch(done);
             } else {
-                // No service worker, clear caches directly
-                if ('caches' in window) {
-                    caches.keys().then(function(keys) {
-                        return Promise.all(keys.map(function(k) { return caches.delete(k); }));
-                    }).then(function() {
-                        btn.textContent = '✅ <?= t('admin.cache_cleared') ?>';
-                        setTimeout(function() {
-                            btn.disabled = false;
-                            btn.textContent = '🧹 <?= t('admin.clear_cache') ?>';
-                        }, 2000);
-                    });
-                } else {
-                    btn.textContent = '✅ <?= t('admin.cache_cleared') ?>';
-                    setTimeout(function() {
-                        btn.disabled = false;
-                        btn.textContent = '🧹 <?= t('admin.clear_cache') ?>';
-                    }, 2000);
-                }
+                done();
             }
         }
     </script>
