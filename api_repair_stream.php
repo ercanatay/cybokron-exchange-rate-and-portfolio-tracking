@@ -97,7 +97,7 @@ function onRepairProgress(string $step, string $status, string $message, ?int $d
 
 // ── Look up bank and its scraper class ──────────────────────────────────────
 $bank = Database::queryOne(
-    'SELECT id, name, slug, scraper_class FROM banks WHERE id = ? AND is_active = 1',
+    'SELECT id, name, slug, url, scraper_class FROM banks WHERE id = ? AND is_active = 1',
     [$bankId]
 );
 
@@ -120,7 +120,7 @@ sendSSE('step', [
 ]);
 
 try {
-    $scraper = loadBankScraper($scraperClass);
+    $scraper = loadBankScraper($scraperClass, $bank);
     $fetchStart = microtime(true);
     $context = $scraper->prepareRepairContext();
     $fetchMs = (int) ((microtime(true) - $fetchStart) * 1000);

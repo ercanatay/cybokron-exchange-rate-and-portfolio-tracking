@@ -69,8 +69,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     }
 
     if ($_POST['action'] === 'set_default_bank' && isset($_POST['default_bank'])) {
-        $defaultBank = $_POST['default_bank'];
-        if ($defaultBank === 'all' || Database::queryOne('SELECT id FROM banks WHERE slug = ? AND is_active = 1', [$defaultBank])) {
+        $rawBank = trim((string) $_POST['default_bank']);
+        $defaultBank = ($rawBank === 'all') ? 'all' : normalizeBankSlug($rawBank);
+        if ($defaultBank !== null && ($defaultBank === 'all' || Database::queryOne('SELECT id FROM banks WHERE slug = ? AND is_active = 1', [$defaultBank]))) {
             Database::query(
                 'INSERT INTO settings (`key`, value) VALUES (?, ?) ON DUPLICATE KEY UPDATE value = ?',
                 ['default_bank', $defaultBank, $defaultBank]
@@ -98,9 +99,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     }
 
     if ($_POST['action'] === 'set_chart_defaults' && isset($_POST['chart_currency']) && isset($_POST['chart_days'])) {
-        $chartCurrency = trim($_POST['chart_currency']);
-        $chartDays = (int) $_POST['chart_days'];
-        if (Database::queryOne('SELECT id FROM currencies WHERE code = ? AND is_active = 1', [$chartCurrency])) {
+        $chartCurrency = normalizeCurrencyCode(trim($_POST['chart_currency']));
+        $chartDays = max(1, min(3650, (int) $_POST['chart_days']));
+        if ($chartCurrency !== null && Database::queryOne('SELECT id FROM currencies WHERE code = ? AND is_active = 1', [$chartCurrency])) {
             Database::query(
                 'INSERT INTO settings (`key`, value) VALUES (?, ?) ON DUPLICATE KEY UPDATE value = ?',
                 ['chart_default_currency', $chartCurrency, $chartCurrency]
@@ -158,7 +159,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         $orApiKey = trim((string) ($_POST['openrouter_api_key'] ?? ''));
         $orModel = trim((string) ($_POST['openrouter_model'] ?? ''));
 
-        if ($orApiKey !== '') {
+        if ($orApiKey !== '' && strlen($orApiKey) <= 500 && preg_match('/^[a-zA-Z0-9_\-:.]+$/', $orApiKey)) {
             Database::query(
                 'INSERT INTO settings (`key`, value) VALUES (?, ?) ON DUPLICATE KEY UPDATE value = ?',
                 ['openrouter_api_key', $orApiKey, $orApiKey]

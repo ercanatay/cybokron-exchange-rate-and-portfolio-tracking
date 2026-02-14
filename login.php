@@ -32,7 +32,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $error = t('auth.error_empty');
         } elseif (Auth::login($username, $password)) {
             $redirect = trim((string) ($_GET['redirect'] ?? 'index.php'));
-            if ($redirect === '' || str_starts_with($redirect, '//') || str_contains($redirect, '://') || str_contains($redirect, '..')) {
+            if (
+                $redirect === ''
+                || str_starts_with($redirect, '//')
+                || str_contains($redirect, '://')
+                || str_contains($redirect, '..')
+                || str_contains($redirect, '\\')
+                || str_starts_with($redirect, '/')
+                || !preg_match('/^[a-zA-Z0-9_\-]+\.php(\?.*)?$/', $redirect)
+            ) {
                 $redirect = 'index.php';
             }
             header('Location: ' . $redirect);

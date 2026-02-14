@@ -361,7 +361,12 @@ function verifyTurnstile(string $token): bool
         ]),
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_TIMEOUT        => 5,
+        CURLOPT_SSL_VERIFYPEER => true,
+        CURLOPT_SSL_VERIFYHOST => 2,
     ]);
+    if (defined('CURLPROTO_HTTPS')) {
+        curl_setopt($ch, CURLOPT_PROTOCOLS, CURLPROTO_HTTPS);
+    }
     $body = curl_exec($ch);
     curl_close($ch);
     if (!is_string($body)) {
@@ -391,6 +396,19 @@ function enforceIpRateLimit(string $scope, int $maxRequests, int $windowSeconds)
     $baseDir = sys_get_temp_dir() . '/cybokron_rate_limits';
     if (!is_dir($baseDir) && !mkdir($baseDir, 0750, true) && !is_dir($baseDir)) {
         return true;
+    }
+
+    // Periodic stale file cleanup (~1% chance per request, delete files older than 1 hour)
+    if (mt_rand(1, 100) === 1) {
+        $cleanupCutoff = time() - 3600;
+        $files = glob($baseDir . '/*.json');
+        if (is_array($files)) {
+            foreach ($files as $staleFile) {
+                if (filemtime($staleFile) < $cleanupCutoff) {
+                    @unlink($staleFile);
+                }
+            }
+        }
     }
 
     $key = hash('sha256', $scope . '|' . getRateLimitClientKey());
@@ -1166,10 +1184,7 @@ function executeRateUpdate(): array
         $output = [];
         $returnCode = 0;
 
-        $phpBinary = '/Applications/ServBay/bin/php';
-        if (!file_exists($phpBinary)) {
-            $phpBinary = PHP_BINARY ?: 'php';
-        }
+        $phpBinary = PHP_BINARY ?: 'php';
 
         $baseDir = dirname(__DIR__);
         exec(
