@@ -258,6 +258,10 @@ To add a new bank source later:
 
 ## Changelog
 
+### v1.9.1 (2026-02-14)
+
+Security hardening: fix IDOR on tag/group/goal APIs, SSRF via webhook URLs, XSS, open redirect, schema integrity (FKs + indexes), admin input validation, and rate-limit file cleanup.
+
 ### v1.9.0 (2026-02-14)
 
 Live repair progress tracker with real-time SSE streaming and responsive observability redesign.

@@ -2,6 +2,37 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.9.1] - 2026-02-14
+
+Security hardening based on consolidated audit across the PHP codebase.
+
+### Critical Fixes
+- Fix broken object-level authorization (IDOR) on tag/group assignment — ownership checks on assignTag, removeTag, bulkAssignGroup, and group_id in add/update
+- Fix IDOR in goal_progress API — owner-scoped getGoal and getAllGoalSources methods
+- Fix SSRF via alert webhook URLs — HTTPS-only enforcement + CURLOPT_PROTOCOLS on AlertChecker, WebhookDispatcher, and Turnstile
+- Validate webhook URL on alert creation to prevent stored SSRF
+
+### High Fixes
+- Harden login redirect with strict allowlist regex (blocks backslash, absolute path, and crafted payloads)
+- Fix XSS on CSRF token output in rate update form (htmlspecialchars)
+- Add input validation on admin settings (normalizeBankSlug, normalizeCurrencyCode, API key format/length)
+
+### Medium Fixes
+- Fix non-admin alert scope — strict user_id scoping instead of including global rows
+- Fix repair endpoints for generic scraper banks — pass full bank row to loadBankScraper
+- Fix goal mutation false-positive success (>= 0 changed to > 0)
+- Add SQL column whitelist for currencies name field
+
+### Schema Integrity
+- Add foreign keys on portfolio_tags.user_id, portfolio_goals.user_id, repair_configs.bank_id, repair_logs.bank_id
+- Add INDEX on alerts.user_id for user-scoped queries
+- Remove 4 redundant duplicate indexes (idx_username, idx_slug, idx_code, idx_bank_currency)
+- New migration: 008_schema_integrity_fixes.sql
+
+### Other
+- Remove hardcoded ServBay PHP binary path — use PHP_BINARY
+- Add periodic stale file cleanup to file-based rate limiter
+
 ## [1.9.0] - 2026-02-14
 
 Live repair progress tracker with real-time SSE streaming and responsive observability redesign.
