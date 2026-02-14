@@ -64,10 +64,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             : t('selfhealing.no_active_config');
     } elseif ($_POST['action'] === 'trigger_repair' && !empty($_POST['bank_id'])) {
         $bankId = (int) $_POST['bank_id'];
-        $bankRow = Database::queryOne('SELECT slug, name, scraper_class FROM banks WHERE id = ? AND is_active = 1', [$bankId]);
+        $bankRow = Database::queryOne('SELECT id, slug, name, url, scraper_class FROM banks WHERE id = ? AND is_active = 1', [$bankId]);
         if ($bankRow) {
             try {
-                $scraper = loadBankScraper($bankRow['scraper_class']);
+                $scraper = loadBankScraper($bankRow['scraper_class'], $bankRow);
                 $result = $scraper->run();
                 $_SESSION['flash_success'] = t('selfhealing.repair_triggered', ['bank' => $bankRow['name']]);
             } catch (Throwable $e) {

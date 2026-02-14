@@ -17,7 +17,6 @@ CREATE TABLE IF NOT EXISTS `users` (
     `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (`id`),
     UNIQUE KEY `username` (`username`),
-    KEY `idx_username` (`username`),
     KEY `idx_active` (`is_active`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -36,7 +35,6 @@ CREATE TABLE IF NOT EXISTS `banks` (
     `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (`id`),
     UNIQUE KEY `slug` (`slug`),
-    KEY `idx_slug` (`slug`),
     KEY `idx_active` (`is_active`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -54,7 +52,6 @@ CREATE TABLE IF NOT EXISTS `currencies` (
     `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (`id`),
     UNIQUE KEY `code` (`code`),
-    KEY `idx_code` (`code`),
     KEY `idx_type` (`type`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -75,7 +72,6 @@ CREATE TABLE IF NOT EXISTS `rates` (
     UNIQUE KEY `uk_bank_currency` (`bank_id`,`currency_id`),
     KEY `currency_id` (`currency_id`),
     KEY `idx_scraped` (`scraped_at`),
-    KEY `idx_bank_currency` (`bank_id`,`currency_id`),
     KEY `idx_homepage` (`show_on_homepage`),
     KEY `idx_display_order` (`display_order`),
     CONSTRAINT `rates_ibfk_1` FOREIGN KEY (`bank_id`) REFERENCES `banks` (`id`) ON DELETE CASCADE,
@@ -125,7 +121,8 @@ CREATE TABLE IF NOT EXISTS `alerts` (
     `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
     `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (`id`),
-    KEY `idx_currency_active` (`currency_code`,`is_active`)
+    KEY `idx_currency_active` (`currency_code`,`is_active`),
+    KEY `idx_alerts_user` (`user_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ─── Portfolio Groups ────────────────────────────────────────────────────────
@@ -183,7 +180,8 @@ CREATE TABLE IF NOT EXISTS `portfolio_tags` (
     `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (`id`),
     KEY `idx_portfolio_tags_user` (`user_id`),
-    KEY `idx_portfolio_tags_slug` (`slug`)
+    KEY `idx_portfolio_tags_slug` (`slug`),
+    CONSTRAINT `fk_tags_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ─── Portfolio Tag Items ─────────────────────────────────────────────────────
@@ -220,7 +218,8 @@ CREATE TABLE IF NOT EXISTS `portfolio_goals` (
     `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (`id`),
     KEY `idx_portfolio_goals_user` (`user_id`),
-    KEY `idx_portfolio_goals_favorite` (`user_id`, `is_favorite`)
+    KEY `idx_portfolio_goals_favorite` (`user_id`, `is_favorite`),
+    CONSTRAINT `fk_goals_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ─── Portfolio Goal Sources ──────────────────────────────────────────────────
@@ -272,7 +271,8 @@ CREATE TABLE IF NOT EXISTS `repair_configs` (
     `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (`id`),
     KEY `idx_bank_active` (`bank_id`,`is_active`),
-    KEY `idx_created` (`created_at`)
+    KEY `idx_created` (`created_at`),
+    CONSTRAINT `fk_repair_configs_bank` FOREIGN KEY (`bank_id`) REFERENCES `banks` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ─── Repair Logs (self-healing) ────────────────────────────────────────────
@@ -288,7 +288,8 @@ CREATE TABLE IF NOT EXISTS `repair_logs` (
     `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (`id`),
     KEY `idx_bank_created` (`bank_id`,`created_at`),
-    KEY `idx_step_status` (`step`,`status`)
+    KEY `idx_step_status` (`step`,`status`),
+    CONSTRAINT `fk_repair_logs_bank` FOREIGN KEY (`bank_id`) REFERENCES `banks` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ─── Schema Migrations (used by migrator.php) ───────────────────────────────

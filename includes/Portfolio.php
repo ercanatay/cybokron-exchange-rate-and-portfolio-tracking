@@ -143,7 +143,16 @@ class Portfolio
         if (!empty($data['group_id'])) {
             $gid = (int) $data['group_id'];
             if ($gid > 0) {
-                $group = Database::queryOne('SELECT id FROM portfolio_groups WHERE id = ?', [$gid]);
+                $gWhere = 'id = ?';
+                $gParams = [$gid];
+                if (class_exists('Auth') && Auth::check() && !Auth::isAdmin()) {
+                    $uid = Auth::id();
+                    if ($uid !== null) {
+                        $gWhere .= ' AND (user_id IS NULL OR user_id = ?)';
+                        $gParams[] = $uid;
+                    }
+                }
+                $group = Database::queryOne("SELECT id FROM portfolio_groups WHERE {$gWhere}", $gParams);
                 if ($group) {
                     $groupId = $gid;
                 }
@@ -215,7 +224,16 @@ class Portfolio
             } else {
                 $gid = (int) $data['group_id'];
                 if ($gid > 0) {
-                    $group = Database::queryOne('SELECT id FROM portfolio_groups WHERE id = ?', [$gid]);
+                    $gWhere = 'id = ?';
+                    $gParams = [$gid];
+                    if (class_exists('Auth') && Auth::check() && !Auth::isAdmin()) {
+                        $uid = Auth::id();
+                        if ($uid !== null) {
+                            $gWhere .= ' AND (user_id IS NULL OR user_id = ?)';
+                            $gParams[] = $uid;
+                        }
+                    }
+                    $group = Database::queryOne("SELECT id FROM portfolio_groups WHERE {$gWhere}", $gParams);
                     if ($group) {
                         $update['group_id'] = $gid;
                     }
@@ -468,9 +486,18 @@ class Portfolio
             return 0;
         }
 
-        // Validate group exists if not null
+        // Validate group exists and user owns it
         if ($groupId !== null && $groupId > 0) {
-            $group = Database::queryOne('SELECT id FROM portfolio_groups WHERE id = ?', [$groupId]);
+            $gWhere = 'id = ?';
+            $gParams = [$groupId];
+            if (class_exists('Auth') && Auth::check() && !Auth::isAdmin()) {
+                $uid = Auth::id();
+                if ($uid !== null) {
+                    $gWhere .= ' AND (user_id IS NULL OR user_id = ?)';
+                    $gParams[] = $uid;
+                }
+            }
+            $group = Database::queryOne("SELECT id FROM portfolio_groups WHERE {$gWhere}", $gParams);
             if (!$group) {
                 return 0;
             }
@@ -633,6 +660,35 @@ class Portfolio
         if ($portfolioId <= 0 || $tagId <= 0) {
             return false;
         }
+
+        // Verify current user owns the portfolio item
+        $itemWhere = 'id = ? AND deleted_at IS NULL';
+        $itemParams = [$portfolioId];
+        if (class_exists('Auth') && Auth::check() && !Auth::isAdmin()) {
+            $userId = Auth::id();
+            if ($userId !== null) {
+                $itemWhere .= ' AND (user_id IS NULL OR user_id = ?)';
+                $itemParams[] = $userId;
+            }
+        }
+        if (!Database::queryOne("SELECT id FROM portfolio WHERE {$itemWhere}", $itemParams)) {
+            return false;
+        }
+
+        // Verify current user owns the tag
+        $tagWhere = 'id = ?';
+        $tagParams = [$tagId];
+        if (class_exists('Auth') && Auth::check() && !Auth::isAdmin()) {
+            $userId = Auth::id();
+            if ($userId !== null) {
+                $tagWhere .= ' AND (user_id IS NULL OR user_id = ?)';
+                $tagParams[] = $userId;
+            }
+        }
+        if (!Database::queryOne("SELECT id FROM portfolio_tags WHERE {$tagWhere}", $tagParams)) {
+            return false;
+        }
+
         // Check if already exists
         $existing = Database::queryOne(
             'SELECT id FROM portfolio_tag_items WHERE portfolio_id = ? AND tag_id = ?',
@@ -653,6 +709,20 @@ class Portfolio
      */
     public static function removeTag(int $portfolioId, int $tagId): bool
     {
+        // Verify current user owns the portfolio item
+        $itemWhere = 'id = ? AND deleted_at IS NULL';
+        $itemParams = [$portfolioId];
+        if (class_exists('Auth') && Auth::check() && !Auth::isAdmin()) {
+            $userId = Auth::id();
+            if ($userId !== null) {
+                $itemWhere .= ' AND (user_id IS NULL OR user_id = ?)';
+                $itemParams[] = $userId;
+            }
+        }
+        if (!Database::queryOne("SELECT id FROM portfolio WHERE {$itemWhere}", $itemParams)) {
+            return false;
+        }
+
         return Database::execute(
             'DELETE FROM portfolio_tag_items WHERE portfolio_id = ? AND tag_id = ?',
             [$portfolioId, $tagId]
@@ -794,7 +864,11 @@ class Portfolio
      */
     public static function getGoal(int $id): ?array
     {
-        return Database::queryOne('SELECT * FROM portfolio_goals WHERE id = ?', [$id]) ?: null;
+        [$ownerWhere, $ownerParams] = self::goalOwnerScope();
+        return Database::queryOne(
+            'SELECT * FROM portfolio_goals WHERE id = ?' . $ownerWhere,
+            array_merge([$id], $ownerParams)
+        ) ?: null;
     }
 
     /**
@@ -947,7 +1021,7 @@ class Portfolio
         return Database::execute(
             'UPDATE portfolio_goals SET name = ?, target_value = ?, target_type = ?, target_currency = ?, bank_slug = ?, percent_date_mode = ?, percent_date_start = ?, percent_date_end = ?, percent_period_months = ?, goal_deadline = ? WHERE id = ?' . $ownerWhere,
             array_merge($params, $ownerParams)
-        ) >= 0;
+        ) > 0;
     }
 
     /**
@@ -959,7 +1033,7 @@ class Portfolio
         return Database::execute(
             'UPDATE portfolio_goals SET is_favorite = NOT is_favorite WHERE id = ?' . $ownerWhere,
             array_merge([$id], $ownerParams)
-        ) >= 0;
+        ) > 0;
     }
 
     /**
@@ -991,7 +1065,14 @@ class Portfolio
      */
     public static function getAllGoalSources(): array
     {
-        $rows = Database::query('SELECT * FROM portfolio_goal_sources ORDER BY source_type, source_id');
+        [$ownerWhere, $ownerParams] = self::goalOwnerScope();
+        $rows = Database::query(
+            'SELECT gs.* FROM portfolio_goal_sources gs
+             JOIN portfolio_goals g ON g.id = gs.goal_id
+             WHERE 1=1' . str_replace('user_id', 'g.user_id', $ownerWhere) .
+            ' ORDER BY gs.source_type, gs.source_id',
+            $ownerParams
+        );
         $result = [];
         foreach ($rows as $row) {
             $gid = (int) $row['goal_id'];

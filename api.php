@@ -227,7 +227,10 @@ try {
             break;
 
         case 'currencies':
-            $nameField = in_array($locale, ['en', 'tr'], true) && $locale === 'en' ? 'name_en' : 'name_tr';
+            $nameField = ($locale === 'en') ? 'name_en' : 'name_tr';
+            if (!in_array($nameField, ['name_en', 'name_tr'], true)) {
+                $nameField = 'name_tr';
+            }
             $currencies = Database::query(
                 "SELECT code, name_tr, name_en, `{$nameField}` AS name, symbol, type FROM currencies WHERE is_active = 1 ORDER BY code"
             );
@@ -314,7 +317,7 @@ try {
             if (class_exists('Auth') && Auth::check() && !Auth::isAdmin()) {
                 $userId = Auth::id();
                 if ($userId !== null) {
-                    $where .= ' AND (user_id IS NULL OR user_id = ?)';
+                    $where .= ' AND user_id = ?';
                     $params[] = $userId;
                 }
             }
@@ -360,6 +363,18 @@ try {
 
             $configJson = is_string($channelConfig) ? $channelConfig : (is_array($channelConfig) ? json_encode($channelConfig) : null);
 
+            // Validate webhook URL (HTTPS only) to prevent stored SSRF
+            if ($channel === 'webhook' && $configJson !== null) {
+                $parsed = json_decode($configJson, true);
+                $webhookUrl = is_array($parsed) ? ($parsed['url'] ?? '') : '';
+                if ($webhookUrl !== '') {
+                    $scheme = strtolower((string) (parse_url($webhookUrl, PHP_URL_SCHEME) ?? ''));
+                    if ($scheme !== 'https') {
+                        jsonResponse(['status' => 'error', 'message' => 'Webhook URL must use HTTPS'], 400);
+                    }
+                }
+            }
+
             $id = Database::insert('alerts', [
                 'user_id' => $userId,
                 'currency_code' => $currencyCode,
@@ -395,7 +410,7 @@ try {
             if (class_exists('Auth') && Auth::check() && !Auth::isAdmin()) {
                 $userId = Auth::id();
                 if ($userId !== null) {
-                    $where .= ' AND (user_id IS NULL OR user_id = ?)';
+                    $where .= ' AND user_id = ?';
                     $params[] = $userId;
                 }
             }
