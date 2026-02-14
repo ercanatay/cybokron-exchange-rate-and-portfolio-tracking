@@ -266,6 +266,11 @@ function requirePortfolioAccessForApi(): void
         return;
     }
 
+    Auth::init();
+    if (Auth::check()) {
+        return;
+    }
+
     if (verifyPortfolioAuthCredentials(getBasicAuthCredentials())) {
         return;
     }
