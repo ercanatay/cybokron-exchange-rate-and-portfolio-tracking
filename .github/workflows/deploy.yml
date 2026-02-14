@@ -231,6 +231,32 @@ jobs:
              rm -f ~/cybokron-logs/login_debug.log && \
              echo '=== All DB operations complete ==='"
 
+      - name: Verify cron jobs
+        run: |
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \
+            ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} bash -s << 'CRON_EOF'
+          echo "=== Current crontab ==="
+          crontab -l 2>/dev/null || echo "(empty)"
+
+          if crontab -l 2>/dev/null | grep -qF 'update_rates.php'; then
+            echo "OK: update_rates cron exists"
+          else
+            echo "WARNING: update_rates cron NOT found — add via cPanel"
+          fi
+
+          if crontab -l 2>/dev/null | grep -qF 'check_alerts.php'; then
+            echo "OK: check_alerts cron exists"
+          else
+            echo "WARNING: check_alerts cron NOT found — add via cPanel"
+          fi
+
+          if crontab -l 2>/dev/null | grep -qF 'cleanup_rate_history.php'; then
+            echo "OK: cleanup_rate_history cron exists"
+          else
+            echo "WARNING: cleanup_rate_history cron NOT found — add via cPanel"
+          fi
+          CRON_EOF
+
       - name: Smoke test
         env:
           APP_URL: ${{ secrets.APP_URL }}

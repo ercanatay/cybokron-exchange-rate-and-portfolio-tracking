@@ -24,22 +24,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         exit;
     }
     
-    $output = [];
-    $returnCode = 0;
-    
-    // ServBay için doğru PHP CLI binary'sini kullan
-    $phpBinary = '/Applications/ServBay/bin/php';
-    if (!file_exists($phpBinary)) {
-        $phpBinary = 'php'; // Fallback to system PHP
-    }
-    
-    exec('cd ' . escapeshellarg(__DIR__) . ' && ' . escapeshellarg($phpBinary) . ' cron/update_rates.php 2>&1', $output, $returnCode);
-    
-    if ($returnCode === 0) {
+    $result = executeRateUpdate();
+    if ($result['success']) {
         $message = t('admin.rates_updated_success');
         $messageType = 'success';
     } else {
-        error_log('Rate update failed: ' . implode("\n", $output));
         $message = t('admin.rates_updated_error');
         $messageType = 'error';
     }

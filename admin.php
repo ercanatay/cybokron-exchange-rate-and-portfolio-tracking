@@ -26,18 +26,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     }
 
     if ($_POST['action'] === 'update_rates') {
-        $output = [];
-        $returnCode = 0;
-        $phpBinary = '/Applications/ServBay/bin/php';
-        if (!file_exists($phpBinary)) {
-            $phpBinary = 'php';
-        }
-        exec('cd ' . escapeshellarg(__DIR__) . ' && ' . escapeshellarg($phpBinary) . ' cron/update_rates.php 2>&1', $output, $returnCode);
-        if ($returnCode === 0) {
+        $result = executeRateUpdate();
+        if ($result['success']) {
             $message = t('admin.rates_updated_success');
             $messageType = 'success';
         } else {
-            $message = t('admin.rates_updated_error') . ': ' . implode("\n", $output);
+            $message = t('admin.rates_updated_error') . ': ' . $result['message'];
             $messageType = 'error';
         }
     }
