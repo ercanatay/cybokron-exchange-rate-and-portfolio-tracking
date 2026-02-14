@@ -112,6 +112,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $messageType = 'error';
     }
 
+    if ($messageType === '' && $action === 'update_rates') {
+        if (Auth::check() && Auth::isAdmin()) {
+            $result = executeRateUpdate();
+            $message = $result['success'] ? t('admin.rates_updated_success') : (t('admin.rates_updated_error') . ': ' . $result['message']);
+            $messageType = $result['success'] ? 'success' : 'error';
+        }
+    }
+
     if ($messageType === '' && $action === 'add') {
         try {
             $lastInsertedId = Portfolio::add([
@@ -1532,7 +1540,16 @@ $annualizedReturn = ($oldestDate && $analyticsCost > 0)
 
         <?php if (!empty($summary['items'])): ?>
             <section class="portfolio-section">
-                <h2>📋 <?= t('portfolio.table.title', ['count' => $summary['item_count']]) ?></h2>
+                <div class="portfolio-section-header">
+                    <h2>📋 <?= t('portfolio.table.title', ['count' => $summary['item_count']]) ?></h2>
+                    <?php if (Auth::check() && Auth::isAdmin()): ?>
+                        <form method="POST" style="margin:0">
+                            <input type="hidden" name="action" value="update_rates">
+                            <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
+                            <button type="submit" class="btn btn-primary btn-sm">🔄 <?= t('admin.update_rates_now') ?></button>
+                        </form>
+                    <?php endif; ?>
+                </div>
 
                 <!-- Filter Bar -->
                 <div class="filter-bar">

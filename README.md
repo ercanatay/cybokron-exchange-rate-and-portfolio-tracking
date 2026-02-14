@@ -255,6 +255,24 @@ To add a new bank source later:
 
 ## Changelog
 
+### v1.7.2 (2026-02-14)
+
+Header UI/UX redesign, bank toggle fix, and portfolio rate update button.
+
+**Header Redesign**
+- Complete header rewrite with glass-morphism design and centered pill-group navigation
+- Language switcher changed from inline pills to dropdown menu with animation
+- Separate mobile menu overlay with nav links, language row, and action buttons
+- Consistent header across all pages (index, portfolio, admin, observability, openrouter)
+- Responsive: brand text hidden at 1100px, full mobile menu at 900px
+
+**Bug Fixes**
+- Fix bank/currency toggle not saving — `toggle_bank` and `toggle_currency` were missing from allowed POST actions list
+- Add success messages for bank and currency toggle operations
+
+**Portfolio**
+- Add manual rate update button to portfolio page (admin only)
+
 ### v1.7.1 (2026-02-14)
 
 Bug fixes for admin panel settings and version display on production.
