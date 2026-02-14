@@ -1,0 +1,35 @@
+{
+    "xpath_rows": "\/\/table\/\/tbody\/\/tr",
+    "columns": {
+        "currency": {
+            "index": 0
+        },
+        "buy": {
+            "index": 1
+        },
+        "sell": {
+            "index": 2
+        },
+        "change": {
+            "index": 3
+        }
+    },
+    "currency_map": {
+        "amerikan doları": "USD",
+        "euro": "EUR",
+        "ingiliz sterlini": "GBP",
+        "altın": "XAU",
+        "gümüş": "XAG",
+        "avustralya doları": "AUD",
+        "kanada doları": "CAD",
+        "çin yuanı": "CNY",
+        "japon yeni": "JPY",
+        "suudi riyali": "SAR",
+        "isviçre frangı": "CHF",
+        "birleşik arap emirlikleri dirhemi": "AED",
+        "platin": "XPT",
+        "paladyum": "XPD"
+    },
+    "number_format": "standard",
+    "skip_header_rows": 0
+}
