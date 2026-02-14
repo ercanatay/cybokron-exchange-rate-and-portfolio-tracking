@@ -114,7 +114,13 @@ $repairLogs = Database::query("
     LIMIT 30
 ");
 
+// Active banks with scraper class (for live repair dropdown)
+$repairableBanks = Database::query(
+    "SELECT id, name, slug FROM banks WHERE is_active = 1 AND scraper_class IS NOT NULL AND scraper_class != '' ORDER BY name"
+);
+
 $currentLocale = getAppLocale();
+$csrfToken = getCsrfToken();
 $version = getAppVersion();
 ?>
 <!DOCTYPE html>
@@ -131,6 +137,7 @@ $version = getAppVersion();
 ]) ?>
     <link rel="icon" type="image/svg+xml" href="favicon.svg">
     <link rel="stylesheet" href="assets/css/style.css?v=<?= filemtime(__DIR__ . '/assets/css/style.css') ?>">
+    <link rel="stylesheet" href="assets/css/repair-progress.css?v=<?= filemtime(__DIR__ . '/assets/css/repair-progress.css') ?>">
 </head>
 
 <body>
@@ -228,7 +235,7 @@ $version = getAppVersion();
                                     <td><?= formatDateTime($rc['created_at']) ?></td>
                                     <td>
                                         <form method="post" style="display:inline">
-                                            <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(getCsrfToken()) ?>">
+                                            <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
                                             <input type="hidden" name="action" value="deactivate_repair">
                                             <input type="hidden" name="bank_id" value="<?= (int) $rc['bank_id'] ?>">
                                             <button type="submit" class="btn btn-sm" onclick="return confirm('<?= t('selfhealing.deactivate_confirm') ?>')"><?= t('admin.deactivate') ?></button>
@@ -281,12 +288,45 @@ $version = getAppVersion();
             <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.5rem;">
                 <?php foreach ($bankStats as $bs): ?>
                     <form method="post" style="display:inline">
-                        <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(getCsrfToken()) ?>">
+                        <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
                         <input type="hidden" name="action" value="trigger_repair">
                         <input type="hidden" name="bank_id" value="<?= (int) $bs['id'] ?>">
                         <button type="submit" class="btn btn-sm"><?= htmlspecialchars($bs['name']) ?></button>
                     </form>
                 <?php endforeach; ?>
+            </div>
+
+            <!-- Live Repair Progress -->
+            <h3 style="margin-top: 2rem;"><?= t('repair.live_title') ?></h3>
+            <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 1rem;"><?= t('repair.live_desc') ?></p>
+
+            <div id="repair-live-card"
+                data-csrf="<?= htmlspecialchars($csrfToken) ?>"
+                data-btn_start="<?= htmlspecialchars(t('repair.btn.start')) ?>"
+                data-btn_running="<?= htmlspecialchars(t('repair.btn.running')) ?>"
+                data-label_fetch_html="<?= htmlspecialchars(t('repair.step.fetch_html')) ?>"
+                data-label_check_enabled="<?= htmlspecialchars(t('repair.step.check_enabled')) ?>"
+                data-label_cooldown_check="<?= htmlspecialchars(t('repair.step.cooldown_check')) ?>"
+                data-label_generate_config="<?= htmlspecialchars(t('repair.step.generate_config')) ?>"
+                data-label_validate_config="<?= htmlspecialchars(t('repair.step.validate_config')) ?>"
+                data-label_save_config="<?= htmlspecialchars(t('repair.step.save_config')) ?>"
+                data-label_github_commit="<?= htmlspecialchars(t('repair.step.github_commit')) ?>"
+                data-label_pipeline_complete="<?= htmlspecialchars(t('repair.step.pipeline_complete')) ?>"
+                data-summary_success="<?= htmlspecialchars(t('repair.summary.success')) ?>"
+                data-summary_failed="<?= htmlspecialchars(t('repair.summary.failed')) ?>"
+                data-summary_rates="<?= htmlspecialchars(t('repair.summary.rates_found')) ?>"
+            >
+                <div class="repair-controls">
+                    <select class="repair-bank-select" aria-label="<?= htmlspecialchars(t('repair.select_bank')) ?>">
+                        <?php foreach ($repairableBanks as $rb): ?>
+                            <option value="<?= (int) $rb['id'] ?>"><?= htmlspecialchars($rb['name']) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                    <button type="button" class="btn-repair"><?= t('repair.btn.start') ?></button>
+                </div>
+
+                <ul class="repair-stepper" role="list" aria-label="<?= htmlspecialchars(t('repair.stepper_aria')) ?>"></ul>
+                <div class="repair-summary"></div>
             </div>
         </section>
         <?php endif; ?>
@@ -335,6 +375,8 @@ $version = getAppVersion();
             <p>Cybokron v<?= htmlspecialchars($version) ?> | <a href="index.php"><?= t('nav.rates') ?></a></p>
         </div>
     </footer>
+
+    <script src="assets/js/repair-progress.js?v=<?= filemtime(__DIR__ . '/assets/js/repair-progress.js') ?>"></script>
 </body>
 
 </html>

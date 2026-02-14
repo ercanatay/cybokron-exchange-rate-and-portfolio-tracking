@@ -565,4 +565,23 @@ return [
     'selfhealing.deactivate_confirm' => 'هل أنت متأكد من تعطيل إعداد الإصلاح هذا؟',
     'selfhealing.repair_triggered' => 'تم تشغيل الإصلاح لـ {{bank}}.',
     'selfhealing.repair_failed' => 'فشل الإصلاح: {{error}}',
+
+    // Live Repair
+    'repair.live_title' => 'الإصلاح المباشر',
+    'repair.live_desc' => 'شاهد خط أنابيب الإصلاح التلقائي في الوقت الفعلي. اختر بنكاً وابدأ عملية الإصلاح.',
+    'repair.select_bank' => 'اختر البنك',
+    'repair.btn.start' => 'بدء الإصلاح',
+    'repair.btn.running' => 'جارٍ التنفيذ...',
+    'repair.stepper_aria' => 'خطوات تقدم الإصلاح',
+    'repair.step.fetch_html' => 'جلب صفحة البنك',
+    'repair.step.check_enabled' => 'التحقق من تفعيل الإصلاح التلقائي',
+    'repair.step.cooldown_check' => 'التحقق من فترة الانتظار',
+    'repair.step.generate_config' => 'إنشاء التكوين عبر AI',
+    'repair.step.validate_config' => 'التحقق من التكوين',
+    'repair.step.save_config' => 'حفظ التكوين',
+    'repair.step.github_commit' => 'الإيداع في GitHub',
+    'repair.step.pipeline_complete' => 'اكتمال خط الأنابيب',
+    'repair.summary.success' => 'نجح الإصلاح',
+    'repair.summary.failed' => 'فشل الإصلاح',
+    'repair.summary.rates_found' => 'أسعار وُجدت',
 ];

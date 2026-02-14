@@ -565,4 +565,23 @@ return [
     'selfhealing.deactivate_confirm' => 'Sind Sie sicher, dass Sie diese Reparaturkonfiguration deaktivieren möchten?',
     'selfhealing.repair_triggered' => 'Reparatur für {{bank}} ausgelöst.',
     'selfhealing.repair_failed' => 'Reparatur fehlgeschlagen: {{error}}',
+
+    // Live Repair
+    'repair.live_title' => 'Live-Reparatur',
+    'repair.live_desc' => 'Beobachten Sie die automatische Reparatur-Pipeline in Echtzeit. Wählen Sie eine Bank und starten Sie den Reparaturprozess.',
+    'repair.select_bank' => 'Bank auswählen',
+    'repair.btn.start' => 'Reparatur starten',
+    'repair.btn.running' => 'Läuft...',
+    'repair.stepper_aria' => 'Reparaturfortschrittsschritte',
+    'repair.step.fetch_html' => 'Bankseite abrufen',
+    'repair.step.check_enabled' => 'Automatische Reparatur prüfen',
+    'repair.step.cooldown_check' => 'Abklingzeit prüfen',
+    'repair.step.generate_config' => 'Konfiguration per AI generieren',
+    'repair.step.validate_config' => 'Konfiguration validieren',
+    'repair.step.save_config' => 'Konfiguration speichern',
+    'repair.step.github_commit' => 'Auf GitHub committen',
+    'repair.step.pipeline_complete' => 'Pipeline abgeschlossen',
+    'repair.summary.success' => 'Reparatur erfolgreich',
+    'repair.summary.failed' => 'Reparatur fehlgeschlagen',
+    'repair.summary.rates_found' => 'Kurse gefunden',
 ];

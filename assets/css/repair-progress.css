@@ -1,0 +1,252 @@
+/**
+ * Cybokron — Live Repair Progress Stepper
+ */
+
+/* ─── Stepper Container ──────────────────────────────────────────────────── */
+.repair-stepper {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.repair-step {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    padding: 10px 0;
+    position: relative;
+}
+
+/* Vertical connecting line */
+.repair-step:not(:last-child)::after {
+    content: '';
+    position: absolute;
+    left: 14px;
+    top: 40px;
+    bottom: -2px;
+    width: 2px;
+    background: var(--border, #e5e7eb);
+    transition: background 0.3s ease;
+}
+
+.repair-step.step-success:not(:last-child)::after {
+    background: #22c55e;
+}
+
+.repair-step.step-error:not(:last-child)::after {
+    background: #ef4444;
+}
+
+.repair-step.step-skipped:not(:last-child)::after {
+    background: var(--border, #e5e7eb);
+}
+
+/* ─── Step Icon ──────────────────────────────────────────────────────────── */
+.repair-step-icon {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    font-size: 0.75rem;
+    font-weight: 700;
+    transition: all 0.3s ease;
+    position: relative;
+    z-index: 1;
+}
+
+.step-pending .repair-step-icon {
+    background: var(--surface-hover, #f3f4f6);
+    color: var(--text-muted, #9ca3af);
+    border: 2px solid var(--border, #e5e7eb);
+}
+
+.step-in-progress .repair-step-icon {
+    background: #3b82f620;
+    color: #3b82f6;
+    border: 2px solid #3b82f6;
+    animation: repair-pulse 1.5s ease-in-out infinite;
+}
+
+.step-success .repair-step-icon {
+    background: #22c55e20;
+    color: #22c55e;
+    border: 2px solid #22c55e;
+}
+
+.step-error .repair-step-icon {
+    background: #ef444420;
+    color: #ef4444;
+    border: 2px solid #ef4444;
+}
+
+.step-skipped .repair-step-icon {
+    background: var(--surface-hover, #f3f4f6);
+    color: var(--text-muted, #9ca3af);
+    border: 2px dashed var(--border, #e5e7eb);
+    opacity: 0.6;
+}
+
+/* ─── Step Content ───────────────────────────────────────────────────────── */
+.repair-step-content {
+    flex: 1;
+    min-width: 0;
+    padding-top: 3px;
+}
+
+.repair-step-label {
+    font-weight: 600;
+    font-size: 0.875rem;
+    color: var(--text, #111);
+    margin-bottom: 2px;
+}
+
+.step-pending .repair-step-label {
+    color: var(--text-muted, #9ca3af);
+}
+
+.step-skipped .repair-step-label {
+    color: var(--text-muted, #9ca3af);
+    text-decoration: line-through;
+    opacity: 0.6;
+}
+
+.repair-step-message {
+    font-size: 0.78rem;
+    color: var(--text-muted, #6b7280);
+    line-height: 1.4;
+}
+
+.repair-step-duration {
+    font-size: 0.72rem;
+    color: var(--text-muted, #9ca3af);
+    margin-left: 6px;
+}
+
+/* ─── Spinner (CSS-only) ─────────────────────────────────────────────────── */
+.repair-spinner {
+    width: 16px;
+    height: 16px;
+    border: 2px solid #3b82f640;
+    border-top-color: #3b82f6;
+    border-radius: 50%;
+    animation: repair-spin 0.6s linear infinite;
+}
+
+@keyframes repair-spin {
+    to { transform: rotate(360deg); }
+}
+
+@keyframes repair-pulse {
+    0%, 100% { box-shadow: 0 0 0 0 #3b82f640; }
+    50% { box-shadow: 0 0 0 6px #3b82f600; }
+}
+
+/* ─── Summary Bar ────────────────────────────────────────────────────────── */
+.repair-summary {
+    margin-top: 16px;
+    padding: 12px 16px;
+    border-radius: 10px;
+    font-size: 0.875rem;
+    font-weight: 600;
+    display: none;
+    align-items: center;
+    gap: 8px;
+}
+
+.repair-summary.visible {
+    display: flex;
+}
+
+.repair-summary.summary-success {
+    background: #22c55e15;
+    color: #16a34a;
+    border: 1px solid #22c55e40;
+}
+
+.repair-summary.summary-error {
+    background: #ef444415;
+    color: #dc2626;
+    border: 1px solid #ef444440;
+}
+
+.repair-summary-icon {
+    font-size: 1.1rem;
+}
+
+/* ─── Start Button ───────────────────────────────────────────────────────── */
+.repair-controls {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.repair-controls select {
+    flex: 1;
+    max-width: 280px;
+    padding: 8px 12px;
+    border: 1px solid var(--border, #e5e7eb);
+    border-radius: 8px;
+    background: var(--surface, #fff);
+    color: var(--text, #111);
+    font-size: 0.875rem;
+}
+
+.btn-repair {
+    padding: 8px 20px;
+    border-radius: 8px;
+    border: none;
+    font-weight: 600;
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.btn-repair:not(:disabled) {
+    background: linear-gradient(135deg, #f59e0b, #d97900);
+    color: #fff;
+}
+
+.btn-repair:not(:disabled):hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
+}
+
+.btn-repair:disabled {
+    background: var(--surface-hover, #e5e7eb);
+    color: var(--text-muted, #9ca3af);
+    cursor: not-allowed;
+}
+
+/* ─── Responsive ─────────────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+    .repair-controls {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .repair-controls select {
+        max-width: 100%;
+    }
+
+    .repair-step {
+        gap: 10px;
+    }
+
+    .repair-step-icon {
+        width: 26px;
+        height: 26px;
+        font-size: 0.65rem;
+    }
+
+    .repair-step:not(:last-child)::after {
+        left: 12px;
+    }
+}

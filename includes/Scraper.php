@@ -422,6 +422,34 @@ abstract class Scraper
     }
 
     /**
+     * Prepare repair context: fetch HTML, compute hashes, get currency codes.
+     * Used by the SSE repair endpoint to avoid accessing protected methods via Reflection.
+     *
+     * @return array{html: string, old_hash: string, new_hash: string, currency_codes: string[], bank_id: int, bank_slug: string, bank_name: string, bank_url: string}
+     */
+    public function prepareRepairContext(): array
+    {
+        $this->init();
+        $html = $this->fetchPage($this->url);
+        $xpath = $this->createXPath($html);
+        $newHash = $this->computeTableHashFromXPath($xpath);
+
+        $bank = Database::queryOne('SELECT table_hash FROM banks WHERE id = ?', [$this->bankId]);
+        $oldHash = $bank['table_hash'] ?? '';
+
+        return [
+            'html'           => $html,
+            'old_hash'       => $oldHash,
+            'new_hash'       => $newHash,
+            'currency_codes' => $this->getKnownCurrencyCodes(),
+            'bank_id'        => $this->bankId,
+            'bank_slug'      => $this->bankSlug,
+            'bank_name'      => $this->bankName,
+            'bank_url'       => $this->url,
+        ];
+    }
+
+    /**
      * Run the full scrape cycle: fetch, parse, detect changes, save, log.
      * Includes self-healing: tries active repair config first, then triggers
      * auto-repair if rates are insufficient and table structure changed.
