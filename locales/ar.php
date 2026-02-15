@@ -27,6 +27,7 @@ return [
     'auth.error_invalid' => 'اسم المستخدم أو كلمة المرور غير صحيحة.',
     'auth.error_rate_limit' => 'محاولات كثيرة جدًا. يرجى المحاولة بعد بضع دقائق.',
     'auth.error_captcha' => 'فشل التحقق الأمني. يرجى المحاولة مرة أخرى.',
+    'auth.remember_me' => 'تذكرني لمدة 30 يومًا',
 
     'index.page_title' => 'أسعار الصرف',
     'index.last_update' => 'آخر تحديث: {{datetime}}',
