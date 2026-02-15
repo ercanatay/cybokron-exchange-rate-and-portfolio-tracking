@@ -177,6 +177,9 @@ class Updater
                 mkdir($backupDir, 0755, true);
             }
 
+            // Backup current files before overwriting
+            $this->copyDirectory($this->basePath, $backupDir, ['.git', 'backups', 'config.php', 'vendor']);
+
             $this->copyDirectory($extractedDir, $this->basePath, ['config.php', '.git', 'backups']);
 
             file_put_contents(

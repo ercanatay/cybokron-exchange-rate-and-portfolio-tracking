@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.10.10] - 2026-02-15
+
+Security hardening v4 — CSP nonce system, strict ownership enforcement, schema integrity, and defense-in-depth improvements.
+
+### Security Fixes
+- **CSP nonce for inline scripts** — Replaced `unsafe-inline` in `script-src` with per-request nonce (`getCspNonce()`); all inline `<script>` tags across index.php, portfolio.php, admin.php, openrouter.php, observability.php, and includes/header.php now carry nonce attributes
+- **Strict goal source ownership** — `addGoalSource()` now requires `user_id = ?` match (removed `user_id IS NULL OR` fallback) to prevent cross-user source linking
+- **Icon MIME sniffing prevention** — `icon.php` now sends `X-Content-Type-Options: nosniff` header
+- **HTML parser error suppression removed** — `Scraper.php` replaced `@loadHTML` with `libxml_use_internal_errors()` pattern for proper error handling
+- **Updater file backup** — `Updater.php` now copies current files to backup directory before overwriting during updates
+
+### Schema & Migrations
+- `portfolio_groups.user_id`, `portfolio_tags.user_id`, `portfolio_goals.user_id` changed from `DEFAULT NULL` to `NOT NULL` in fresh schema
+- Migration `012_remember_tokens_and_user_id.sql` extended to enforce `NOT NULL` on all four ownership tables (portfolio, portfolio_groups, portfolio_tags, portfolio_goals)
+
 ## [1.10.9] - 2026-02-15
 
 Addresses remaining PR #25 findings: Remember Me token system, idempotent updates, statement cache limit, portfolio ownership enforcement.
