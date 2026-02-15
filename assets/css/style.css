@@ -2925,27 +2925,100 @@ body.menu-open {
 /* Goal Deposit Comparison */
 .goal-deposit-comparison {
     font-size: 0.72rem;
-    padding: 4px 0 0;
-    margin-top: 4px;
-    border-top: 1px dashed var(--border);
+    padding: 6px 8px;
+    margin-top: 6px;
+    border-radius: 6px;
+    background: var(--bg);
+    border: 1px solid var(--border);
     color: var(--text-muted);
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    line-height: 1.4;
+}
+
+.deposit-header {
     display: flex;
     align-items: center;
     gap: 4px;
-    flex-wrap: wrap;
+    font-weight: 500;
 }
 
-.goal-deposit-comparison.deposit-better {
+.deposit-header .deposit-icon {
+    font-size: 0.8rem;
+}
+
+.deposit-header .deposit-meta {
+    font-size: 0.65rem;
+    opacity: 0.7;
+    font-weight: 400;
+}
+
+.deposit-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 6px;
+    padding: 2px 0;
+}
+
+.deposit-row + .deposit-row {
+    border-top: 1px dashed color-mix(in srgb, var(--border) 50%, transparent);
+}
+
+.deposit-row-label {
+    font-size: 0.68rem;
+    opacity: 0.8;
+    white-space: nowrap;
+}
+
+.deposit-row-value {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.72rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.deposit-diff-row {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 4px;
+    padding-top: 2px;
+}
+
+.deposit-diff-badge {
+    font-size: 0.65rem;
+    font-weight: 600;
+    font-family: 'JetBrains Mono', monospace;
+    padding: 1px 6px;
+    border-radius: 4px;
+    white-space: nowrap;
+}
+
+.goal-deposit-comparison.deposit-better .deposit-diff-badge {
+    background: color-mix(in srgb, #dc2626 12%, transparent);
     color: #dc2626;
 }
 
-.goal-deposit-comparison.deposit-worse {
+.goal-deposit-comparison.deposit-worse .deposit-diff-badge {
+    background: color-mix(in srgb, #16a34a 12%, transparent);
     color: #16a34a;
 }
 
-.deposit-diff {
-    font-weight: 600;
+.goal-deposit-comparison.deposit-better .deposit-row-value.deposit-val {
+    color: #dc2626;
+}
+
+.goal-deposit-comparison.deposit-worse .deposit-row-value.current-val {
+    color: #16a34a;
+}
+
+.deposit-single-value {
     font-family: 'JetBrains Mono', monospace;
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 1px 0;
 }
 
 /* Goal Sources Display */

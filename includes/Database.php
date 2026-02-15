@@ -27,9 +27,36 @@ class Database
                 PDO::ATTR_STRINGIFY_FETCHES  => false,
                 PDO::ATTR_PERSISTENT         => defined('DB_PERSISTENT') ? (bool) DB_PERSISTENT : false,
             ]);
+
+            self::applySessionTimezone(self::$instance);
         }
 
         return self::$instance;
+    }
+
+    /**
+     * Keep MySQL session timezone aligned with app timezone so CURRENT_TIMESTAMP/NOW()
+     * produce consistent values across PHP-generated and DB-generated datetimes.
+     */
+    private static function applySessionTimezone(PDO $pdo): void
+    {
+        if (!defined('APP_TIMEZONE')) {
+            return;
+        }
+
+        $appTimezone = trim((string) APP_TIMEZONE);
+        if ($appTimezone === '') {
+            return;
+        }
+
+        try {
+            $timezone = new DateTimeZone($appTimezone);
+            $offset = (new DateTimeImmutable('now', $timezone))->format('P');
+            $stmt = $pdo->prepare('SET time_zone = ?');
+            $stmt->execute([$offset]);
+        } catch (Throwable $e) {
+            // Best effort only; keep DB connection usable even if timezone fails.
+        }
     }
 
     /**
