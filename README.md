@@ -45,6 +45,9 @@ Cybokron is an open-source PHP/MySQL application for tracking Turkish bank excha
 - Cloudflare Turnstile CAPTCHA for login (configurable, disabled in development)
 - Input validation for API and portfolio operations
 - Security headers enabled by default (`X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`)
+- **Session revalidation** — active sessions are checked against the database every 5 minutes (deactivated/demoted users are revoked)
+- **Strict ownership scoping** — portfolio, groups, tags, and goals are scoped to the authenticated user (no NULL-ownership leaks)
+- **Basic Auth identity binding** — API Basic Auth credentials are bound to session identity for write operations
 - Cron scripts can be restricted to CLI execution
 - Optional CORS, disabled by default
 
