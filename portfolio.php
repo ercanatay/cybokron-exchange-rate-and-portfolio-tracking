@@ -1199,10 +1199,30 @@ $annualizedReturn = ($oldestDate && $analyticsCost > 0)
                                                     $depositRateStr = rtrim(rtrim(number_format($depositRate, 2, ',', '.'), '0'), ',');
                                                 ?>
                                                 <div class="goal-deposit-comparison <?= $showDiff ? ($depositBetter ? 'deposit-better' : 'deposit-worse') : '' ?>">
-                                                    🏦 <?= t('portfolio.goals.deposit_label') ?> (<?= t('portfolio.goals.deposit_rate_info', ['rate' => $depositRateStr, 'days' => $depositDays]) ?>): <?= formatTRY($depositValue) ?>
                                                     <?php if ($showDiff): ?>
-                                                        <br><?= t('portfolio.goals.deposit_current') ?>: <?= formatTRY($currentTryValue) ?>
-                                                        <span class="deposit-diff">(<?= $depositBetter ? '+' : '' ?><?= formatTRY($depositDiff) ?> <?= $depositBetter ? t('portfolio.goals.deposit_better') : t('portfolio.goals.deposit_worse') ?>)</span>
+                                                        <div class="deposit-header">
+                                                            <span class="deposit-icon">🏦</span>
+                                                            <?= t('portfolio.goals.deposit_compare_title') ?>
+                                                            <span class="deposit-meta"><?= t('portfolio.goals.deposit_rate_info', ['rate' => $depositRateStr, 'days' => $depositDays]) ?></span>
+                                                        </div>
+                                                        <div class="deposit-row">
+                                                            <span class="deposit-row-label"><?= t('portfolio.goals.deposit_short') ?></span>
+                                                            <span class="deposit-row-value deposit-val"><?= formatTRY($depositValue) ?></span>
+                                                        </div>
+                                                        <div class="deposit-row">
+                                                            <span class="deposit-row-label"><?= t('portfolio.goals.deposit_portfolio') ?></span>
+                                                            <span class="deposit-row-value current-val"><?= formatTRY($currentTryValue) ?></span>
+                                                        </div>
+                                                        <div class="deposit-diff-row">
+                                                            <span class="deposit-diff-badge"><?= $depositBetter ? '+' : '' ?><?= formatTRY($depositDiff) ?> <?= $depositBetter ? t('portfolio.goals.deposit_better') : t('portfolio.goals.deposit_worse') ?></span>
+                                                        </div>
+                                                    <?php else: ?>
+                                                        <div class="deposit-header">
+                                                            <span class="deposit-icon">🏦</span>
+                                                            <?= t('portfolio.goals.deposit_label') ?>
+                                                            <span class="deposit-meta"><?= t('portfolio.goals.deposit_rate_info', ['rate' => $depositRateStr, 'days' => $depositDays]) ?></span>
+                                                        </div>
+                                                        <div class="deposit-single-value"><?= formatTRY($depositValue) ?></div>
                                                     <?php endif; ?>
                                                 </div>
                                             <?php endif; ?>
