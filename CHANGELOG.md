@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.10.3] - 2026-02-15
+
+Production timezone consistency and goal card UX refinements.
+
+### Timezone Consistency
+- Set MySQL session timezone on connection using `APP_TIMEZONE` offset
+- Fix observability mismatch where `Son Loglar` could appear 9 hours behind `Son Scrape` on non-Istanbul servers
+
+### Goal Card UX
+- Show effective deposit rate, elapsed days, and deposit current value on goal cards
+- Improve deposit comparison card layout and translations across TR/EN/DE/FR/AR locales
+
 ## [1.10.2] - 2026-02-15
 
 Admin toggle and calculation info for deposit comparison.
