@@ -2,6 +2,31 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.10.5] - 2026-02-15
+
+Fix theme flash (FOUC) on page load.
+
+### Bug Fixes
+- Fix brief dark mode flash when light mode is active on page refresh
+- Add blocking inline script before CSS in all pages to read theme preference from `localStorage` and set `data-theme` attribute immediately
+- Affected pages: index, portfolio, admin, observability, openrouter
+
+## [1.10.4] - 2026-02-15
+
+Add "Remember me for 30 days" checkbox to login form.
+
+### Authentication
+- New "Remember me" checkbox on login form extends session cookie to 30 days
+- `Auth::login()` accepts `$remember` parameter to set extended cookie lifetime
+- Session `gc_maxlifetime` and cookie expiry set to 30 days when checked
+- Secure cookie attributes: `httponly`, `samesite=Lax`, auto-detect `secure` flag
+
+### Localization
+- Added `auth.remember_me` translation key across all 5 languages (TR, EN, DE, FR, AR)
+
+### UI
+- Styled `.remember-me` checkbox group with flex layout and cursor pointer
+
 ## [1.10.3] - 2026-02-15
 
 Production timezone consistency and goal card UX refinements.
