@@ -239,7 +239,21 @@ function verifyPortfolioAuthCredentials(?array $credentials): bool
         return false;
     }
 
-    return password_verify((string) $credentials['pass'], $expectedHash);
+    if (!password_verify((string) $credentials['pass'], $expectedHash)) {
+        return false;
+    }
+
+    // Bind identity to session so Auth::id() returns the correct user
+    $dbUser = Database::queryOne(
+        'SELECT id, username, role FROM users WHERE username = ? AND is_active = 1',
+        [$credentials['user']]
+    );
+    if ($dbUser) {
+        $_SESSION['cybokron_user_id'] = (int) $dbUser['id'];
+        $_SESSION['cybokron_username'] = $dbUser['username'];
+        $_SESSION['cybokron_role'] = $dbUser['role'];
+    }
+    return true;
 }
 
 /**

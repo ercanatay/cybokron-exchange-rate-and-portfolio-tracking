@@ -430,6 +430,7 @@ return [
     'portfolio.goals.delete_confirm' => 'Bu hedefi silmek istediğinize emin misiniz?',
     'portfolio.goals.empty' => 'Henüz hedef oluşturulmadı.',
     'portfolio.goals.added' => 'Hedef oluşturuldu.',
+    'portfolio.goals.update_failed' => 'Hedef güncellenemedi.',
     'portfolio.goals.updated' => 'Hedef güncellendi.',
     'portfolio.goals.deleted' => 'Hedef silindi.',
     'portfolio.goals.error' => 'Hedef işlemi başarısız.',

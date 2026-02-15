@@ -55,7 +55,24 @@ class Auth
 
     public static function check(): bool
     {
-        return isset($_SESSION[self::SESSION_KEY]) && $_SESSION[self::SESSION_KEY] > 0;
+        if (!isset($_SESSION[self::SESSION_KEY]) || $_SESSION[self::SESSION_KEY] <= 0) {
+            return false;
+        }
+        // Revalidate against DB every 5 minutes
+        $now = time();
+        if ($now - ($_SESSION['cybokron_auth_checked_at'] ?? 0) > 300) {
+            $user = Database::queryOne(
+                'SELECT id, role FROM users WHERE id = ? AND is_active = 1',
+                [(int) $_SESSION[self::SESSION_KEY]]
+            );
+            if (!$user) {
+                self::logout();
+                return false;
+            }
+            $_SESSION['cybokron_role'] = $user['role'];
+            $_SESSION['cybokron_auth_checked_at'] = $now;
+        }
+        return true;
     }
 
     public static function id(): ?int

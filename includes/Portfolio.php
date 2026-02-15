@@ -18,7 +18,7 @@ class Portfolio
         if (class_exists('Auth') && Auth::check() && !Auth::isAdmin()) {
             $userId = Auth::id();
             if ($userId !== null) {
-                $where .= ' AND (p.user_id IS NULL OR p.user_id = ?)';
+                $where .= ' AND p.user_id = ?';
                 $params[] = $userId;
             }
         }
@@ -148,7 +148,7 @@ class Portfolio
                 if (class_exists('Auth') && Auth::check() && !Auth::isAdmin()) {
                     $uid = Auth::id();
                     if ($uid !== null) {
-                        $gWhere .= ' AND (user_id IS NULL OR user_id = ?)';
+                        $gWhere .= ' AND user_id = ?';
                         $gParams[] = $uid;
                     }
                 }
@@ -229,7 +229,7 @@ class Portfolio
                     if (class_exists('Auth') && Auth::check() && !Auth::isAdmin()) {
                         $uid = Auth::id();
                         if ($uid !== null) {
-                            $gWhere .= ' AND (user_id IS NULL OR user_id = ?)';
+                            $gWhere .= ' AND user_id = ?';
                             $gParams[] = $uid;
                         }
                     }
@@ -250,7 +250,7 @@ class Portfolio
         if (class_exists('Auth') && Auth::check() && !Auth::isAdmin()) {
             $userId = Auth::id();
             if ($userId !== null) {
-                $where .= ' AND (user_id IS NULL OR user_id = ?)';
+                $where .= ' AND user_id = ?';
                 $params[] = $userId;
             }
         }
@@ -272,7 +272,7 @@ class Portfolio
         if (class_exists('Auth') && Auth::check() && !Auth::isAdmin()) {
             $userId = Auth::id();
             if ($userId !== null) {
-                $where .= ' AND (user_id IS NULL OR user_id = ?)';
+                $where .= ' AND user_id = ?';
                 $params[] = $userId;
             }
         }
@@ -286,7 +286,7 @@ class Portfolio
             if (class_exists('Auth') && Auth::check() && !Auth::isAdmin()) {
                 $userId = Auth::id();
                 if ($userId !== null) {
-                    $hardWhere .= ' AND (user_id IS NULL OR user_id = ?)';
+                    $hardWhere .= ' AND user_id = ?';
                     $hardParams[] = $userId;
                 }
             }
@@ -348,7 +348,7 @@ class Portfolio
         if (class_exists('Auth') && Auth::check() && !Auth::isAdmin()) {
             $userId = Auth::id();
             if ($userId !== null) {
-                $where .= ' AND (user_id IS NULL OR user_id = ?)';
+                $where .= ' AND user_id = ?';
                 $params[] = $userId;
             }
         }
@@ -435,7 +435,7 @@ class Portfolio
         if (class_exists('Auth') && Auth::check() && !Auth::isAdmin()) {
             $userId = Auth::id();
             if ($userId !== null) {
-                $where .= ' AND (user_id IS NULL OR user_id = ?)';
+                $where .= ' AND user_id = ?';
                 $params[] = $userId;
             }
         }
@@ -457,7 +457,7 @@ class Portfolio
         if (class_exists('Auth') && Auth::check() && !Auth::isAdmin()) {
             $userId = Auth::id();
             if ($userId !== null) {
-                $where .= ' AND (user_id IS NULL OR user_id = ?)';
+                $where .= ' AND user_id = ?';
                 $params[] = $userId;
             }
         }
@@ -493,7 +493,7 @@ class Portfolio
             if (class_exists('Auth') && Auth::check() && !Auth::isAdmin()) {
                 $uid = Auth::id();
                 if ($uid !== null) {
-                    $gWhere .= ' AND (user_id IS NULL OR user_id = ?)';
+                    $gWhere .= ' AND user_id = ?';
                     $gParams[] = $uid;
                 }
             }
@@ -513,7 +513,7 @@ class Portfolio
         if (class_exists('Auth') && Auth::check() && !Auth::isAdmin()) {
             $userId = Auth::id();
             if ($userId !== null) {
-                $where .= ' AND (user_id IS NULL OR user_id = ?)';
+                $where .= ' AND user_id = ?';
                 $params[] = $userId;
             }
         }
@@ -537,7 +537,7 @@ class Portfolio
         if (class_exists('Auth') && Auth::check() && !Auth::isAdmin()) {
             $userId = Auth::id();
             if ($userId !== null) {
-                $where .= ' AND (t.user_id IS NULL OR t.user_id = ?)';
+                $where .= ' AND t.user_id = ?';
                 $params[] = $userId;
             }
         }
@@ -617,7 +617,7 @@ class Portfolio
         if (class_exists('Auth') && Auth::check() && !Auth::isAdmin()) {
             $userId = Auth::id();
             if ($userId !== null) {
-                $where .= ' AND (user_id IS NULL OR user_id = ?)';
+                $where .= ' AND user_id = ?';
                 $params[] = $userId;
             }
         }
@@ -639,7 +639,7 @@ class Portfolio
         if (class_exists('Auth') && Auth::check() && !Auth::isAdmin()) {
             $userId = Auth::id();
             if ($userId !== null) {
-                $where .= ' AND (user_id IS NULL OR user_id = ?)';
+                $where .= ' AND user_id = ?';
                 $params[] = $userId;
             }
         }
@@ -667,7 +667,7 @@ class Portfolio
         if (class_exists('Auth') && Auth::check() && !Auth::isAdmin()) {
             $userId = Auth::id();
             if ($userId !== null) {
-                $itemWhere .= ' AND (user_id IS NULL OR user_id = ?)';
+                $itemWhere .= ' AND user_id = ?';
                 $itemParams[] = $userId;
             }
         }
@@ -681,7 +681,7 @@ class Portfolio
         if (class_exists('Auth') && Auth::check() && !Auth::isAdmin()) {
             $userId = Auth::id();
             if ($userId !== null) {
-                $tagWhere .= ' AND (user_id IS NULL OR user_id = ?)';
+                $tagWhere .= ' AND user_id = ?';
                 $tagParams[] = $userId;
             }
         }
@@ -715,7 +715,7 @@ class Portfolio
         if (class_exists('Auth') && Auth::check() && !Auth::isAdmin()) {
             $userId = Auth::id();
             if ($userId !== null) {
-                $itemWhere .= ' AND (user_id IS NULL OR user_id = ?)';
+                $itemWhere .= ' AND user_id = ?';
                 $itemParams[] = $userId;
             }
         }
@@ -770,11 +770,22 @@ class Portfolio
      */
     public static function getAllItemTags(): array
     {
+        $where = 'p.deleted_at IS NULL';
+        $params = [];
+        if (class_exists('Auth') && Auth::check() && !Auth::isAdmin()) {
+            $userId = Auth::id();
+            if ($userId !== null) {
+                $where .= ' AND p.user_id = ?';
+                $params[] = $userId;
+            }
+        }
         $sql = "SELECT pti.portfolio_id, t.id AS tag_id, t.name, t.slug, t.color
                 FROM portfolio_tag_items pti
                 JOIN portfolio_tags t ON t.id = pti.tag_id
+                JOIN portfolio p ON p.id = pti.portfolio_id
+                WHERE {$where}
                 ORDER BY t.name";
-        $rows = Database::query($sql);
+        $rows = Database::query($sql, $params);
         $result = [];
         foreach ($rows as $row) {
             $pid = (int) $row['portfolio_id'];
@@ -830,7 +841,7 @@ class Portfolio
         if (class_exists('Auth') && Auth::check() && !Auth::isAdmin()) {
             $userId = Auth::id();
             if ($userId !== null) {
-                $where .= ' AND (g.user_id IS NULL OR g.user_id = ?)';
+                $where .= ' AND g.user_id = ?';
                 $params[] = $userId;
             }
         }
@@ -852,7 +863,7 @@ class Portfolio
         if (class_exists('Auth') && Auth::check() && !Auth::isAdmin()) {
             $userId = Auth::id();
             if ($userId !== null) {
-                $where = ' AND (user_id IS NULL OR user_id = ?)';
+                $where = ' AND user_id = ?';
                 $params[] = $userId;
             }
         }

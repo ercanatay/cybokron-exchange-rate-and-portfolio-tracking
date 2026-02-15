@@ -380,6 +380,7 @@ return [
     'portfolio.goals.delete_confirm' => 'Êtes-vous sûr de vouloir supprimer cet objectif ?',
     'portfolio.goals.empty' => 'Aucun objectif créé.',
     'portfolio.goals.added' => 'Objectif créé.',
+    'portfolio.goals.update_failed' => 'Impossible de mettre à jour l\'objectif.',
     'portfolio.goals.updated' => 'Objectif mis à jour.',
     'portfolio.goals.deleted' => 'Objectif supprimé.',
     'portfolio.goals.error' => 'L\'opération a échoué.',

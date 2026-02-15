@@ -77,9 +77,10 @@ if (!columnExists($pdo, 'portfolio', 'deleted_at')) {
 // 5. Seed admin user
 $stmt = $pdo->query("SELECT id FROM users WHERE username = 'admin'");
 if (!$stmt || $stmt->rowCount() === 0) {
-    $hash = password_hash('admin123', PASSWORD_DEFAULT);
+    $adminPass = getenv('CYBOKRON_ADMIN_PASSWORD') ?: bin2hex(random_bytes(16));
+    $hash = password_hash($adminPass, PASSWORD_DEFAULT);
     $pdo->exec("INSERT INTO users (username, password_hash, role) VALUES ('admin', " . $pdo->quote($hash) . ", 'admin')");
-    echo "  [OK] admin user seeded (password: admin123)\n";
+    echo "  [OK] admin user seeded (password: {$adminPass})\n";
 } else {
     echo "  [OK] admin user exists\n";
 }
