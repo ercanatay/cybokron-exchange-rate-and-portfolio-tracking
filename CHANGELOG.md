@@ -2,6 +2,30 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.10.6] - 2026-02-15
+
+Security hardening based on AI-assisted code review (Codex, Claude Code, Jules AI).
+
+### Security Fixes
+- **Basic Auth identity binding** — `verifyPortfolioAuthCredentials()` now binds the authenticated user to the session, preventing `Auth::id()` from returning NULL on write operations
+- **Session revalidation** — `Auth::check()` revalidates user against database every 5 minutes, revoking access for deactivated or demoted users
+- **Ownership query hardening** — Removed 19 instances of `user_id IS NULL OR user_id = ?` pattern across `Portfolio.php` that could expose NULL-owned records to all users
+- **Goal edit return value check** — `Portfolio::updateGoal()` return value is now checked; throws exception on failure
+- **Admin JS injection fix** — Replaced raw PHP string interpolation with `json_encode()` in 10 admin.php JS strings to prevent apostrophe injection from locale translations
+- **getAllItemTags() user scoping** — Tag mapping query now filters by current user and excludes soft-deleted items
+
+### Database
+- Added `fk_alerts_user` foreign key constraint on `alerts.user_id` → `users.id`
+- Added composite index `idx_portfolio_user_deleted` on `portfolio(user_id, deleted_at)`
+- Fixed admin user seed comment (removed plain-text password reference)
+- Migration `010_security_hardening.sql`
+
+### Improvements
+- `migrate.php` admin password seeding now uses `CYBOKRON_ADMIN_PASSWORD` env var or generates a random 32-char hex password
+
+### Localization
+- Added `portfolio.goals.update_failed` translation key across all 5 languages (TR, EN, DE, FR, AR)
+
 ## [1.10.5] - 2026-02-15
 
 Fix theme flash (FOUC) on page load.

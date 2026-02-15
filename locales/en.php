@@ -430,6 +430,7 @@ return [
     'portfolio.goals.delete_confirm' => 'Are you sure you want to delete this goal?',
     'portfolio.goals.empty' => 'No goals created yet.',
     'portfolio.goals.added' => 'Goal created.',
+    'portfolio.goals.update_failed' => 'Goal could not be updated.',
     'portfolio.goals.updated' => 'Goal updated.',
     'portfolio.goals.deleted' => 'Goal deleted.',
     'portfolio.goals.error' => 'Goal operation failed.',

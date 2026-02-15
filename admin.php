@@ -1068,7 +1068,7 @@ foreach ($allRates as $r) {
                     if (id) orders[id] = i;
                 });
 
-                showStatus('saving', '<?= t('admin.order_saving') ?>');
+                showStatus('saving', <?= json_encode(t('admin.order_saving')) ?>);
 
                 var xhr = new XMLHttpRequest();
                 xhr.open('POST', 'admin.php', true);
@@ -1079,14 +1079,14 @@ foreach ($allRates as $r) {
                         try {
                             var resp = JSON.parse(xhr.responseText);
                             if (resp.status === 'ok') {
-                                showStatus('saved', '✓ <?= t('admin.order_saved') ?>');
-                                showToast('<?= t('admin.order_saved') ?>', 'success');
+                                showStatus('saved', '✓ ' + <?= json_encode(t('admin.order_saved')) ?>);
+                                showToast(<?= json_encode(t('admin.order_saved')) ?>, 'success');
                             } else {
-                                showStatus('error', '✗ <?= t('admin.order_save_error') ?>');
-                                showToast('<?= t('admin.order_save_error') ?>', 'error');
+                                showStatus('error', '✗ ' + <?= json_encode(t('admin.order_save_error')) ?>);
+                                showToast(<?= json_encode(t('admin.order_save_error')) ?>, 'error');
                             }
                         } catch (e) {
-                            showStatus('error', '✗ <?= t('admin.order_save_error') ?>');
+                            showStatus('error', '✗ ' + <?= json_encode(t('admin.order_save_error')) ?>);
                         }
                     } else {
                         showStatus('error', '✗ <?= t('admin.order_save_error') ?>');
@@ -1366,10 +1366,10 @@ foreach ($allRates as $r) {
             btn.disabled = true;
             btn.textContent = '⏳ ...';
             var done = function() {
-                btn.textContent = '✅ <?= t('admin.cache_cleared') ?>';
+                btn.textContent = '✅ ' + <?= json_encode(t('admin.cache_cleared')) ?>;
                 setTimeout(function() {
                     btn.disabled = false;
-                    btn.textContent = '🧹 <?= t('admin.clear_cache') ?>';
+                    btn.textContent = '🧹 ' + <?= json_encode(t('admin.clear_cache')) ?>;
                 }, 2000);
             };
             // Clear all caches directly (works with or without SW)
