@@ -477,6 +477,9 @@ return [
     'portfolio.goals.period_9m' => '9 Months',
     'portfolio.goals.period_1y' => '1 Year',
     'portfolio.goals.period_custom' => 'Custom',
+    'portfolio.goals.deposit_label' => 'If in deposit',
+    'portfolio.goals.deposit_better' => 'gap',
+    'portfolio.goals.deposit_worse' => 'advantage',
 
     'common.add' => 'Add',
     'common.select_all' => 'Select all',
@@ -546,6 +549,11 @@ return [
     'admin.retention_year' => 'year',
     'admin.retention_hint' => 'Rate history data older than this period will be automatically deleted by the cleanup cron job.',
     'admin.retention_updated' => 'Data retention period updated.',
+
+    'admin.deposit_rate_title' => 'Deposit Interest Rate',
+    'admin.deposit_rate_desc' => 'Annual net deposit interest rate used for goal comparison.',
+    'admin.deposit_rate_label' => 'Annual Net Interest Rate (%)',
+    'admin.deposit_rate_updated' => 'Deposit interest rate updated.',
 
     // Self-Healing
     'selfhealing.title' => 'Self-Healing Repair History',

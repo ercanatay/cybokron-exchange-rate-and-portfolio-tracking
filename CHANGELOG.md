@@ -2,6 +2,29 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.10.0] - 2026-02-15
+
+Goal deposit interest comparison and edit form UI improvements.
+
+### Deposit Interest Comparison
+- Each goal card now shows "what if this money was in a deposit account?" comparison
+- Compound interest calculation from each item's buy date to today
+- Admin-configurable annual net deposit interest rate (default 40%)
+- New admin panel card for deposit rate setting with validation (0-200%)
+- Color-coded comparison: green when portfolio outperforms deposit, red when deposit wins
+- Diff display limited to value/cost goals where currency units match (TRY)
+
+### Goal Edit Form UI
+- Improved goal edit form padding and spacing (20px padding, background, border-radius)
+- Wider grid columns in 4-column layout (minmax 200px)
+- Better action button spacing with separator border
+- Dashed border separator for sources section in edit mode
+- Increased gap values in edit form grid
+
+### Localization
+- 7 new translation keys across all 5 languages (TR, EN, DE, FR, AR)
+- Admin deposit rate labels and portfolio comparison strings
+
 ## [1.9.2] - 2026-02-14
 
 Additional security hardening based on PR #24 codebase analysis report.

@@ -2740,7 +2740,7 @@ body.menu-open {
 }
 
 .goal-form-grid-4 {
-    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
 }
 
 .goal-currency-field select {
@@ -2749,8 +2749,10 @@ body.menu-open {
 
 .goal-edit-actions {
     display: flex;
-    gap: 0.5rem;
-    margin-top: 0.75rem;
+    gap: 0.75rem;
+    margin-top: 1rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid var(--border);
 }
 
 .goal-card-actions {
@@ -2920,6 +2922,32 @@ body.menu-open {
     color: #22c55e !important;
 }
 
+/* Goal Deposit Comparison */
+.goal-deposit-comparison {
+    font-size: 0.72rem;
+    padding: 4px 0 0;
+    margin-top: 4px;
+    border-top: 1px dashed var(--border);
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-wrap: wrap;
+}
+
+.goal-deposit-comparison.deposit-better {
+    color: #dc2626;
+}
+
+.goal-deposit-comparison.deposit-worse {
+    color: #16a34a;
+}
+
+.deposit-diff {
+    font-weight: 600;
+    font-family: 'JetBrains Mono', monospace;
+}
+
 /* Goal Sources Display */
 .goal-card-footer {
     display: flex;
@@ -2939,13 +2967,22 @@ body.menu-open {
 
 /* Goal Edit Form */
 .goal-edit-form {
-    margin-top: 12px;
-    padding-top: 12px;
+    margin-top: 16px;
+    padding: 20px 16px 16px;
     border-top: 1px solid var(--border);
+    background: var(--bg);
+    border-radius: 0 0 14px 14px;
 }
 
 .goal-edit-form .goal-form-grid {
     grid-template-columns: 2fr 1fr 1fr;
+    gap: 14px 12px;
+}
+
+.goal-edit-form .goal-sources-section {
+    margin-top: 16px;
+    padding-top: 12px;
+    border-top: 1px dashed var(--border);
 }
 
 /* ─── Goals Responsive ───────────────────────────────────────────────── */

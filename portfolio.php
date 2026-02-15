@@ -1169,6 +1169,27 @@ $annualizedReturn = ($oldestDate && $analyticsCost > 0)
                                                     <?php endif; ?>
                                                 </span>
                                             </div>
+                                            <?php if (($gp['deposit_value'] ?? 0) > 0 && $gp['item_count'] > 0): ?>
+                                                <?php
+                                                    $depositValue = (float) $gp['deposit_value'];
+                                                    $currentTryValue = (float) ($gp['current'] ?? 0);
+                                                    // Only show diff for value/cost goals where current is in TRY
+                                                    $showDiff = in_array($goalTargetType, ['value', 'cost']);
+                                                    if ($showDiff) {
+                                                        $depositDiff = $depositValue - $currentTryValue;
+                                                        $depositBetter = $depositDiff > 0;
+                                                    } else {
+                                                        $depositDiff = 0;
+                                                        $depositBetter = false;
+                                                    }
+                                                ?>
+                                                <div class="goal-deposit-comparison <?= $showDiff ? ($depositBetter ? 'deposit-better' : 'deposit-worse') : '' ?>">
+                                                    🏦 <?= t('portfolio.goals.deposit_label') ?>: <?= formatTRY($depositValue) ?>
+                                                    <?php if ($showDiff): ?>
+                                                        <span class="deposit-diff">(<?= $depositBetter ? '+' : '' ?><?= formatTRY($depositDiff) ?> <?= $depositBetter ? t('portfolio.goals.deposit_better') : t('portfolio.goals.deposit_worse') ?>)</span>
+                                                    <?php endif; ?>
+                                                </div>
+                                            <?php endif; ?>
                                         </div>
                                     </div>
                                     <?php if (!empty($gSources)): ?>

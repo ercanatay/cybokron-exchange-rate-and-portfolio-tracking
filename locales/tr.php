@@ -477,6 +477,9 @@ return [
     'portfolio.goals.period_9m' => '9 Ay',
     'portfolio.goals.period_1y' => '1 Yıl',
     'portfolio.goals.period_custom' => 'Özel',
+    'portfolio.goals.deposit_label' => 'Mevduatta olsaydı',
+    'portfolio.goals.deposit_better' => 'fark',
+    'portfolio.goals.deposit_worse' => 'avantaj',
 
     'common.add' => 'Ekle',
     'common.select_all' => 'Tümünü seç',
@@ -546,6 +549,11 @@ return [
     'admin.retention_year' => 'yıl',
     'admin.retention_hint' => 'Bu süreyi aşan kur geçmişi verileri temizlik cron görevi tarafından otomatik olarak silinir.',
     'admin.retention_updated' => 'Veri saklama süresi güncellendi.',
+
+    'admin.deposit_rate_title' => 'Mevduat Faiz Oranı',
+    'admin.deposit_rate_desc' => 'Hedef karşılaştırması için kullanılacak yıllık net mevduat faiz oranı.',
+    'admin.deposit_rate_label' => 'Yıllık Net Faiz Oranı (%)',
+    'admin.deposit_rate_updated' => 'Mevduat faiz oranı güncellendi.',
 
     // Self-Healing
     'selfhealing.title' => 'Otomatik Onarım Geçmişi',

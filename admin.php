@@ -155,6 +155,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         $messageType = 'success';
     }
 
+    if ($_POST['action'] === 'save_deposit_rate' && isset($_POST['deposit_interest_rate'])) {
+        $depositRate = max(0, min(200, (float) $_POST['deposit_interest_rate']));
+        Database::query(
+            'INSERT INTO settings (`key`, value) VALUES (?, ?) ON DUPLICATE KEY UPDATE value = ?',
+            ['deposit_interest_rate', (string) $depositRate, (string) $depositRate]
+        );
+        $message = t('admin.deposit_rate_updated');
+        $messageType = 'success';
+    }
+
     if ($_POST['action'] === 'save_openrouter_settings') {
         $orApiKey = trim((string) ($_POST['openrouter_api_key'] ?? ''));
         $orModel = trim((string) ($_POST['openrouter_model'] ?? ''));
@@ -177,7 +187,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         $messageType = 'success';
     }
 
-    if (!in_array($_POST['action'], ['update_rates', 'toggle_bank', 'toggle_currency', 'toggle_homepage', 'set_default_bank', 'update_rate_order', 'set_chart_defaults', 'save_widget_config', 'toggle_noindex', 'set_retention_days', 'save_openrouter_settings'], true)) {
+    if (!in_array($_POST['action'], ['update_rates', 'toggle_bank', 'toggle_currency', 'toggle_homepage', 'set_default_bank', 'update_rate_order', 'set_chart_defaults', 'save_widget_config', 'toggle_noindex', 'set_retention_days', 'save_deposit_rate', 'save_openrouter_settings'], true)) {
         header('Location: admin.php');
         exit;
     }
@@ -217,6 +227,8 @@ $chartDefaultDays = Database::queryOne('SELECT value FROM settings WHERE `key` =
 $chartDefaultDaysValue = (int) ($chartDefaultDays['value'] ?? 30);
 $retentionDaysRow = Database::queryOne('SELECT value FROM settings WHERE `key` = ?', ['rate_history_retention_days']);
 $retentionDaysValue = (int) ($retentionDaysRow['value'] ?? (defined('RATE_HISTORY_RETENTION_DAYS') ? RATE_HISTORY_RETENTION_DAYS : 1825));
+$depositRateRow = Database::queryOne('SELECT value FROM settings WHERE `key` = ?', ['deposit_interest_rate']);
+$depositRateValue = $depositRateRow ? (float) $depositRateRow['value'] : 40.0;
 $currentLocale = getAppLocale();
 $csrfToken = getCsrfToken();
 $version = getAppVersion();
@@ -426,6 +438,32 @@ foreach ($allRates as $r) {
                         <p style="font-size:0.82rem; color:var(--text-muted); margin:0 0 12px;">
                             <?= t('admin.retention_hint') ?>
                         </p>
+                        <button type="submit" class="btn btn-primary"><?= t('admin.save') ?></button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Deposit Interest Rate -->
+            <div class="admin-card">
+                <div class="admin-card-header">
+                    <div class="admin-card-header-left">
+                        <div class="admin-card-icon" style="background: linear-gradient(135deg, #10b98120, #059e6020);">🏦</div>
+                        <div>
+                            <h2><?= t('admin.deposit_rate_title') ?></h2>
+                            <p><?= t('admin.deposit_rate_desc') ?></p>
+                        </div>
+                    </div>
+                </div>
+                <div class="admin-card-body">
+                    <form method="POST" class="settings-form">
+                        <input type="hidden" name="action" value="save_deposit_rate">
+                        <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
+                        <div class="form-field">
+                            <label for="deposit_interest_rate"><?= t('admin.deposit_rate_label') ?></label>
+                            <input type="number" id="deposit_interest_rate" name="deposit_interest_rate"
+                                   value="<?= $depositRateValue ?>" step="0.1" min="0" max="200"
+                                   style="max-width: 120px">
+                        </div>
                         <button type="submit" class="btn btn-primary"><?= t('admin.save') ?></button>
                     </form>
                 </div>

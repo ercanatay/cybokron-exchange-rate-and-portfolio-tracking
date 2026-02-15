@@ -427,6 +427,9 @@ return [
     'portfolio.goals.period_9m' => '9 أشهر',
     'portfolio.goals.period_1y' => 'سنة واحدة',
     'portfolio.goals.period_custom' => 'مخصص',
+    'portfolio.goals.deposit_label' => 'لو كان في وديعة',
+    'portfolio.goals.deposit_better' => 'فرق',
+    'portfolio.goals.deposit_worse' => 'ميزة',
     'common.add' => 'إضافة',
     'common.select_all' => 'تحديد الكل',
     'common.delete' => 'حذف',
@@ -551,6 +554,11 @@ return [
     'admin.retention_year' => 'سنة',
     'admin.retention_hint' => 'سيتم حذف بيانات سجل الأسعار الأقدم من هذه المدة تلقائياً بواسطة مهمة التنظيف المجدولة.',
     'admin.retention_updated' => 'تم تحديث مدة الاحتفاظ بالبيانات.',
+
+    'admin.deposit_rate_title' => 'سعر فائدة الودائع',
+    'admin.deposit_rate_desc' => 'سعر الفائدة الصافي السنوي المستخدم لمقارنة الأهداف.',
+    'admin.deposit_rate_label' => 'سعر الفائدة الصافي السنوي (%)',
+    'admin.deposit_rate_updated' => 'تم تحديث سعر فائدة الودائع.',
 
     // Self-Healing
     'selfhealing.title' => 'سجل الإصلاح التلقائي',
