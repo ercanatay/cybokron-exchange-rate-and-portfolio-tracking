@@ -91,7 +91,12 @@ function applySecurityHeaders(string $context = 'html'): void
 
     $cspPolicy = defined('CSP_POLICY')
         ? trim((string) CSP_POLICY)
-        : "default-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'; object-src 'none'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://cdn.jsdelivr.net";
+        : '';
+    if ($cspPolicy === '') {
+        // Generate nonce for inline scripts/styles (avoids unsafe-inline)
+        $nonce = getCspNonce();
+        $cspPolicy = "default-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'; object-src 'none'; script-src 'self' 'nonce-{$nonce}' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://cdn.jsdelivr.net";
+    }
     if ($cspPolicy !== '') {
         header('Content-Security-Policy: ' . $cspPolicy);
     }
@@ -781,6 +786,18 @@ function localizedCurrencyName(array $row): string
     }
 
     return '';
+}
+
+/**
+ * Get or generate a CSP nonce for the current request.
+ */
+function getCspNonce(): string
+{
+    static $nonce = null;
+    if ($nonce === null) {
+        $nonce = base64_encode(random_bytes(16));
+    }
+    return $nonce;
 }
 
 /**

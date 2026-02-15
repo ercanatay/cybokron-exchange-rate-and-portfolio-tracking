@@ -207,7 +207,10 @@ abstract class Scraper
     protected function createXPath(string $html): DOMXPath
     {
         $dom = new DOMDocument();
-        @$dom->loadHTML('<?xml encoding="UTF-8">' . $html);
+        $prevUseErrors = libxml_use_internal_errors(true);
+        $dom->loadHTML('<?xml encoding="UTF-8">' . $html);
+        libxml_clear_errors();
+        libxml_use_internal_errors($prevUseErrors);
         return new DOMXPath($dom);
     }
 

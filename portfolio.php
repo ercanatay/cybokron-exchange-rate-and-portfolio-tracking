@@ -685,7 +685,7 @@ $annualizedReturn = ($oldestDate && $analyticsCost > 0)
     'description' => t('seo.portfolio_description'),
     'page' => 'portfolio.php',
 ]) ?>
-    <script>(function(){try{var t=localStorage.getItem('cybokron_theme');if(t==='light'||t==='dark'){document.documentElement.setAttribute('data-theme',t)}else if(window.matchMedia('(prefers-color-scheme:light)').matches){document.documentElement.setAttribute('data-theme','light')}}catch(e){}})();</script>
+    <script nonce="<?= getCspNonce() ?>">(function(){try{var t=localStorage.getItem('cybokron_theme');if(t==='light'||t==='dark'){document.documentElement.setAttribute('data-theme',t)}else if(window.matchMedia('(prefers-color-scheme:light)').matches){document.documentElement.setAttribute('data-theme','light')}}catch(e){}})();</script>
     <link rel="icon" type="image/svg+xml" href="favicon.svg">
     <link rel="stylesheet" href="assets/css/style.css?v=<?= filemtime(__DIR__ . '/assets/css/style.css') ?>">
 </head>
@@ -1584,7 +1584,7 @@ $annualizedReturn = ($oldestDate && $analyticsCost > 0)
                                 <canvas id="portfolio-pie-chart" role="img"
                                     aria-label="<?= htmlspecialchars(t('portfolio.analytics.distribution')) ?>"></canvas>
                             </div>
-                            <script>
+                            <script nonce="<?= getCspNonce() ?>">
                                 window.portfolioDistribution = <?= json_encode($distribution) ?>;
                             </script>
                         </div>
@@ -1955,7 +1955,7 @@ $annualizedReturn = ($oldestDate && $analyticsCost > 0)
             </p>
         </div>
     </footer>
-    <script>
+    <script nonce="<?= getCspNonce() ?>">
         /* ─── Panel Toggle (Collapse/Expand) ─────────────────────────────────── */
         function toggleManagePanel() {
             var panel = document.getElementById('manage-panel');

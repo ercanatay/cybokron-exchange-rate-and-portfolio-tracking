@@ -19,5 +19,6 @@ imagefilledellipse($img, $size / 2, $size / 2, $size * 0.6, $size * 0.6, $accent
 
 header('Content-Type: image/png');
 header('Cache-Control: public, max-age=86400');
+header('X-Content-Type-Options: nosniff');
 imagepng($img);
 imagedestroy($img);

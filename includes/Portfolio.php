@@ -1158,7 +1158,7 @@ class Portfolio
         if (class_exists('Auth') && Auth::check() && !Auth::isAdmin()) {
             $uid = Auth::id();
             if ($uid !== null) {
-                $sourceOwnerWhere .= ' AND (user_id IS NULL OR user_id = ?)';
+                $sourceOwnerWhere .= ' AND user_id = ?';
                 $sourceOwnerParams[] = $uid;
             }
         }

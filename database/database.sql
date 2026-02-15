@@ -130,7 +130,7 @@ CREATE TABLE IF NOT EXISTS `alerts` (
 
 CREATE TABLE IF NOT EXISTS `portfolio_groups` (
     `id` int unsigned NOT NULL AUTO_INCREMENT,
-    `user_id` int unsigned DEFAULT NULL,
+    `user_id` int unsigned NOT NULL,
     `name` varchar(100) NOT NULL,
     `slug` varchar(100) NOT NULL,
     `color` varchar(7) NOT NULL DEFAULT '#3b82f6',
@@ -175,7 +175,7 @@ CREATE TABLE IF NOT EXISTS `portfolio` (
 
 CREATE TABLE IF NOT EXISTS `portfolio_tags` (
     `id` int unsigned NOT NULL AUTO_INCREMENT,
-    `user_id` int unsigned DEFAULT NULL,
+    `user_id` int unsigned NOT NULL,
     `name` varchar(50) NOT NULL,
     `slug` varchar(100) NOT NULL,
     `color` varchar(7) NOT NULL DEFAULT '#8b5cf6',
@@ -204,7 +204,7 @@ CREATE TABLE IF NOT EXISTS `portfolio_tag_items` (
 
 CREATE TABLE IF NOT EXISTS `portfolio_goals` (
     `id` int unsigned NOT NULL AUTO_INCREMENT,
-    `user_id` int unsigned DEFAULT NULL,
+    `user_id` int unsigned NOT NULL,
     `name` varchar(100) NOT NULL,
     `target_value` decimal(18,6) NOT NULL COMMENT 'Target value in TRY',
     `target_type` varchar(20) NOT NULL DEFAULT 'value',

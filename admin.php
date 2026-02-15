@@ -291,7 +291,7 @@ foreach ($allRates as $r) {
     'description' => t('seo.admin_description'),
     'page' => 'admin.php',
 ]) ?>
-    <script>(function(){try{var t=localStorage.getItem('cybokron_theme');if(t==='light'||t==='dark'){document.documentElement.setAttribute('data-theme',t)}else if(window.matchMedia('(prefers-color-scheme:light)').matches){document.documentElement.setAttribute('data-theme','light')}}catch(e){}})();</script>
+    <script nonce="<?= htmlspecialchars(getCspNonce()) ?>">(function(){try{var t=localStorage.getItem('cybokron_theme');if(t==='light'||t==='dark'){document.documentElement.setAttribute('data-theme',t)}else if(window.matchMedia('(prefers-color-scheme:light)').matches){document.documentElement.setAttribute('data-theme','light')}}catch(e){}})();</script>
     <link rel="icon" type="image/svg+xml" href="favicon.svg">
     <link rel="stylesheet" href="assets/css/style.css?v=<?= filemtime(__DIR__ . '/assets/css/style.css') ?>">
     <link rel="stylesheet" href="assets/css/admin.css">
@@ -998,7 +998,7 @@ foreach ($allRates as $r) {
         </div>
     </footer>
 
-    <script>
+    <script nonce="<?= getCspNonce() ?>">
         // ── Toast system ──
         function showToast(msg, type) {
             var c = document.getElementById('toast-container');

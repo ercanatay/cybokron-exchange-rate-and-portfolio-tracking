@@ -165,7 +165,7 @@ $_isAdmin = Auth::check() && Auth::isAdmin();
         </div>
     </div>
 </header>
-<script>
+<script nonce="<?= getCspNonce() ?>">
 (function () {
     // Mobile menu toggle
     var btn = document.getElementById('header-menu-toggle');
