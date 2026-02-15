@@ -28,6 +28,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     if ($_POST['action'] === 'test_connection') {
         $dbKey = Database::queryOne('SELECT value FROM settings WHERE `key` = ?', ['openrouter_api_key']);
         $apiKey = trim($dbKey['value'] ?? '');
+        if ($apiKey !== '') {
+            $apiKey = decryptSettingValue($apiKey);
+        }
         if ($apiKey === '') {
             $apiKey = defined('OPENROUTER_API_KEY') ? trim((string) OPENROUTER_API_KEY) : '';
         }
@@ -86,6 +89,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
 
 $dbApiKeyRow = Database::queryOne('SELECT value FROM settings WHERE `key` = ?', ['openrouter_api_key']);
 $apiKey = trim($dbApiKeyRow['value'] ?? '');
+if ($apiKey !== '') {
+    $apiKey = decryptSettingValue($apiKey);
+}
 if ($apiKey === '') {
     $apiKey = defined('OPENROUTER_API_KEY') ? trim((string) OPENROUTER_API_KEY) : '';
 }

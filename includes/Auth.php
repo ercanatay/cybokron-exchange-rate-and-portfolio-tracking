@@ -50,6 +50,19 @@ class Auth
         if (session_status() === PHP_SESSION_ACTIVE) {
             unset($_SESSION[self::SESSION_KEY], $_SESSION['cybokron_username'], $_SESSION['cybokron_role']);
             session_destroy();
+
+            // Expire session cookie to clear it from the browser
+            if (ini_get('session.use_cookies')) {
+                $params = session_get_cookie_params();
+                setcookie(session_name(), '', [
+                    'expires'  => time() - 3600,
+                    'path'     => $params['path'],
+                    'domain'   => $params['domain'],
+                    'secure'   => $params['secure'],
+                    'httponly'  => $params['httponly'],
+                    'samesite' => $params['samesite'] ?? 'Lax',
+                ]);
+            }
         }
     }
 

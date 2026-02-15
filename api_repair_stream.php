@@ -39,22 +39,13 @@ if ($bankId === null || $bankId === false || $bankId < 1) {
     exit;
 }
 
-// ── Rate limit: 5 repair attempts per minute per session ────────────────────
-$now = time();
-$_SESSION['repair_rate_limit'] = $_SESSION['repair_rate_limit'] ?? [];
-$_SESSION['repair_rate_limit'] = array_filter(
-    $_SESSION['repair_rate_limit'],
-    fn($ts) => ($now - $ts) < 60
-);
-
-if (count($_SESSION['repair_rate_limit']) >= 5) {
+// ── Rate limit: 5 repair attempts per minute per IP ─────────────────────────
+if (!enforceIpRateLimit('repair_stream', 5, 60)) {
     http_response_code(429);
     header('Content-Type: text/plain');
     echo 'Rate limit exceeded. Max 5 repairs per minute.';
     exit;
 }
-
-$_SESSION['repair_rate_limit'][] = $now;
 
 // ── Release session lock so other pages work during the long SSE stream ─────
 session_write_close();

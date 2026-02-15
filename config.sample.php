@@ -16,7 +16,7 @@ define('DB_CHARSET', 'utf8mb4');
 
 // ─── Application ─────────────────────────────────────────────────────────────
 define('APP_NAME', 'Cybokron Exchange Rate & Portfolio Tracking');
-define('APP_URL', 'http://localhost/cybokron');
+define('APP_URL', 'https://localhost/cybokron');
 define('APP_TIMEZONE', 'Europe/Istanbul');
 define('APP_DEBUG', false);
 define('ENABLE_SECURITY_HEADERS', true);

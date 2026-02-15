@@ -181,9 +181,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         $orModel = trim((string) ($_POST['openrouter_model'] ?? ''));
 
         if ($orApiKey !== '' && strlen($orApiKey) <= 500 && preg_match('/^[a-zA-Z0-9_\-:.]+$/', $orApiKey)) {
+            $encryptedKey = encryptSettingValue($orApiKey);
             Database::query(
                 'INSERT INTO settings (`key`, value) VALUES (?, ?) ON DUPLICATE KEY UPDATE value = ?',
-                ['openrouter_api_key', $orApiKey, $orApiKey]
+                ['openrouter_api_key', $encryptedKey, $encryptedKey]
             );
         }
 
@@ -791,6 +792,9 @@ foreach ($allRates as $r) {
             <?php
             $dbApiKey = Database::queryOne('SELECT value FROM settings WHERE `key` = ?', ['openrouter_api_key']);
             $dbApiKeyVal = trim($dbApiKey['value'] ?? '');
+            if ($dbApiKeyVal !== '') {
+                $dbApiKeyVal = decryptSettingValue($dbApiKeyVal);
+            }
             $effectiveApiKey = $dbApiKeyVal !== '' ? $dbApiKeyVal : (defined('OPENROUTER_API_KEY') ? trim((string) OPENROUTER_API_KEY) : '');
             $maskedKey = $effectiveApiKey !== '' ? str_repeat('*', max(0, strlen($effectiveApiKey) - 4)) . substr($effectiveApiKey, -4) : '';
             $keySource = $dbApiKeyVal !== '' ? 'DB' : ($effectiveApiKey !== '' ? 'config.php' : '');

@@ -16,6 +16,20 @@ require_once __DIR__ . '/../includes/OpenRouterRateRepair.php';
 require_once __DIR__ . '/../includes/Updater.php';
 ensureCliExecution();
 
+// ── Prevent concurrent execution via file lock ──────────────────────────────
+$lockFile = sys_get_temp_dir() . '/cybokron_update_rates.lock';
+$lockFp = fopen($lockFile, 'c');
+if ($lockFp === false || !flock($lockFp, LOCK_EX | LOCK_NB)) {
+    echo "Another update_rates instance is already running. Exiting.\n";
+    cybokron_log('update_rates: skipped — another instance is running', 'WARNING');
+    exit(0);
+}
+register_shutdown_function(function () use ($lockFp, $lockFile) {
+    flock($lockFp, LOCK_UN);
+    fclose($lockFp);
+    @unlink($lockFile);
+});
+
 // Load active banks from database
 $activeBanks = Database::query('SELECT id, name, slug, url, scraper_class FROM banks WHERE is_active = 1');
 
