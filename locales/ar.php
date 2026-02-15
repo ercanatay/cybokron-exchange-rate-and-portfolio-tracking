@@ -428,6 +428,8 @@ return [
     'portfolio.goals.period_1y' => 'سنة واحدة',
     'portfolio.goals.period_custom' => 'مخصص',
     'portfolio.goals.deposit_label' => 'لو كان في وديعة',
+    'portfolio.goals.deposit_current' => 'الحالي',
+    'portfolio.goals.deposit_rate_info' => '{{rate}}% · {{days}} يوم',
     'portfolio.goals.deposit_better' => 'فرق',
     'portfolio.goals.deposit_worse' => 'ميزة',
     'portfolio.goals.deposit_rate_label' => 'معدل الإيداع (%)',

@@ -1288,6 +1288,7 @@ class Portfolio
                 $totalValue = 0.0;
                 $weightedSum = 0.0;
                 $depositTotal = 0.0;
+                $depositMaxDays = 0;
 
                 foreach ($matchedItemIds as $itemId => $ignored) {
                     $item = $itemsById[$itemId] ?? null;
@@ -1327,6 +1328,7 @@ class Portfolio
                         if ($buyDateObj) {
                             $daysDiff = max(0, (int) $buyDateObj->diff($today)->days);
                             $depositTotal += $itemCost * pow(1 + $goalDepositRate / 100, $daysDiff / 365);
+                            if ($daysDiff > $depositMaxDays) $depositMaxDays = $daysDiff;
                         }
                     }
                 }
@@ -1356,6 +1358,7 @@ class Portfolio
                     'deadline_months' => $deadlineMonths,
                     'deposit_value' => round($depositTotal, 2),
                     'deposit_rate' => $goalDepositRate,
+                    'deposit_days' => $depositMaxDays,
                 ];
                 continue;
             }
@@ -1366,6 +1369,7 @@ class Portfolio
                 $totalValue = 0.0;
                 $earliestDate = null;
                 $depositTotal = 0.0;
+                $depositMaxDays = 0;
 
                 foreach ($matchedItemIds as $itemId => $ignored) {
                     $item = $itemsById[$itemId] ?? null;
@@ -1398,6 +1402,7 @@ class Portfolio
                         if ($buyDateObj) {
                             $daysDiff = max(0, (int) $buyDateObj->diff($today)->days);
                             $depositTotal += $itemCost * pow(1 + $goalDepositRate / 100, $daysDiff / 365);
+                            if ($daysDiff > $depositMaxDays) $depositMaxDays = $daysDiff;
                         }
                     }
                 }
@@ -1433,6 +1438,7 @@ class Portfolio
                     'deadline_months' => $deadlineMonths,
                     'deposit_value' => round($depositTotal, 2),
                     'deposit_rate' => $goalDepositRate,
+                    'deposit_days' => $depositMaxDays,
                 ];
                 continue;
             }
@@ -1442,6 +1448,7 @@ class Portfolio
                 $totalCost = 0.0;
                 $totalValue = 0.0;
                 $depositTotal = 0.0;
+                $depositMaxDays = 0;
 
                 foreach ($matchedItemIds as $itemId => $ignored) {
                     $item = $itemsById[$itemId] ?? null;
@@ -1469,6 +1476,7 @@ class Portfolio
                         if ($buyDateObj) {
                             $daysDiff = max(0, (int) $buyDateObj->diff($today)->days);
                             $depositTotal += $itemCost * pow(1 + $goalDepositRate / 100, $daysDiff / 365);
+                            if ($daysDiff > $depositMaxDays) $depositMaxDays = $daysDiff;
                         }
                     }
                 }
@@ -1497,11 +1505,13 @@ class Portfolio
                     'deadline_months' => $deadlineMonths,
                     'deposit_value' => round($depositTotal, 2),
                     'deposit_rate' => $goalDepositRate,
+                    'deposit_days' => $depositMaxDays,
                 ];
                 continue;
             }
 
             $depositTotal = 0.0;
+            $depositMaxDays = 0;
             foreach ($matchedItemIds as $itemId => $ignored) {
                 $item = $itemsById[$itemId] ?? null;
                 if (!$item) continue;
@@ -1544,6 +1554,7 @@ class Portfolio
                         $daysDiff = max(0, (int) $buyDateObj->diff($today)->days);
                         $itemCostTry = (float) ($item['cost_try'] ?? 0);
                         $depositTotal += $itemCostTry * pow(1 + $goalDepositRate / 100, $daysDiff / 365);
+                        if ($daysDiff > $depositMaxDays) $depositMaxDays = $daysDiff;
                     }
                 }
             }
@@ -1580,6 +1591,7 @@ class Portfolio
                 'deadline_months' => $deadlineMonths,
                 'deposit_value' => round($depositTotal, 2),
                 'deposit_rate' => $goalDepositRate,
+                'deposit_days' => $depositMaxDays,
             ];
         }
 

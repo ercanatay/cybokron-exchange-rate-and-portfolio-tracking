@@ -478,6 +478,8 @@ return [
     'portfolio.goals.period_1y' => '1 Yıl',
     'portfolio.goals.period_custom' => 'Özel',
     'portfolio.goals.deposit_label' => 'Mevduatta olsaydı',
+    'portfolio.goals.deposit_current' => 'Şu an',
+    'portfolio.goals.deposit_rate_info' => '%{{rate}} · {{days}} gün',
     'portfolio.goals.deposit_better' => 'fark',
     'portfolio.goals.deposit_worse' => 'avantaj',
     'portfolio.goals.deposit_rate_label' => 'Mevduat Faizi (%)',

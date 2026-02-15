@@ -1185,6 +1185,8 @@ $annualizedReturn = ($oldestDate && $analyticsCost > 0)
                                                 <?php
                                                     $depositValue = (float) $gp['deposit_value'];
                                                     $currentTryValue = (float) ($gp['current'] ?? 0);
+                                                    $depositRate = (float) ($gp['deposit_rate'] ?? 0);
+                                                    $depositDays = (int) ($gp['deposit_days'] ?? 0);
                                                     // Only show diff for value/cost goals where current is in TRY
                                                     $showDiff = in_array($goalTargetType, ['value', 'cost']);
                                                     if ($showDiff) {
@@ -1194,10 +1196,12 @@ $annualizedReturn = ($oldestDate && $analyticsCost > 0)
                                                         $depositDiff = 0;
                                                         $depositBetter = false;
                                                     }
+                                                    $depositRateStr = rtrim(rtrim(number_format($depositRate, 2, ',', '.'), '0'), ',');
                                                 ?>
                                                 <div class="goal-deposit-comparison <?= $showDiff ? ($depositBetter ? 'deposit-better' : 'deposit-worse') : '' ?>">
-                                                    🏦 <?= t('portfolio.goals.deposit_label') ?>: <?= formatTRY($depositValue) ?>
+                                                    🏦 <?= t('portfolio.goals.deposit_label') ?> (<?= t('portfolio.goals.deposit_rate_info', ['rate' => $depositRateStr, 'days' => $depositDays]) ?>): <?= formatTRY($depositValue) ?>
                                                     <?php if ($showDiff): ?>
+                                                        <br><?= t('portfolio.goals.deposit_current') ?>: <?= formatTRY($currentTryValue) ?>
                                                         <span class="deposit-diff">(<?= $depositBetter ? '+' : '' ?><?= formatTRY($depositDiff) ?> <?= $depositBetter ? t('portfolio.goals.deposit_better') : t('portfolio.goals.deposit_worse') ?>)</span>
                                                     <?php endif; ?>
                                                 </div>
