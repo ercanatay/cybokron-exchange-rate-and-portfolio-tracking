@@ -430,6 +430,8 @@ return [
     'portfolio.goals.deposit_label' => 'Als Einlage',
     'portfolio.goals.deposit_better' => 'Differenz',
     'portfolio.goals.deposit_worse' => 'Vorteil',
+    'portfolio.goals.deposit_rate_label' => 'Einlagenzins (%)',
+    'portfolio.goals.deposit_rate_placeholder' => 'Standard: {{rate}}%',
     'common.add' => 'Hinzufügen',
     'common.select_all' => 'Alle auswählen',
     'common.delete' => 'Löschen',

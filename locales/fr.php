@@ -430,6 +430,8 @@ return [
     'portfolio.goals.deposit_label' => 'En dépôt',
     'portfolio.goals.deposit_better' => 'écart',
     'portfolio.goals.deposit_worse' => 'avantage',
+    'portfolio.goals.deposit_rate_label' => 'Taux de dépôt (%)',
+    'portfolio.goals.deposit_rate_placeholder' => 'Par défaut : {{rate}}%',
     'common.add' => 'Ajouter',
     'common.select_all' => 'Tout sélectionner',
     'common.delete' => 'Supprimer',

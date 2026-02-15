@@ -480,6 +480,8 @@ return [
     'portfolio.goals.deposit_label' => 'Mevduatta olsaydı',
     'portfolio.goals.deposit_better' => 'fark',
     'portfolio.goals.deposit_worse' => 'avantaj',
+    'portfolio.goals.deposit_rate_label' => 'Mevduat Faizi (%)',
+    'portfolio.goals.deposit_rate_placeholder' => 'Varsayılan: %{{rate}}',
 
     'common.add' => 'Ekle',
     'common.select_all' => 'Tümünü seç',

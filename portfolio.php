@@ -421,6 +421,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'percent_date_end' => $_POST['goal_percent_date_end'] ?? '',
                 'percent_period_months' => $_POST['goal_percent_period_months'] ?? 12,
                 'goal_deadline' => $_POST['goal_deadline'] ?? '',
+                'deposit_rate' => $_POST['goal_deposit_rate'] ?? '',
             ]);
             // Add sources if provided
             $srcTypes = $_POST['goal_source_type'] ?? [];
@@ -454,6 +455,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'percent_date_end' => $_POST['goal_percent_date_end'] ?? '',
                 'percent_period_months' => $_POST['goal_percent_period_months'] ?? 12,
                 'goal_deadline' => $_POST['goal_deadline'] ?? '',
+                'deposit_rate' => $_POST['goal_deposit_rate'] ?? '',
             ]);
             // Re-sync sources: remove all then add
             $existingSources = Portfolio::getGoalSources($goalId);
@@ -544,6 +546,9 @@ foreach ($latestRates as $lr) {
     }
 }
 $goalProgress = Portfolio::computeGoalProgress($goals, $summary['items'] ?? [], $itemTags, $goalSources, $currencyRatesMap);
+// Read admin default deposit rate for form placeholders
+$adminDepositRateRow = Database::queryOne('SELECT value FROM settings WHERE `key` = ?', ['deposit_interest_rate']);
+$adminDepositRate = $adminDepositRateRow ? (float) $adminDepositRateRow['value'] : 40.0;
 // Distribution & annualized return will be recalculated after filters are applied
 $currencies = Database::query('SELECT code, name_tr, name_en FROM currencies WHERE is_active = 1 ORDER BY code');
 $banks = Database::query('SELECT slug, name FROM banks WHERE is_active = 1 ORDER BY name');
@@ -955,6 +960,10 @@ $annualizedReturn = ($oldestDate && $analyticsCost > 0)
                                     <label id="goal-target-label-add"><?= t('portfolio.goals.target_value') ?></label>
                                     <input type="number" name="goal_target_value" step="0.000001" min="0.000001" required placeholder="500000">
                                 </div>
+                                <div class="goal-form-field">
+                                    <label><?= t('portfolio.goals.deposit_rate_label') ?></label>
+                                    <input type="number" name="goal_deposit_rate" step="0.1" min="0" max="200" placeholder="<?= t('portfolio.goals.deposit_rate_placeholder', ['rate' => $adminDepositRate]) ?>">
+                                </div>
                                 <div class="goal-form-field goal-deadline-field" id="goal-deadline-add" style="display:none">
                                     <label><?= t('portfolio.goals.deadline') ?></label>
                                     <select name="goal_deadline_preset" onchange="deadlinePresetChanged(this, 'add')">
@@ -1279,6 +1288,10 @@ $annualizedReturn = ($oldestDate && $analyticsCost > 0)
                                             <div class="goal-form-field">
                                                 <label id="goal-target-label-edit-<?= (int)$goal['id'] ?>"><?= $isPercentGoal ? t('portfolio.goals.target_percent') : ($isCagrGoal ? t('portfolio.goals.target_cagr') : ($isDrawdownGoal ? t('portfolio.goals.target_drawdown') : ($isAmountGoal ? t('portfolio.goals.target_amount') : ($isCurrencyValueGoal ? t('portfolio.goals.target_currency_value_label') : t('portfolio.goals.target_value'))))) ?></label>
                                                 <input type="number" name="goal_target_value" step="0.000001" value="<?= (float)$goal['target_value'] ?>" required>
+                                            </div>
+                                            <div class="goal-form-field">
+                                                <label><?= t('portfolio.goals.deposit_rate_label') ?></label>
+                                                <input type="number" name="goal_deposit_rate" step="0.1" min="0" max="200" value="<?= $goal['deposit_rate'] !== null ? (float)$goal['deposit_rate'] : '' ?>" placeholder="<?= t('portfolio.goals.deposit_rate_placeholder', ['rate' => $adminDepositRate]) ?>">
                                             </div>
                                             <?php
                                                 $editPercentMode = $goal['percent_date_mode'] ?? 'all';

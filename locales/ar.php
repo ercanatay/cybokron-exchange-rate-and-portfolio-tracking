@@ -430,6 +430,8 @@ return [
     'portfolio.goals.deposit_label' => 'لو كان في وديعة',
     'portfolio.goals.deposit_better' => 'فرق',
     'portfolio.goals.deposit_worse' => 'ميزة',
+    'portfolio.goals.deposit_rate_label' => 'معدل الإيداع (%)',
+    'portfolio.goals.deposit_rate_placeholder' => 'افتراضي: {{rate}}%',
     'common.add' => 'إضافة',
     'common.select_all' => 'تحديد الكل',
     'common.delete' => 'حذف',
