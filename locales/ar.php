@@ -380,6 +380,7 @@ return [
     'portfolio.goals.delete_confirm' => 'هل أنت متأكد أنك تريد حذف هذا الهدف؟',
     'portfolio.goals.empty' => 'لم يتم إنشاء أهداف بعد.',
     'portfolio.goals.added' => 'تم إنشاء الهدف.',
+    'portfolio.goals.update_failed' => 'تعذر تحديث الهدف.',
     'portfolio.goals.updated' => 'تم تحديث الهدف.',
     'portfolio.goals.deleted' => 'تم حذف الهدف.',
     'portfolio.goals.error' => 'فشلت عملية الهدف.',

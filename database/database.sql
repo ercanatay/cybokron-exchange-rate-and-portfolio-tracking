@@ -122,7 +122,8 @@ CREATE TABLE IF NOT EXISTS `alerts` (
     `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (`id`),
     KEY `idx_currency_active` (`currency_code`,`is_active`),
-    KEY `idx_alerts_user` (`user_id`)
+    KEY `idx_alerts_user` (`user_id`),
+    CONSTRAINT `fk_alerts_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ─── Portfolio Groups ────────────────────────────────────────────────────────
@@ -160,6 +161,7 @@ CREATE TABLE IF NOT EXISTS `portfolio` (
     PRIMARY KEY (`id`),
     KEY `idx_bank_currency` (`bank_id`,`currency_id`),
     KEY `idx_user_id` (`user_id`),
+    KEY `idx_portfolio_user_deleted` (`user_id`, `deleted_at`),
     KEY `idx_currency` (`currency_id`),
     KEY `idx_buy_date` (`buy_date`),
     KEY `idx_portfolio_group` (`group_id`),
@@ -381,6 +383,6 @@ INSERT IGNORE INTO `currencies` (`code`, `name_tr`, `name_en`, `symbol`, `type`,
 ('XPT', 'Platin', 'Platinum', 'XPT', 'precious_metal', 4),
 ('XPD', 'Paladyum', 'Palladium', 'XPD', 'precious_metal', 4);
 
--- Default admin user (password: admin123 — change after first login!)
+-- Default admin user (CHANGE PASSWORD IMMEDIATELY after install!)
 INSERT IGNORE INTO `users` (`username`, `password_hash`, `role`, `is_active`) VALUES
 ('admin', '$2y$10$placeholder_change_after_install', 'admin', 1);

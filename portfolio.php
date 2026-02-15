@@ -444,7 +444,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($messageType === '' && $action === 'edit_goal') {
         try {
             $goalId = (int) ($_POST['goal_id'] ?? 0);
-            Portfolio::updateGoal($goalId, [
+            $updated = Portfolio::updateGoal($goalId, [
                 'name' => $_POST['goal_name'] ?? '',
                 'target_value' => $_POST['goal_target_value'] ?? 0,
                 'target_type' => $_POST['goal_target_type'] ?? 'value',
@@ -457,6 +457,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'goal_deadline' => $_POST['goal_deadline'] ?? '',
                 'deposit_rate' => $_POST['goal_deposit_rate'] ?? '',
             ]);
+            if (!$updated) {
+                throw new Exception(t('portfolio.goals.update_failed'));
+            }
             // Re-sync sources: remove all then add
             $existingSources = Portfolio::getGoalSources($goalId);
             foreach ($existingSources as $es) {

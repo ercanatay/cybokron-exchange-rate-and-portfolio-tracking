@@ -380,6 +380,7 @@ return [
     'portfolio.goals.delete_confirm' => 'Möchten Sie dieses Ziel wirklich löschen?',
     'portfolio.goals.empty' => 'Noch keine Ziele erstellt.',
     'portfolio.goals.added' => 'Ziel erstellt.',
+    'portfolio.goals.update_failed' => 'Ziel konnte nicht aktualisiert werden.',
     'portfolio.goals.updated' => 'Ziel aktualisiert.',
     'portfolio.goals.deleted' => 'Ziel gelöscht.',
     'portfolio.goals.error' => 'Zieloperation fehlgeschlagen.',
