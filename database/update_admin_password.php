@@ -37,6 +37,13 @@ if (empty($hash)) {
     exit(0);
 }
 
+// Validate that the hash looks like a bcrypt hash (prevent arbitrary strings being stored)
+if (!str_starts_with($hash, '$2y$') && !str_starts_with($hash, '$2b$') && !str_starts_with($hash, '$2a$')) {
+    echo "ERROR: ADMIN_HASH is not a valid bcrypt hash (must start with \$2y\$, \$2b\$, or \$2a\$).\n";
+    echo "Generate one with: php -r \"echo password_hash('your-password', PASSWORD_BCRYPT), PHP_EOL;\"\n";
+    exit(1);
+}
+
 $configFile = __DIR__ . '/../config.php';
 if (!file_exists($configFile)) {
     die("Config not found.\n");

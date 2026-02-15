@@ -167,7 +167,7 @@ class OpenRouterRateRepair
     {
         $dbKey = $this->getSetting('openrouter_api_key');
         if ($dbKey !== null && trim($dbKey) !== '') {
-            return trim($dbKey);
+            return trim(decryptSettingValue(trim($dbKey)));
         }
 
         return trim((string) (defined('OPENROUTER_API_KEY') ? OPENROUTER_API_KEY : ''));

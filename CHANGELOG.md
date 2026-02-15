@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.10.8] - 2026-02-15
+
+Security hardening v3 — addresses remaining audit findings and PR #25 analysis (Jules AI, Codex).
+
+### Security Fixes
+- **CSRF token rotation** — Token is regenerated after each successful POST verification, preventing replay attacks
+- **API key encryption at rest** — OpenRouter API key stored encrypted (AES-256-GCM) in database settings instead of plaintext; backwards-compatible decryption for existing plaintext values
+- **Env hash validation** — `update_admin_password.php` now validates bcrypt prefix (`$2y$`/`$2b$`/`$2a$`) before accepting ADMIN_HASH, rejecting arbitrary strings
+- **Logout cookie expiry** — `Auth::logout()` now explicitly expires the session cookie via `setcookie()` to clear it from the browser
+- **Repair rate limit hardened** — `api_repair_stream.php` now uses IP-based rate limiting (`enforceIpRateLimit`) instead of session-only, preventing bypass via session cycling
+- **Translation XSS prevention** — `t()` function now HTML-escapes replacement values to prevent injection through user-controllable parameters
+
+### Bug Fixes
+- **Cron race condition** — `cron/update_rates.php` now uses `flock(LOCK_EX|LOCK_NB)` to prevent concurrent execution when cron interval is shorter than execution time
+
+### Configuration
+- `config.sample.php` now defaults APP_URL to `https://` instead of `http://`
+
 ## [1.10.7] - 2026-02-15
 
 Security hardening based on Codex AI v2 audit — 10 fixes across authentication, SSRF, authorization, and schema integrity.

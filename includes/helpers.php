@@ -517,6 +517,43 @@ function isPrivateOrReservedHost(string $url): bool
 }
 
 /**
+ * Encrypt a value for storage (e.g. API keys).
+ * Uses AES-256-GCM with a key derived from DB_PASS.
+ */
+function encryptSettingValue(string $plaintext): string
+{
+    $key = hash('sha256', DB_PASS . '|cybokron_settings_enc', true);
+    $iv = random_bytes(12);
+    $tag = '';
+    $ciphertext = openssl_encrypt($plaintext, 'aes-256-gcm', $key, OPENSSL_RAW_DATA, $iv, $tag, '', 16);
+    if ($ciphertext === false) {
+        throw new RuntimeException('Encryption failed');
+    }
+    return 'enc:' . base64_encode($iv . $tag . $ciphertext);
+}
+
+/**
+ * Decrypt a value previously encrypted with encryptSettingValue().
+ * Returns the original plaintext, or the input unchanged if not encrypted.
+ */
+function decryptSettingValue(string $stored): string
+{
+    if (!str_starts_with($stored, 'enc:')) {
+        return $stored; // not encrypted, return as-is (backwards compatible)
+    }
+    $raw = base64_decode(substr($stored, 4), true);
+    if ($raw === false || strlen($raw) < 28) { // 12 IV + 16 tag + min 0 ciphertext
+        return '';
+    }
+    $key = hash('sha256', DB_PASS . '|cybokron_settings_enc', true);
+    $iv = substr($raw, 0, 12);
+    $tag = substr($raw, 12, 16);
+    $ciphertext = substr($raw, 28);
+    $plaintext = openssl_decrypt($ciphertext, 'aes-256-gcm', $key, OPENSSL_RAW_DATA, $iv, $tag);
+    return $plaintext !== false ? $plaintext : '';
+}
+
+/**
  * Get available locales from config.
  */
 function getAvailableLocales(): array
@@ -696,7 +733,7 @@ function t(string $key, array $replacements = []): string
     $text = $messages[$key] ?? $fallbackMessages[$key] ?? $key;
 
     foreach ($replacements as $placeholder => $value) {
-        $text = str_replace('{{' . $placeholder . '}}', (string) $value, $text);
+        $text = str_replace('{{' . $placeholder . '}}', htmlspecialchars((string) $value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'), $text);
     }
 
     return $text;
@@ -773,7 +810,14 @@ function verifyCsrfToken(?string $token): bool
 
     $stored = $_SESSION['cybokron_csrf'] ?? '';
 
-    return is_string($stored) && $stored !== '' && hash_equals($stored, $token);
+    if (!is_string($stored) || $stored === '' || !hash_equals($stored, $token)) {
+        return false;
+    }
+
+    // Rotate token after successful verification to prevent replay attacks
+    $_SESSION['cybokron_csrf'] = bin2hex(random_bytes(32));
+
+    return true;
 }
 
 /**
