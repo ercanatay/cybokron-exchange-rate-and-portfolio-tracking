@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.10.2] - 2026-02-15
+
+Admin toggle and calculation info for deposit comparison.
+
+### Deposit Comparison Toggle
+- Enable/disable deposit interest comparison from admin panel
+- Toggle button on deposit card header with active/disabled badge
+- Rate input and save button disabled when feature is off
+- Portfolio goal cards respect the toggle setting
+
+### Calculation Info Box
+- Added info box in admin deposit card explaining the compound interest formula
+- Shows: Cost x (1 + Rate/100) ^ (Days/365) per asset, summed across all items
+- Mentions per-goal rate override capability
+
+### Localization
+- 8 new translation keys across all 5 languages (TR, EN, DE, FR, AR)
+
 ## [1.10.1] - 2026-02-15
 
 Per-goal deposit interest rate override.

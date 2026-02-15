@@ -557,10 +557,17 @@ return [
     'admin.retention_hint' => 'Les données d\'historique des taux plus anciennes que cette période seront automatiquement supprimées par la tâche de nettoyage planifiée.',
     'admin.retention_updated' => 'Durée de conservation des données mise à jour.',
 
-    'admin.deposit_rate_title' => 'Taux d\'intérêt du dépôt',
-    'admin.deposit_rate_desc' => 'Taux d\'intérêt net annuel utilisé pour la comparaison des objectifs.',
+    'admin.deposit_rate_title' => 'Comparaison des intérêts de dépôt',
+    'admin.deposit_rate_desc' => 'Comparer la performance des objectifs avec les rendements des dépôts.',
     'admin.deposit_rate_label' => 'Taux d\'intérêt net annuel (%)',
     'admin.deposit_rate_updated' => 'Taux d\'intérêt du dépôt mis à jour.',
+    'admin.deposit_comparison_toggled' => 'Paramètre de comparaison des dépôts mis à jour.',
+    'admin.deposit_enable' => 'Activer',
+    'admin.deposit_disable' => 'Désactiver',
+    'admin.deposit_status_on' => 'Actif',
+    'admin.deposit_status_off' => 'Désactivé',
+    'admin.deposit_info_title' => 'Logique de calcul',
+    'admin.deposit_info_body' => 'Pour chaque actif, le nombre de jours depuis la date d\'achat est calculé. Le coût est augmenté par intérêts composés (Coût × (1 + Taux/100) ^ (Jours/365)). Chaque objectif peut avoir son propre taux ; si vide, ce taux par défaut est utilisé.',
 
     // Self-Healing
     'selfhealing.title' => 'Historique de réparation automatique',

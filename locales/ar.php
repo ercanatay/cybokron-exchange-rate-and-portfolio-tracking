@@ -557,10 +557,17 @@ return [
     'admin.retention_hint' => 'سيتم حذف بيانات سجل الأسعار الأقدم من هذه المدة تلقائياً بواسطة مهمة التنظيف المجدولة.',
     'admin.retention_updated' => 'تم تحديث مدة الاحتفاظ بالبيانات.',
 
-    'admin.deposit_rate_title' => 'سعر فائدة الودائع',
-    'admin.deposit_rate_desc' => 'سعر الفائدة الصافي السنوي المستخدم لمقارنة الأهداف.',
+    'admin.deposit_rate_title' => 'مقارنة فائدة الودائع',
+    'admin.deposit_rate_desc' => 'مقارنة أداء الأهداف بعوائد الودائع.',
     'admin.deposit_rate_label' => 'سعر الفائدة الصافي السنوي (%)',
     'admin.deposit_rate_updated' => 'تم تحديث سعر فائدة الودائع.',
+    'admin.deposit_comparison_toggled' => 'تم تحديث إعداد مقارنة الودائع.',
+    'admin.deposit_enable' => 'تفعيل',
+    'admin.deposit_disable' => 'تعطيل',
+    'admin.deposit_status_on' => 'مفعّل',
+    'admin.deposit_status_off' => 'معطّل',
+    'admin.deposit_info_title' => 'منطق الحساب',
+    'admin.deposit_info_body' => 'لكل أصل، يتم حساب عدد الأيام من تاريخ الشراء حتى اليوم. يتم تنمية التكلفة بالفائدة المركبة (التكلفة × (1 + المعدل/100) ^ (الأيام/365)). يمكن لكل هدف أن يكون له معدل خاص؛ إذا ترك فارغاً، يستخدم هذا المعدل الافتراضي.',
 
     // Self-Healing
     'selfhealing.title' => 'سجل الإصلاح التلقائي',

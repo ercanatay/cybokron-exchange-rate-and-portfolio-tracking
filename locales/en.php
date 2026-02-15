@@ -552,10 +552,17 @@ return [
     'admin.retention_hint' => 'Rate history data older than this period will be automatically deleted by the cleanup cron job.',
     'admin.retention_updated' => 'Data retention period updated.',
 
-    'admin.deposit_rate_title' => 'Deposit Interest Rate',
-    'admin.deposit_rate_desc' => 'Annual net deposit interest rate used for goal comparison.',
+    'admin.deposit_rate_title' => 'Deposit Interest Comparison',
+    'admin.deposit_rate_desc' => 'Compare goal performance against deposit interest returns.',
     'admin.deposit_rate_label' => 'Annual Net Interest Rate (%)',
     'admin.deposit_rate_updated' => 'Deposit interest rate updated.',
+    'admin.deposit_comparison_toggled' => 'Deposit comparison setting updated.',
+    'admin.deposit_enable' => 'Enable',
+    'admin.deposit_disable' => 'Disable',
+    'admin.deposit_status_on' => 'Active',
+    'admin.deposit_status_off' => 'Disabled',
+    'admin.deposit_info_title' => 'How It Works',
+    'admin.deposit_info_body' => 'For each asset, the number of days from the buy date to today is calculated. The cost is grown using compound interest (Cost × (1 + Rate/100) ^ (Days/365)). All deposit returns are summed to produce the "if in deposit" value. Each goal can have its own rate override; if left empty, this default rate is used.',
 
     // Self-Healing
     'selfhealing.title' => 'Self-Healing Repair History',
