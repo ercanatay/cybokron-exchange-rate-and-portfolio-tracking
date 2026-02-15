@@ -21,6 +21,7 @@ Cybokron is an open-source PHP/MySQL application for tracking Turkish bank excha
 - **Autonomous self-healing** — detects broken scrapers, generates new configs via AI, validates & commits to GitHub
 - **Live repair tracker** — real-time SSE streaming of repair pipeline steps with stepper UI
 - **Portfolio tracking** with profit/loss, soft delete, user-scoped RBAC, goal favorites, filtering, period-based progress & deadlines
+- **Deposit interest comparison** — each goal card shows what-if deposit return vs actual portfolio performance
 - **Session-based authentication** (login, logout, admin/user roles)
 - **Cloudflare Turnstile CAPTCHA** on login page (managed mode, auto-pass for most users)
 - **Alert system** — email, Telegram, webhook notifications on rate thresholds

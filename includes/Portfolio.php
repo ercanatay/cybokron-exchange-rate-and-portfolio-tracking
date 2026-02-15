@@ -1152,6 +1152,11 @@ class Portfolio
     {
         $result = [];
 
+        // Deposit comparison: read annual net interest rate from settings
+        $depositRateRow = Database::queryOne('SELECT value FROM settings WHERE `key` = ?', ['deposit_interest_rate']);
+        $depositAnnualRate = $depositRateRow ? (float) $depositRateRow['value'] : 40.0;
+        $today = new DateTime();
+
         // Pre-index items for O(1) lookups
         $itemsById = [];
         $itemsByGroupId = [];
@@ -1258,6 +1263,7 @@ class Portfolio
                 $totalCost = 0.0;
                 $totalValue = 0.0;
                 $weightedSum = 0.0;
+                $depositTotal = 0.0;
 
                 foreach ($matchedItemIds as $itemId => $ignored) {
                     $item = $itemsById[$itemId] ?? null;
@@ -1289,6 +1295,16 @@ class Portfolio
                         $itemReturn = ($itemValue - $itemCost) / $itemCost;
                         $weightedSum += $itemReturn * $itemCost;
                     }
+
+                    // Deposit comparison
+                    $buyDateStr = $item['buy_date'] ?? '';
+                    if ($buyDateStr && $depositAnnualRate > 0) {
+                        $buyDateObj = DateTime::createFromFormat('Y-m-d', $buyDateStr);
+                        if ($buyDateObj) {
+                            $daysDiff = max(0, (int) $buyDateObj->diff($today)->days);
+                            $depositTotal += $itemCost * pow(1 + $depositAnnualRate / 100, $daysDiff / 365);
+                        }
+                    }
                 }
 
                 if ($dateMode === 'weighted' && $totalCost > 0) {
@@ -1314,6 +1330,8 @@ class Portfolio
                     'is_favorite' => (int) ($goal['is_favorite'] ?? 0),
                     'goal_deadline' => $goalDeadline,
                     'deadline_months' => $deadlineMonths,
+                    'deposit_value' => round($depositTotal, 2),
+                    'deposit_rate' => $depositAnnualRate,
                 ];
                 continue;
             }
@@ -1323,6 +1341,7 @@ class Portfolio
                 $totalCost = 0.0;
                 $totalValue = 0.0;
                 $earliestDate = null;
+                $depositTotal = 0.0;
 
                 foreach ($matchedItemIds as $itemId => $ignored) {
                     $item = $itemsById[$itemId] ?? null;
@@ -1346,6 +1365,16 @@ class Portfolio
                     $bd = $item['buy_date'] ?? null;
                     if ($bd && ($earliestDate === null || $bd < $earliestDate)) {
                         $earliestDate = $bd;
+                    }
+
+                    // Deposit comparison
+                    $buyDateStr = $item['buy_date'] ?? '';
+                    if ($buyDateStr && $depositAnnualRate > 0) {
+                        $buyDateObj = DateTime::createFromFormat('Y-m-d', $buyDateStr);
+                        if ($buyDateObj) {
+                            $daysDiff = max(0, (int) $buyDateObj->diff($today)->days);
+                            $depositTotal += $itemCost * pow(1 + $depositAnnualRate / 100, $daysDiff / 365);
+                        }
                     }
                 }
 
@@ -1378,6 +1407,8 @@ class Portfolio
                     'is_favorite' => (int) ($goal['is_favorite'] ?? 0),
                     'goal_deadline' => $goalDeadline,
                     'deadline_months' => $deadlineMonths,
+                    'deposit_value' => round($depositTotal, 2),
+                    'deposit_rate' => $depositAnnualRate,
                 ];
                 continue;
             }
@@ -1386,6 +1417,7 @@ class Portfolio
             if ($targetType === 'drawdown') {
                 $totalCost = 0.0;
                 $totalValue = 0.0;
+                $depositTotal = 0.0;
 
                 foreach ($matchedItemIds as $itemId => $ignored) {
                     $item = $itemsById[$itemId] ?? null;
@@ -1405,6 +1437,16 @@ class Portfolio
                     $totalCost += $itemCost;
                     $totalValue += $itemValue;
                     $countedItems++;
+
+                    // Deposit comparison
+                    $buyDateStr = $item['buy_date'] ?? '';
+                    if ($buyDateStr && $depositAnnualRate > 0) {
+                        $buyDateObj = DateTime::createFromFormat('Y-m-d', $buyDateStr);
+                        if ($buyDateObj) {
+                            $daysDiff = max(0, (int) $buyDateObj->diff($today)->days);
+                            $depositTotal += $itemCost * pow(1 + $depositAnnualRate / 100, $daysDiff / 365);
+                        }
+                    }
                 }
 
                 // current = current drawdown % (0 or positive when losing)
@@ -1429,10 +1471,13 @@ class Portfolio
                     'is_favorite' => (int) ($goal['is_favorite'] ?? 0),
                     'goal_deadline' => $goalDeadline,
                     'deadline_months' => $deadlineMonths,
+                    'deposit_value' => round($depositTotal, 2),
+                    'deposit_rate' => $depositAnnualRate,
                 ];
                 continue;
             }
 
+            $depositTotal = 0.0;
             foreach ($matchedItemIds as $itemId => $ignored) {
                 $item = $itemsById[$itemId] ?? null;
                 if (!$item) continue;
@@ -1466,6 +1511,17 @@ class Portfolio
                     $current += (float) ($item['value_try'] ?? 0);
                     $countedItems++;
                 }
+
+                // Deposit comparison
+                $buyDateStr = $item['buy_date'] ?? '';
+                if ($buyDateStr && $depositAnnualRate > 0) {
+                    $buyDateObj = DateTime::createFromFormat('Y-m-d', $buyDateStr);
+                    if ($buyDateObj) {
+                        $daysDiff = max(0, (int) $buyDateObj->diff($today)->days);
+                        $itemCostTry = (float) ($item['cost_try'] ?? 0);
+                        $depositTotal += $itemCostTry * pow(1 + $depositAnnualRate / 100, $daysDiff / 365);
+                    }
+                }
             }
 
             // For currency_value: convert TRY sum to target currency
@@ -1498,6 +1554,8 @@ class Portfolio
                 'is_favorite' => (int) ($goal['is_favorite'] ?? 0),
                 'goal_deadline' => $goalDeadline,
                 'deadline_months' => $deadlineMonths,
+                'deposit_value' => round($depositTotal, 2),
+                'deposit_rate' => $depositAnnualRate,
             ];
         }
 

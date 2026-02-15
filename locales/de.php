@@ -427,6 +427,9 @@ return [
     'portfolio.goals.period_9m' => '9 Monate',
     'portfolio.goals.period_1y' => '1 Jahr',
     'portfolio.goals.period_custom' => 'Eigener',
+    'portfolio.goals.deposit_label' => 'Als Einlage',
+    'portfolio.goals.deposit_better' => 'Differenz',
+    'portfolio.goals.deposit_worse' => 'Vorteil',
     'common.add' => 'Hinzufügen',
     'common.select_all' => 'Alle auswählen',
     'common.delete' => 'Löschen',
@@ -551,6 +554,11 @@ return [
     'admin.retention_year' => 'Jahr',
     'admin.retention_hint' => 'Kursverlaufsdaten, die älter als dieser Zeitraum sind, werden automatisch durch den Bereinigungscronjob gelöscht.',
     'admin.retention_updated' => 'Datenspeicherungsdauer aktualisiert.',
+
+    'admin.deposit_rate_title' => 'Einlagenzinssatz',
+    'admin.deposit_rate_desc' => 'Jährlicher Nettozinssatz für Zielvergleich.',
+    'admin.deposit_rate_label' => 'Jährlicher Nettozinssatz (%)',
+    'admin.deposit_rate_updated' => 'Einlagenzinssatz aktualisiert.',
 
     // Self-Healing
     'selfhealing.title' => 'Automatische Reparatur-Historie',

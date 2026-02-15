@@ -427,6 +427,9 @@ return [
     'portfolio.goals.period_9m' => '9 Mois',
     'portfolio.goals.period_1y' => '1 An',
     'portfolio.goals.period_custom' => 'Personnalisé',
+    'portfolio.goals.deposit_label' => 'En dépôt',
+    'portfolio.goals.deposit_better' => 'écart',
+    'portfolio.goals.deposit_worse' => 'avantage',
     'common.add' => 'Ajouter',
     'common.select_all' => 'Tout sélectionner',
     'common.delete' => 'Supprimer',
@@ -551,6 +554,11 @@ return [
     'admin.retention_year' => 'an',
     'admin.retention_hint' => 'Les données d\'historique des taux plus anciennes que cette période seront automatiquement supprimées par la tâche de nettoyage planifiée.',
     'admin.retention_updated' => 'Durée de conservation des données mise à jour.',
+
+    'admin.deposit_rate_title' => 'Taux d\'intérêt du dépôt',
+    'admin.deposit_rate_desc' => 'Taux d\'intérêt net annuel utilisé pour la comparaison des objectifs.',
+    'admin.deposit_rate_label' => 'Taux d\'intérêt net annuel (%)',
+    'admin.deposit_rate_updated' => 'Taux d\'intérêt du dépôt mis à jour.',
 
     // Self-Healing
     'selfhealing.title' => 'Historique de réparation automatique',
