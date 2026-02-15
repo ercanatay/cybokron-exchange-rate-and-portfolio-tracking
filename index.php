@@ -144,6 +144,7 @@ foreach ($widgetConfig as $w) {
     'description' => t('seo.index_description'),
     'page' => 'index.php',
 ]) ?>
+        <script>(function(){try{var t=localStorage.getItem('cybokron_theme');if(t==='light'||t==='dark'){document.documentElement.setAttribute('data-theme',t)}else if(window.matchMedia('(prefers-color-scheme:light)').matches){document.documentElement.setAttribute('data-theme','light')}}catch(e){}})();</script>
         <link rel="icon" type="image/svg+xml" href="favicon.svg">
         <link rel="manifest" href="manifest.json">
         <link rel="stylesheet" href="assets/css/style.css?v=<?= filemtime(__DIR__ . '/assets/css/style.css') ?>">
