@@ -480,6 +480,8 @@ return [
     'portfolio.goals.deposit_label' => 'If in deposit',
     'portfolio.goals.deposit_better' => 'gap',
     'portfolio.goals.deposit_worse' => 'advantage',
+    'portfolio.goals.deposit_rate_label' => 'Deposit Rate (%)',
+    'portfolio.goals.deposit_rate_placeholder' => 'Default: {{rate}}%',
 
     'common.add' => 'Add',
     'common.select_all' => 'Select all',

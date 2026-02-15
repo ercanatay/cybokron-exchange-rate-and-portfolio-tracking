@@ -214,6 +214,7 @@ CREATE TABLE IF NOT EXISTS `portfolio_goals` (
     `percent_date_end` date DEFAULT NULL COMMENT 'End date for range mode',
     `percent_period_months` int unsigned DEFAULT 12 COMMENT 'Period in months for since_first mode',
     `goal_deadline` date DEFAULT NULL COMMENT 'Target deadline for the goal',
+    `deposit_rate` decimal(5,2) DEFAULT NULL COMMENT 'Per-goal deposit interest rate override (NULL = use admin default)',
     `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
     `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (`id`),

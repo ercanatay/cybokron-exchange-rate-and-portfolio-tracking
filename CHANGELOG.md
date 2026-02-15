@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.10.1] - 2026-02-15
+
+Per-goal deposit interest rate override.
+
+### Per-Goal Deposit Rate Override
+- Each goal can now have its own deposit interest rate (overrides admin default)
+- New `deposit_rate` column on `portfolio_goals` table (NULL = use admin default)
+- Deposit rate input field on both goal add and edit forms with placeholder showing admin default
+- `computeGoalProgress()` uses per-goal rate when set, falls back to admin default
+- Migration `009_add_goal_deposit_rate.sql`
+
+### Localization
+- 2 new translation keys across all 5 languages (TR, EN, DE, FR, AR)
+- `deposit_rate_label` and `deposit_rate_placeholder` strings
+
 ## [1.10.0] - 2026-02-15
 
 Goal deposit interest comparison and edit form UI improvements.

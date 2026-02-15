@@ -938,6 +938,16 @@ class Portfolio
             }
         }
 
+        // Per-goal deposit interest rate override
+        $depositRate = null;
+        $dr = trim((string) ($data['deposit_rate'] ?? ''));
+        if ($dr !== '') {
+            $drVal = (float) $dr;
+            if ($drVal >= 0 && $drVal <= 200) {
+                $depositRate = $drVal;
+            }
+        }
+
         $goalId = Database::insert('portfolio_goals', [
             'user_id' => (class_exists('Auth') && Auth::check()) ? Auth::id() : null,
             'name' => $name,
@@ -950,6 +960,7 @@ class Portfolio
             'percent_date_end' => $percentDateEnd,
             'percent_period_months' => $targetType === 'percent' ? $percentPeriodMonths : null,
             'goal_deadline' => $goalDeadline,
+            'deposit_rate' => $depositRate,
         ]);
 
         return (int) $goalId;
@@ -1015,11 +1026,21 @@ class Portfolio
             }
         }
 
+        // Per-goal deposit interest rate override
+        $depositRate = null;
+        $dr = trim((string) ($data['deposit_rate'] ?? ''));
+        if ($dr !== '') {
+            $drVal = (float) $dr;
+            if ($drVal >= 0 && $drVal <= 200) {
+                $depositRate = $drVal;
+            }
+        }
+
         [$ownerWhere, $ownerParams] = self::goalOwnerScope();
-        $params = [$name, $targetValue, $targetType, $targetCurrency, $bankSlug, $percentDateMode, $percentDateStart, $percentDateEnd, $targetType === 'percent' ? $percentPeriodMonths : null, $goalDeadline, $id];
+        $params = [$name, $targetValue, $targetType, $targetCurrency, $bankSlug, $percentDateMode, $percentDateStart, $percentDateEnd, $targetType === 'percent' ? $percentPeriodMonths : null, $goalDeadline, $depositRate, $id];
 
         return Database::execute(
-            'UPDATE portfolio_goals SET name = ?, target_value = ?, target_type = ?, target_currency = ?, bank_slug = ?, percent_date_mode = ?, percent_date_start = ?, percent_date_end = ?, percent_period_months = ?, goal_deadline = ? WHERE id = ?' . $ownerWhere,
+            'UPDATE portfolio_goals SET name = ?, target_value = ?, target_type = ?, target_currency = ?, bank_slug = ?, percent_date_mode = ?, percent_date_start = ?, percent_date_end = ?, percent_period_months = ?, goal_deadline = ?, deposit_rate = ? WHERE id = ?' . $ownerWhere,
             array_merge($params, $ownerParams)
         ) > 0;
     }
@@ -1181,6 +1202,9 @@ class Portfolio
             $goalBankSlug = $goal['bank_slug'] ?? null;
             $sources = $allGoalSources[$goalId] ?? [];
 
+            // Per-goal deposit rate override (NULL = use admin default)
+            $goalDepositRate = ($goal['deposit_rate'] !== null) ? (float) $goal['deposit_rate'] : $depositAnnualRate;
+
             // Collect unique item IDs matching any source
             $matchedItemIds = [];
 
@@ -1298,11 +1322,11 @@ class Portfolio
 
                     // Deposit comparison
                     $buyDateStr = $item['buy_date'] ?? '';
-                    if ($buyDateStr && $depositAnnualRate > 0) {
+                    if ($buyDateStr && $goalDepositRate > 0) {
                         $buyDateObj = DateTime::createFromFormat('Y-m-d', $buyDateStr);
                         if ($buyDateObj) {
                             $daysDiff = max(0, (int) $buyDateObj->diff($today)->days);
-                            $depositTotal += $itemCost * pow(1 + $depositAnnualRate / 100, $daysDiff / 365);
+                            $depositTotal += $itemCost * pow(1 + $goalDepositRate / 100, $daysDiff / 365);
                         }
                     }
                 }
@@ -1331,7 +1355,7 @@ class Portfolio
                     'goal_deadline' => $goalDeadline,
                     'deadline_months' => $deadlineMonths,
                     'deposit_value' => round($depositTotal, 2),
-                    'deposit_rate' => $depositAnnualRate,
+                    'deposit_rate' => $goalDepositRate,
                 ];
                 continue;
             }
@@ -1369,11 +1393,11 @@ class Portfolio
 
                     // Deposit comparison
                     $buyDateStr = $item['buy_date'] ?? '';
-                    if ($buyDateStr && $depositAnnualRate > 0) {
+                    if ($buyDateStr && $goalDepositRate > 0) {
                         $buyDateObj = DateTime::createFromFormat('Y-m-d', $buyDateStr);
                         if ($buyDateObj) {
                             $daysDiff = max(0, (int) $buyDateObj->diff($today)->days);
-                            $depositTotal += $itemCost * pow(1 + $depositAnnualRate / 100, $daysDiff / 365);
+                            $depositTotal += $itemCost * pow(1 + $goalDepositRate / 100, $daysDiff / 365);
                         }
                     }
                 }
@@ -1408,7 +1432,7 @@ class Portfolio
                     'goal_deadline' => $goalDeadline,
                     'deadline_months' => $deadlineMonths,
                     'deposit_value' => round($depositTotal, 2),
-                    'deposit_rate' => $depositAnnualRate,
+                    'deposit_rate' => $goalDepositRate,
                 ];
                 continue;
             }
@@ -1440,11 +1464,11 @@ class Portfolio
 
                     // Deposit comparison
                     $buyDateStr = $item['buy_date'] ?? '';
-                    if ($buyDateStr && $depositAnnualRate > 0) {
+                    if ($buyDateStr && $goalDepositRate > 0) {
                         $buyDateObj = DateTime::createFromFormat('Y-m-d', $buyDateStr);
                         if ($buyDateObj) {
                             $daysDiff = max(0, (int) $buyDateObj->diff($today)->days);
-                            $depositTotal += $itemCost * pow(1 + $depositAnnualRate / 100, $daysDiff / 365);
+                            $depositTotal += $itemCost * pow(1 + $goalDepositRate / 100, $daysDiff / 365);
                         }
                     }
                 }
@@ -1472,7 +1496,7 @@ class Portfolio
                     'goal_deadline' => $goalDeadline,
                     'deadline_months' => $deadlineMonths,
                     'deposit_value' => round($depositTotal, 2),
-                    'deposit_rate' => $depositAnnualRate,
+                    'deposit_rate' => $goalDepositRate,
                 ];
                 continue;
             }
@@ -1514,12 +1538,12 @@ class Portfolio
 
                 // Deposit comparison
                 $buyDateStr = $item['buy_date'] ?? '';
-                if ($buyDateStr && $depositAnnualRate > 0) {
+                if ($buyDateStr && $goalDepositRate > 0) {
                     $buyDateObj = DateTime::createFromFormat('Y-m-d', $buyDateStr);
                     if ($buyDateObj) {
                         $daysDiff = max(0, (int) $buyDateObj->diff($today)->days);
                         $itemCostTry = (float) ($item['cost_try'] ?? 0);
-                        $depositTotal += $itemCostTry * pow(1 + $depositAnnualRate / 100, $daysDiff / 365);
+                        $depositTotal += $itemCostTry * pow(1 + $goalDepositRate / 100, $daysDiff / 365);
                     }
                 }
             }
@@ -1555,7 +1579,7 @@ class Portfolio
                 'goal_deadline' => $goalDeadline,
                 'deadline_months' => $deadlineMonths,
                 'deposit_value' => round($depositTotal, 2),
-                'deposit_rate' => $depositAnnualRate,
+                'deposit_rate' => $goalDepositRate,
             ];
         }
 
