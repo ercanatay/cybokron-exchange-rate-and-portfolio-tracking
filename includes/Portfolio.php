@@ -281,6 +281,10 @@ class Portfolio
             $updated = Database::update('portfolio', ['deleted_at' => date('Y-m-d H:i:s')], $where, $params);
             return $updated > 0;
         } catch (Throwable $e) {
+            // Only fall back to hard-delete when deleted_at column doesn't exist (schema mismatch)
+            if (stripos($e->getMessage(), 'deleted_at') === false) {
+                throw $e;
+            }
             $hardWhere = 'id = ?';
             $hardParams = [$id];
             if (class_exists('Auth') && Auth::check() && !Auth::isAdmin()) {
@@ -1127,6 +1131,32 @@ class Portfolio
         if (!$goal) {
             return false;
         }
+
+        // Verify source exists and current user owns it
+        $sourceOwnerWhere = 'id = ?';
+        $sourceOwnerParams = [$sourceId];
+        if (class_exists('Auth') && Auth::check() && !Auth::isAdmin()) {
+            $uid = Auth::id();
+            if ($uid !== null) {
+                $sourceOwnerWhere .= ' AND (user_id IS NULL OR user_id = ?)';
+                $sourceOwnerParams[] = $uid;
+            }
+        }
+        if ($sourceType === 'group') {
+            if (!Database::queryOne("SELECT id FROM portfolio_groups WHERE {$sourceOwnerWhere}", $sourceOwnerParams)) {
+                return false;
+            }
+        } elseif ($sourceType === 'tag') {
+            if (!Database::queryOne("SELECT id FROM portfolio_tags WHERE {$sourceOwnerWhere}", $sourceOwnerParams)) {
+                return false;
+            }
+        } elseif ($sourceType === 'item') {
+            $itemWhere = $sourceOwnerWhere . ' AND deleted_at IS NULL';
+            if (!Database::queryOne("SELECT id FROM portfolio WHERE {$itemWhere}", $sourceOwnerParams)) {
+                return false;
+            }
+        }
+
         // Check for duplicate
         $existing = Database::queryOne(
             'SELECT id FROM portfolio_goal_sources WHERE goal_id = ? AND source_type = ? AND source_id = ?',

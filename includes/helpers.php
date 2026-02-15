@@ -243,16 +243,21 @@ function verifyPortfolioAuthCredentials(?array $credentials): bool
         return false;
     }
 
-    // Bind identity to session so Auth::id() returns the correct user
+    // Bind session to the DB user so Auth::check()/Auth::id() work correctly
     $dbUser = Database::queryOne(
         'SELECT id, username, role FROM users WHERE username = ? AND is_active = 1',
-        [$credentials['user']]
+        [trim((string) $credentials['user'])]
     );
-    if ($dbUser) {
-        $_SESSION['cybokron_user_id'] = (int) $dbUser['id'];
-        $_SESSION['cybokron_username'] = $dbUser['username'];
-        $_SESSION['cybokron_role'] = $dbUser['role'];
+    if (!$dbUser) {
+        return false;
     }
+
+    ensureWebSessionStarted();
+    $_SESSION['cybokron_user_id'] = (int) $dbUser['id'];
+    $_SESSION['cybokron_username'] = $dbUser['username'];
+    $_SESSION['cybokron_role'] = $dbUser['role'];
+    session_regenerate_id(true);
+
     return true;
 }
 
@@ -282,7 +287,7 @@ function requirePortfolioAccessForWeb(): void
         return;
     }
 
-    if (verifyPortfolioAuthCredentials(getBasicAuthCredentials())) {
+    if (enforceIpRateLimit('basic_auth', 10, 300) && verifyPortfolioAuthCredentials(getBasicAuthCredentials())) {
         return;
     }
 
@@ -304,7 +309,7 @@ function requirePortfolioAccessForApi(): void
         return;
     }
 
-    if (verifyPortfolioAuthCredentials(getBasicAuthCredentials())) {
+    if (enforceIpRateLimit('basic_auth', 10, 300) && verifyPortfolioAuthCredentials(getBasicAuthCredentials())) {
         return;
     }
 
@@ -326,7 +331,7 @@ function requireAuthenticatedApiUser(): void
         return;
     }
 
-    if (verifyPortfolioAuthCredentials(getBasicAuthCredentials())) {
+    if (enforceIpRateLimit('basic_auth', 10, 300) && verifyPortfolioAuthCredentials(getBasicAuthCredentials())) {
         return;
     }
 
@@ -483,6 +488,32 @@ function enforceIpRateLimit(string $scope, int $maxRequests, int $windowSeconds)
     fclose($fp);
 
     return $allowed;
+}
+
+/**
+ * Check whether a URL resolves to a private or reserved IP address (SSRF protection).
+ */
+function isPrivateOrReservedHost(string $url): bool
+{
+    $host = parse_url($url, PHP_URL_HOST);
+    if (!is_string($host) || $host === '') {
+        return true;
+    }
+
+    // Resolve hostname to IP addresses
+    $ips = gethostbynamel($host);
+    if ($ips === false || empty($ips)) {
+        return true; // unresolvable hosts are blocked
+    }
+
+    foreach ($ips as $ip) {
+        $flags = FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE;
+        if (filter_var($ip, FILTER_VALIDATE_IP, $flags) === false) {
+            return true;
+        }
+    }
+
+    return false;
 }
 
 /**

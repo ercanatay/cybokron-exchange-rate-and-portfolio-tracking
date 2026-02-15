@@ -2,6 +2,29 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.10.7] - 2026-02-15
+
+Security hardening based on Codex AI v2 audit — 10 fixes across authentication, SSRF, authorization, and schema integrity.
+
+### Critical Fixes
+- Fix Basic Auth fail-open: bind DB user to session after credential verification, return false when user not found in database
+- Fix catch-all hard-delete in `Portfolio::delete()`: only fall back to hard-delete when `deleted_at` column is missing (schema mismatch), rethrow all other exceptions
+- Block SSRF via private/reserved IP addresses on webhook URLs — new `isPrivateOrReservedHost()` helper with DNS resolution and `FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE` validation
+
+### High Fixes
+- Add brute-force throttling to Basic Auth: `enforceIpRateLimit('basic_auth', 10, 300)` on all 3 auth entry points (`requirePortfolioAccessForWeb`, `requirePortfolioAccessForApi`, `requireAuthenticatedApiUser`)
+- Add goal source ownership validation in `addGoalSource()`: verify source entity exists and belongs to current user before linking (group→portfolio_groups, tag→portfolio_tags, item→portfolio)
+
+### Medium Fixes
+- Remove placeholder password hash from `database.sql` seed data — admin user created exclusively by `update_admin_password.php` with proper bcrypt hash
+- Auto-delete plaintext password temp files (`.admin_password.tmp`, `.admin_hash.tmp`) after hashing in `update_admin_password.php`
+- Fix goal `target_value` precision mismatch: `DECIMAL(18,2)` → `DECIMAL(18,6)` to match other decimal columns
+
+### Schema & Migrations
+- Make migration `008_schema_integrity_fixes.sql` idempotent with `information_schema` existence checks (safe to re-run)
+- Fix hardcoded `user_id=1` and `group_id=1` in migrations 001/002 — replaced with dynamic subqueries
+- New migration: `011_goal_target_precision.sql`
+
 ## [1.10.6] - 2026-02-15
 
 Security hardening based on AI-assisted code review (Codex, Claude Code, Jules AI).

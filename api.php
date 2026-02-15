@@ -372,7 +372,7 @@ try {
 
             $configJson = is_string($channelConfig) ? $channelConfig : (is_array($channelConfig) ? json_encode($channelConfig) : null);
 
-            // Validate webhook URL (HTTPS only) to prevent stored SSRF
+            // Validate webhook URL (HTTPS only, no private IPs) to prevent stored SSRF
             if ($channel === 'webhook' && $configJson !== null) {
                 $parsed = json_decode($configJson, true);
                 $webhookUrl = is_array($parsed) ? ($parsed['url'] ?? '') : '';
@@ -380,6 +380,9 @@ try {
                     $scheme = strtolower((string) (parse_url($webhookUrl, PHP_URL_SCHEME) ?? ''));
                     if ($scheme !== 'https') {
                         jsonResponse(['status' => 'error', 'message' => 'Webhook URL must use HTTPS'], 400);
+                    }
+                    if (isPrivateOrReservedHost($webhookUrl)) {
+                        jsonResponse(['status' => 'error', 'message' => 'Webhook URL must not point to private/reserved IPs'], 400);
                     }
                 }
             }
