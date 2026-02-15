@@ -30,7 +30,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if ($username === '' || $password === '') {
             $error = t('auth.error_empty');
-        } elseif (Auth::login($username, $password)) {
+        } elseif (Auth::login($username, $password, !empty($_POST['remember']))) {
             $redirect = trim((string) ($_GET['redirect'] ?? 'index.php'));
             if (
                 $redirect === ''
@@ -87,6 +87,12 @@ $currentLocale = getAppLocale();
             <div class="form-group">
                 <label for="password"><?= t('auth.password') ?></label>
                 <input type="password" name="password" id="password" required autocomplete="current-password">
+            </div>
+            <div class="form-group remember-me">
+                <label>
+                    <input type="checkbox" name="remember" value="1">
+                    <?= t('auth.remember_me') ?>
+                </label>
             </div>
             <?php if (defined('TURNSTILE_ENABLED') && TURNSTILE_ENABLED): ?>
             <div class="cf-turnstile" data-sitekey="<?= htmlspecialchars(TURNSTILE_SITE_KEY) ?>" data-theme="auto"></div>

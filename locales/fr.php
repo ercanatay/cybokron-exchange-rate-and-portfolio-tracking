@@ -27,6 +27,7 @@ return [
     'auth.error_invalid' => 'Nom d\'utilisateur ou mot de passe invalide.',
     'auth.error_rate_limit' => 'Trop de tentatives. Veuillez réessayer dans quelques minutes.',
     'auth.error_captcha' => 'La vérification de sécurité a échoué. Veuillez réessayer.',
+    'auth.remember_me' => 'Se souvenir de moi pendant 30 jours',
 
     'index.page_title' => 'Taux de change',
     'index.last_update' => 'Dernière mise à jour : {{datetime}}',

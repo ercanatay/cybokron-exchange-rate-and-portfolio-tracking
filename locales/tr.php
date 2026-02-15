@@ -26,6 +26,7 @@ return [
     'auth.error_invalid' => 'Geçersiz kullanıcı adı veya şifre.',
     'auth.error_rate_limit' => 'Çok fazla deneme. Lütfen birkaç dakika sonra tekrar deneyin.',
     'auth.error_captcha' => 'Güvenlik doğrulaması başarısız. Lütfen tekrar deneyin.',
+    'auth.remember_me' => '30 gün boyunca oturumu hatırla',
 
     'index.page_title' => 'Döviz Kurları',
     'index.last_update' => 'Son Güncelleme: {{datetime}}',

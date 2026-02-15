@@ -26,6 +26,7 @@ return [
     'auth.error_invalid' => 'Invalid username or password.',
     'auth.error_rate_limit' => 'Too many attempts. Please try again in a few minutes.',
     'auth.error_captcha' => 'Security verification failed. Please try again.',
+    'auth.remember_me' => 'Remember me for 30 days',
 
     'index.page_title' => 'Exchange Rates',
     'index.last_update' => 'Last Update: {{datetime}}',

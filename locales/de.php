@@ -27,6 +27,7 @@ return [
     'auth.error_invalid' => 'Ungültiger Benutzername oder Passwort.',
     'auth.error_rate_limit' => 'Zu viele Versuche. Bitte versuchen Sie es in einigen Minuten erneut.',
     'auth.error_captcha' => 'Sicherheitsüberprüfung fehlgeschlagen. Bitte versuchen Sie es erneut.',
+    'auth.remember_me' => '30 Tage angemeldet bleiben',
 
     'index.page_title' => 'Wechselkurse',
     'index.last_update' => 'Letzte Aktualisierung: {{datetime}}',

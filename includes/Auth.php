@@ -13,7 +13,7 @@ class Auth
         ensureWebSessionStarted();
     }
 
-    public static function login(string $username, string $password): bool
+    public static function login(string $username, string $password, bool $remember = false): bool
     {
         $user = Database::queryOne(
             'SELECT id, username, password_hash, role FROM users WHERE username = ? AND is_active = 1',
@@ -28,6 +28,19 @@ class Auth
         $_SESSION['cybokron_username'] = $user['username'];
         $_SESSION['cybokron_role'] = $user['role'];
         session_regenerate_id(true);
+
+        if ($remember) {
+            $lifetime = 30 * 24 * 3600;
+            $isSecure = !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off';
+            ini_set('session.gc_maxlifetime', (string) $lifetime);
+            setcookie(session_name(), session_id(), [
+                'expires'  => time() + $lifetime,
+                'path'     => '/',
+                'secure'   => $isSecure,
+                'httponly'  => true,
+                'samesite' => 'Lax',
+            ]);
+        }
 
         return true;
     }

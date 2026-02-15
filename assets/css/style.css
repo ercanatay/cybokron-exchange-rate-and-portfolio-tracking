@@ -76,6 +76,25 @@ body {
     margin-top: 16px;
 }
 
+.remember-me {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.remember-me label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    color: var(--text-muted);
+}
+.remember-me input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+}
+
 a {
     color: var(--primary);
     text-decoration: none;
