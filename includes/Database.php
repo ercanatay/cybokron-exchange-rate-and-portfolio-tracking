@@ -9,6 +9,7 @@ class Database
     private static ?PDO $instance = null;
     /** @var array<string, PDOStatement> */
     private static array $statementCache = [];
+    private const STATEMENT_CACHE_MAX = 100;
 
     public static function getInstance(): PDO
     {
@@ -170,6 +171,11 @@ class Database
     private static function prepare(string $sql): PDOStatement
     {
         if (!isset(self::$statementCache[$sql])) {
+            // Evict oldest entries when cache exceeds max size
+            if (count(self::$statementCache) >= self::STATEMENT_CACHE_MAX) {
+                $evictCount = (int) (self::STATEMENT_CACHE_MAX * 0.25);
+                self::$statementCache = array_slice(self::$statementCache, $evictCount, null, true);
+            }
             self::$statementCache[$sql] = self::getInstance()->prepare($sql);
         }
 
