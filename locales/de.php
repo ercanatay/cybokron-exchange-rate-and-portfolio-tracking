@@ -557,10 +557,17 @@ return [
     'admin.retention_hint' => 'Kursverlaufsdaten, die älter als dieser Zeitraum sind, werden automatisch durch den Bereinigungscronjob gelöscht.',
     'admin.retention_updated' => 'Datenspeicherungsdauer aktualisiert.',
 
-    'admin.deposit_rate_title' => 'Einlagenzinssatz',
-    'admin.deposit_rate_desc' => 'Jährlicher Nettozinssatz für Zielvergleich.',
+    'admin.deposit_rate_title' => 'Einlagenzins-Vergleich',
+    'admin.deposit_rate_desc' => 'Zielleistung mit Einlagenzinserträgen vergleichen.',
     'admin.deposit_rate_label' => 'Jährlicher Nettozinssatz (%)',
     'admin.deposit_rate_updated' => 'Einlagenzinssatz aktualisiert.',
+    'admin.deposit_comparison_toggled' => 'Einlagenvergleich-Einstellung aktualisiert.',
+    'admin.deposit_enable' => 'Aktivieren',
+    'admin.deposit_disable' => 'Deaktivieren',
+    'admin.deposit_status_on' => 'Aktiv',
+    'admin.deposit_status_off' => 'Deaktiviert',
+    'admin.deposit_info_title' => 'Berechnungslogik',
+    'admin.deposit_info_body' => 'Für jedes Asset wird die Anzahl der Tage vom Kaufdatum bis heute berechnet. Die Kosten werden mit Zinseszins (Kosten × (1 + Satz/100) ^ (Tage/365)) berechnet. Alle Einlagenerträge werden summiert. Jedes Ziel kann einen eigenen Zinssatz haben; wenn leer, wird dieser Standardsatz verwendet.',
 
     // Self-Healing
     'selfhealing.title' => 'Automatische Reparatur-Historie',

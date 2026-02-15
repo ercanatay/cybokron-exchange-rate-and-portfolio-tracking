@@ -165,6 +165,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         $messageType = 'success';
     }
 
+    if ($_POST['action'] === 'toggle_deposit_comparison') {
+        $currentValue = Database::queryOne('SELECT value FROM settings WHERE `key` = ?', ['deposit_comparison_enabled']);
+        $newValue = ($currentValue && ($currentValue['value'] ?? '1') === '1') ? '0' : '1';
+        Database::query(
+            'INSERT INTO settings (`key`, value) VALUES (?, ?) ON DUPLICATE KEY UPDATE value = ?',
+            ['deposit_comparison_enabled', $newValue, $newValue]
+        );
+        $message = t('admin.deposit_comparison_toggled');
+        $messageType = 'success';
+    }
+
     if ($_POST['action'] === 'save_openrouter_settings') {
         $orApiKey = trim((string) ($_POST['openrouter_api_key'] ?? ''));
         $orModel = trim((string) ($_POST['openrouter_model'] ?? ''));
@@ -187,7 +198,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         $messageType = 'success';
     }
 
-    if (!in_array($_POST['action'], ['update_rates', 'toggle_bank', 'toggle_currency', 'toggle_homepage', 'set_default_bank', 'update_rate_order', 'set_chart_defaults', 'save_widget_config', 'toggle_noindex', 'set_retention_days', 'save_deposit_rate', 'save_openrouter_settings'], true)) {
+    if (!in_array($_POST['action'], ['update_rates', 'toggle_bank', 'toggle_currency', 'toggle_homepage', 'set_default_bank', 'update_rate_order', 'set_chart_defaults', 'save_widget_config', 'toggle_noindex', 'set_retention_days', 'save_deposit_rate', 'toggle_deposit_comparison', 'save_openrouter_settings'], true)) {
         header('Location: admin.php');
         exit;
     }
@@ -229,6 +240,8 @@ $retentionDaysRow = Database::queryOne('SELECT value FROM settings WHERE `key` =
 $retentionDaysValue = (int) ($retentionDaysRow['value'] ?? (defined('RATE_HISTORY_RETENTION_DAYS') ? RATE_HISTORY_RETENTION_DAYS : 1825));
 $depositRateRow = Database::queryOne('SELECT value FROM settings WHERE `key` = ?', ['deposit_interest_rate']);
 $depositRateValue = $depositRateRow ? (float) $depositRateRow['value'] : 40.0;
+$depositComparisonRow = Database::queryOne('SELECT value FROM settings WHERE `key` = ?', ['deposit_comparison_enabled']);
+$isDepositComparisonEnabled = !$depositComparisonRow || ($depositComparisonRow['value'] ?? '1') === '1';
 $currentLocale = getAppLocale();
 $csrfToken = getCsrfToken();
 $version = getAppVersion();
@@ -453,19 +466,35 @@ foreach ($allRates as $r) {
                             <p><?= t('admin.deposit_rate_desc') ?></p>
                         </div>
                     </div>
+                    <form method="POST" style="margin:0;">
+                        <input type="hidden" name="action" value="toggle_deposit_comparison">
+                        <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
+                        <button type="submit" class="btn <?= $isDepositComparisonEnabled ? 'btn-action' : 'btn-primary' ?>" style="white-space:nowrap;">
+                            <?= $isDepositComparisonEnabled ? '🔴 ' . t('admin.deposit_disable') : '🟢 ' . t('admin.deposit_enable') ?>
+                        </button>
+                    </form>
                 </div>
                 <div class="admin-card-body">
-                    <form method="POST" class="settings-form">
+                    <p style="margin-bottom:8px;">
+                        <span class="badge <?= $isDepositComparisonEnabled ? 'badge-success' : 'badge-muted' ?>">
+                            <?= $isDepositComparisonEnabled ? t('admin.deposit_status_on') : t('admin.deposit_status_off') ?>
+                        </span>
+                    </p>
+                    <form method="POST" class="settings-form" style="margin-bottom:16px;">
                         <input type="hidden" name="action" value="save_deposit_rate">
                         <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
                         <div class="form-field">
                             <label for="deposit_interest_rate"><?= t('admin.deposit_rate_label') ?></label>
                             <input type="number" id="deposit_interest_rate" name="deposit_interest_rate"
                                    value="<?= $depositRateValue ?>" step="0.1" min="0" max="200"
-                                   style="max-width: 120px">
+                                   style="max-width: 120px" <?= $isDepositComparisonEnabled ? '' : 'disabled' ?>>
                         </div>
-                        <button type="submit" class="btn btn-primary"><?= t('admin.save') ?></button>
+                        <button type="submit" class="btn btn-primary" <?= $isDepositComparisonEnabled ? '' : 'disabled' ?>><?= t('admin.save') ?></button>
                     </form>
+                    <div style="background: var(--bg-tertiary, #f0f4f8); border-radius: 8px; padding: 12px 16px; font-size: 0.85em; line-height: 1.6; color: var(--text-secondary, #64748b);">
+                        <strong>ℹ️ <?= t('admin.deposit_info_title') ?></strong><br>
+                        <?= t('admin.deposit_info_body') ?>
+                    </div>
                 </div>
             </div>
 

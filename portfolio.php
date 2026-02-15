@@ -549,6 +549,9 @@ $goalProgress = Portfolio::computeGoalProgress($goals, $summary['items'] ?? [], 
 // Read admin default deposit rate for form placeholders
 $adminDepositRateRow = Database::queryOne('SELECT value FROM settings WHERE `key` = ?', ['deposit_interest_rate']);
 $adminDepositRate = $adminDepositRateRow ? (float) $adminDepositRateRow['value'] : 40.0;
+// Check if deposit comparison is enabled
+$depositComparisonRow = Database::queryOne('SELECT value FROM settings WHERE `key` = ?', ['deposit_comparison_enabled']);
+$isDepositComparisonEnabled = !$depositComparisonRow || ($depositComparisonRow['value'] ?? '1') === '1';
 // Distribution & annualized return will be recalculated after filters are applied
 $currencies = Database::query('SELECT code, name_tr, name_en FROM currencies WHERE is_active = 1 ORDER BY code');
 $banks = Database::query('SELECT slug, name FROM banks WHERE is_active = 1 ORDER BY name');
@@ -1178,7 +1181,7 @@ $annualizedReturn = ($oldestDate && $analyticsCost > 0)
                                                     <?php endif; ?>
                                                 </span>
                                             </div>
-                                            <?php if (($gp['deposit_value'] ?? 0) > 0 && $gp['item_count'] > 0): ?>
+                                            <?php if ($isDepositComparisonEnabled && ($gp['deposit_value'] ?? 0) > 0 && $gp['item_count'] > 0): ?>
                                                 <?php
                                                     $depositValue = (float) $gp['deposit_value'];
                                                     $currentTryValue = (float) ($gp['current'] ?? 0);

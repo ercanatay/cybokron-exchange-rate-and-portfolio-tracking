@@ -552,10 +552,17 @@ return [
     'admin.retention_hint' => 'Bu süreyi aşan kur geçmişi verileri temizlik cron görevi tarafından otomatik olarak silinir.',
     'admin.retention_updated' => 'Veri saklama süresi güncellendi.',
 
-    'admin.deposit_rate_title' => 'Mevduat Faiz Oranı',
-    'admin.deposit_rate_desc' => 'Hedef karşılaştırması için kullanılacak yıllık net mevduat faiz oranı.',
+    'admin.deposit_rate_title' => 'Mevduat Faiz Karşılaştırması',
+    'admin.deposit_rate_desc' => 'Hedef kartlarında mevduat faizi ile karşılaştırma özelliği.',
     'admin.deposit_rate_label' => 'Yıllık Net Faiz Oranı (%)',
     'admin.deposit_rate_updated' => 'Mevduat faiz oranı güncellendi.',
+    'admin.deposit_comparison_toggled' => 'Mevduat karşılaştırması ayarı güncellendi.',
+    'admin.deposit_enable' => 'Etkinleştir',
+    'admin.deposit_disable' => 'Devre Dışı',
+    'admin.deposit_status_on' => 'Aktif',
+    'admin.deposit_status_off' => 'Kapalı',
+    'admin.deposit_info_title' => 'Hesaplama Mantığı',
+    'admin.deposit_info_body' => 'Her varlığın alış tarihinden bugüne kadar geçen gün sayısı hesaplanır. Maliyet tutarı, yıllık bileşik faiz formülüyle (Maliyet × (1 + Oran/100) ^ (Gün/365)) büyütülür. Tüm varlıkların mevduat getirileri toplanarak "mevduatta olsaydı" değeri elde edilir. Her hedef için farklı faiz oranı tanımlanabilir; boş bırakılırsa bu varsayılan oran kullanılır.',
 
     // Self-Healing
     'selfhealing.title' => 'Otomatik Onarım Geçmişi',
