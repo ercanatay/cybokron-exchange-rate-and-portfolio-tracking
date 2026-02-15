@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.10.9] - 2026-02-15
+
+Addresses remaining PR #25 findings: Remember Me token system, idempotent updates, statement cache limit, portfolio ownership enforcement.
+
+### Security Fixes
+- **Secure Remember Me** — Replaced session-cookie-extension approach with proper `selector:validator` token system stored in `remember_tokens` table; tokens hashed with SHA-256, rotated on each use, invalidated on logout; theft detection wipes all user tokens
+- **portfolio.user_id NOT NULL** — Portfolio table now enforces `user_id NOT NULL` with `ON DELETE CASCADE`; migration assigns orphaned NULL rows to admin user before schema change
+
+### Bug Fixes
+- **Update API idempotent** — `Portfolio::update()`, `updateGroup()`, `updateTag()` now return `true` when row exists but data is unchanged (MySQL returns 0 affected rows for identical updates); existence check before update prevents false 404s
+- **Statement cache bounded** — `Database::prepare()` cache limited to 100 entries with FIFO eviction (25% purge), preventing memory growth in long-running CLI scripts
+
+### Schema & Migrations
+- New table: `remember_tokens` (selector/validator token pairs with expiry)
+- Migration `012_remember_tokens_and_user_id.sql`
+- Fresh schema: `portfolio.user_id` changed from `DEFAULT NULL` to `NOT NULL`, FK changed from `ON DELETE SET NULL` to `ON DELETE CASCADE`
+
 ## [1.10.8] - 2026-02-15
 
 Security hardening v3 — addresses remaining audit findings and PR #25 analysis (Jules AI, Codex).

@@ -255,7 +255,15 @@ class Portfolio
             }
         }
 
-        return Database::update('portfolio', $update, $where, $params) > 0;
+        // Verify the row exists and is accessible before updating
+        $exists = Database::queryOne("SELECT id FROM portfolio WHERE {$where}", $params);
+        if (!$exists) {
+            return false;
+        }
+
+        // Update returns 0 when data is identical — that's still a success
+        Database::update('portfolio', $update, $where, $params);
+        return true;
     }
 
     /**
@@ -444,7 +452,13 @@ class Portfolio
             }
         }
 
-        return Database::update('portfolio_groups', $update, $where, $params) > 0;
+        $exists = Database::queryOne("SELECT id FROM portfolio_groups WHERE {$where}", $params);
+        if (!$exists) {
+            return false;
+        }
+
+        Database::update('portfolio_groups', $update, $where, $params);
+        return true;
     }
 
     /**
@@ -626,7 +640,13 @@ class Portfolio
             }
         }
 
-        return Database::update('portfolio_tags', $update, $where, $params) > 0;
+        $exists = Database::queryOne("SELECT id FROM portfolio_tags WHERE {$where}", $params);
+        if (!$exists) {
+            return false;
+        }
+
+        Database::update('portfolio_tags', $update, $where, $params);
+        return true;
     }
 
     /**

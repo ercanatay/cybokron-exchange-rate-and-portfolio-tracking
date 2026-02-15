@@ -147,7 +147,7 @@ CREATE TABLE IF NOT EXISTS `portfolio_groups` (
 
 CREATE TABLE IF NOT EXISTS `portfolio` (
     `id` int unsigned NOT NULL AUTO_INCREMENT,
-    `user_id` int unsigned DEFAULT NULL,
+    `user_id` int unsigned NOT NULL,
     `currency_id` int unsigned NOT NULL,
     `bank_id` int unsigned DEFAULT NULL,
     `group_id` int unsigned DEFAULT NULL,
@@ -166,7 +166,7 @@ CREATE TABLE IF NOT EXISTS `portfolio` (
     KEY `idx_buy_date` (`buy_date`),
     KEY `idx_portfolio_group` (`group_id`),
     CONSTRAINT `fk_portfolio_group` FOREIGN KEY (`group_id`) REFERENCES `portfolio_groups` (`id`) ON DELETE SET NULL,
-    CONSTRAINT `portfolio_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE SET NULL,
+    CONSTRAINT `portfolio_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
     CONSTRAINT `portfolio_ibfk_2` FOREIGN KEY (`currency_id`) REFERENCES `currencies` (`id`) ON DELETE CASCADE,
     CONSTRAINT `portfolio_ibfk_3` FOREIGN KEY (`bank_id`) REFERENCES `banks` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -253,6 +253,22 @@ CREATE TABLE IF NOT EXISTS `scrape_logs` (
     KEY `idx_bank_status` (`bank_id`,`status`),
     KEY `idx_created` (`created_at`),
     CONSTRAINT `scrape_logs_ibfk_1` FOREIGN KEY (`bank_id`) REFERENCES `banks` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ─── Remember Me Tokens ─────────────────────────────────────────────────────
+
+CREATE TABLE IF NOT EXISTS `remember_tokens` (
+    `id` int unsigned NOT NULL AUTO_INCREMENT,
+    `user_id` int unsigned NOT NULL,
+    `selector` varchar(64) NOT NULL,
+    `hashed_validator` varchar(128) NOT NULL,
+    `expires_at` datetime NOT NULL,
+    `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uq_selector` (`selector`),
+    KEY `idx_user_id` (`user_id`),
+    KEY `idx_expires` (`expires_at`),
+    CONSTRAINT `fk_remember_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ─── Repair Configs (self-healing) ──────────────────────────────────────────
