@@ -204,6 +204,11 @@ class AlertChecker
             return false;
         }
 
+        if (isPrivateOrReservedHost($url)) {
+            cybokron_log('Alert webhook: private/reserved IP blocked', 'WARNING');
+            return false;
+        }
+
         $payload = [
             'subject' => $subject,
             'body' => $body,

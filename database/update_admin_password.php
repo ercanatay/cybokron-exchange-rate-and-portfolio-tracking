@@ -25,8 +25,10 @@ if (file_exists($passwordFile)) {
         $hash = password_hash($plaintext, PASSWORD_BCRYPT);
         echo "  password hashed on server (bcrypt)\n";
     }
+    @unlink($passwordFile);
 } elseif (file_exists($hashFile)) {
     $hash = trim(file_get_contents($hashFile));
+    @unlink($hashFile);
 } else {
     $hash = getenv('ADMIN_HASH');
 }

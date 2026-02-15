@@ -71,6 +71,11 @@ class WebhookDispatcher
             return false;
         }
 
+        if (isPrivateOrReservedHost($url)) {
+            cybokron_log("Webhook blocked private/reserved IP: {$url}", 'WARNING');
+            return false;
+        }
+
         $ch = curl_init($url);
         curl_setopt_array($ch, [
             CURLOPT_POST => true,

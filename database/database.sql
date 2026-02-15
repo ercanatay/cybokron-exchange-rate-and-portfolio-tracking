@@ -206,7 +206,7 @@ CREATE TABLE IF NOT EXISTS `portfolio_goals` (
     `id` int unsigned NOT NULL AUTO_INCREMENT,
     `user_id` int unsigned DEFAULT NULL,
     `name` varchar(100) NOT NULL,
-    `target_value` decimal(18,2) NOT NULL COMMENT 'Target value in TRY',
+    `target_value` decimal(18,6) NOT NULL COMMENT 'Target value in TRY',
     `target_type` varchar(20) NOT NULL DEFAULT 'value',
     `target_currency` varchar(10) DEFAULT NULL,
     `bank_slug` varchar(50) DEFAULT NULL COMMENT 'Filter items by bank',
@@ -383,6 +383,5 @@ INSERT IGNORE INTO `currencies` (`code`, `name_tr`, `name_en`, `symbol`, `type`,
 ('XPT', 'Platin', 'Platinum', 'XPT', 'precious_metal', 4),
 ('XPD', 'Paladyum', 'Palladium', 'XPD', 'precious_metal', 4);
 
--- Default admin user (CHANGE PASSWORD IMMEDIATELY after install!)
-INSERT IGNORE INTO `users` (`username`, `password_hash`, `role`, `is_active`) VALUES
-('admin', '$2y$10$placeholder_change_after_install', 'admin', 1);
+-- Admin user is created by database/update_admin_password.php with a proper bcrypt hash.
+-- Do not seed a placeholder password here — migrate.php handles first-run setup.
