@@ -403,6 +403,7 @@ return [
     'portfolio.analytics.group_cost' => 'Toplam Maliyet',
     'portfolio.analytics.group_value' => 'Güncel Değer',
     'portfolio.analytics.group_pl' => 'Kâr/Zarar',
+    'portfolio.analytics.currency_totals' => 'Toplam Miktar',
     'csv.group' => 'Grup',
     'csv.tags' => 'Etiketler',
     'portfolio.bulk.group_actions' => 'Grup İşlemleri',

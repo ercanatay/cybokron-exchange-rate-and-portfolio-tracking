@@ -653,6 +653,33 @@ if ($filterGroup !== '' && $filterGroup !== 'none') {
     ];
 }
 
+// Compute tag analytics when tag filter active
+$tagAnalytics = null;
+if ($filterTag !== '' && $filterTag !== 'none') {
+    $tCost = 0.0;
+    $tValue = 0.0;
+    foreach ($filteredItems as $fi) {
+        $tCost += (float) $fi['cost_try'];
+        $tValue += (float) $fi['value_try'];
+    }
+    $tPl = $tValue - $tCost;
+    $tPlPercent = $tCost > 0 ? ($tPl / $tCost * 100) : 0;
+    $tName = '';
+    foreach ($tags as $tag) {
+        if ((int) $tag['id'] === (int) $filterTag) {
+            $tName = $tag['name'];
+            break;
+        }
+    }
+    $tagAnalytics = [
+        'name' => $tName,
+        'cost' => $tCost,
+        'value' => $tValue,
+        'pl' => $tPl,
+        'pl_percent' => $tPlPercent,
+    ];
+}
+
 // Compute filtered totals
 $filteredTotalCost = 0.0;
 $filteredTotalValue = 0.0;
@@ -662,6 +689,33 @@ foreach ($filteredItems as $fi) {
 }
 $filteredProfitLoss = $filteredTotalValue - $filteredTotalCost;
 $filteredProfitPercent = $filteredTotalCost > 0 ? ($filteredProfitLoss / $filteredTotalCost * 100) : 0;
+
+// Compute currency totals for filtered items (e.g. total XAU, total XAG)
+$filteredCurrencyTotals = [];
+if ($hasFilters && !empty($filteredItems)) {
+    foreach ($filteredItems as $fi) {
+        $code = $fi['currency_code'] ?? '';
+        if ($code === '') continue;
+        if (!isset($filteredCurrencyTotals[$code])) {
+            $filteredCurrencyTotals[$code] = [
+                'code' => $code,
+                'name' => $fi['currency_name_tr'] ?? $fi['currency_name'] ?? $code,
+                'symbol' => $fi['currency_symbol'] ?? $code,
+                'type' => $fi['currency_type'] ?? 'fiat',
+                'total_amount' => 0.0,
+            ];
+        }
+        $filteredCurrencyTotals[$code]['total_amount'] += (float) $fi['amount'];
+    }
+    // Sort: precious_metal first, then by code
+    uasort($filteredCurrencyTotals, function ($a, $b) {
+        $typeOrder = ['precious_metal' => 0, 'crypto' => 1, 'fiat' => 2];
+        $aOrder = $typeOrder[$a['type']] ?? 9;
+        $bOrder = $typeOrder[$b['type']] ?? 9;
+        if ($aOrder !== $bOrder) return $aOrder - $bOrder;
+        return strcmp($a['code'], $b['code']);
+    });
+}
 
 // Compute distribution & annualized return based on filtered items when filter active
 $analyticsItems = $hasFilters ? $filteredItems : ($summary['items'] ?? []);
@@ -1729,6 +1783,46 @@ $annualizedReturn = ($oldestDate && $analyticsCost > 0)
                                 <?= $groupAnalytics['pl'] >= 0 ? '+' : '' ?>         <?= formatTRY($groupAnalytics['pl']) ?>
                                 (% <?= formatNumberLocalized(abs($groupAnalytics['pl_percent']), 2) ?>)
                             </span>
+                        </div>
+                    </div>
+                <?php endif; ?>
+
+                <?php if ($tagAnalytics): ?>
+                    <div class="group-analytics-strip tag-analytics-strip">
+                        <div class="group-stat">
+                            <span class="group-stat-label">🏷️ <?= htmlspecialchars($tagAnalytics['name']) ?></span>
+                        </div>
+                        <div class="group-stat">
+                            <span class="group-stat-label"><?= t('portfolio.analytics.group_cost') ?></span>
+                            <span class="group-stat-value"><?= formatTRY($tagAnalytics['cost']) ?></span>
+                        </div>
+                        <div class="group-stat">
+                            <span class="group-stat-label"><?= t('portfolio.analytics.group_value') ?></span>
+                            <span class="group-stat-value"><?= formatTRY($tagAnalytics['value']) ?></span>
+                        </div>
+                        <div class="group-stat">
+                            <span class="group-stat-label"><?= t('portfolio.analytics.group_pl') ?></span>
+                            <span class="group-stat-value <?= changeClass($tagAnalytics['pl']) ?>">
+                                <?= $tagAnalytics['pl'] >= 0 ? '+' : '' ?> <?= formatTRY($tagAnalytics['pl']) ?>
+                                (% <?= formatNumberLocalized(abs($tagAnalytics['pl_percent']), 2) ?>)
+                            </span>
+                        </div>
+                    </div>
+                <?php endif; ?>
+
+                <?php if ($hasFilters && !empty($filteredCurrencyTotals)): ?>
+                    <div class="currency-totals-strip">
+                        <div class="currency-totals-label">
+                            <span class="group-stat-label"><?= t('portfolio.analytics.currency_totals') ?></span>
+                        </div>
+                        <div class="currency-totals-items">
+                            <?php foreach ($filteredCurrencyTotals as $ct): ?>
+                                <div class="currency-total-chip <?= $ct['type'] === 'precious_metal' ? 'chip-metal' : ($ct['type'] === 'crypto' ? 'chip-crypto' : 'chip-fiat') ?>">
+                                    <span class="currency-total-code"><?= htmlspecialchars($ct['code']) ?></span>
+                                    <span class="currency-total-amount"><?= formatNumberLocalized($ct['total_amount'], 4) ?></span>
+                                    <span class="currency-total-name"><?= htmlspecialchars($ct['name']) ?></span>
+                                </div>
+                            <?php endforeach; ?>
                         </div>
                     </div>
                 <?php endif; ?>
