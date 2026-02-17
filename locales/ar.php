@@ -357,6 +357,7 @@ return [
     'portfolio.analytics.group_cost' => 'التكلفة الإجمالية',
     'portfolio.analytics.group_value' => 'القيمة الحالية',
     'portfolio.analytics.group_pl' => 'الربح/الخسارة',
+    'portfolio.analytics.currency_totals' => 'إجمالي الكمية',
 
     'portfolio.manage.tab_goals' => 'الأهداف',
     'portfolio.goals.add' => 'هدف جديد',

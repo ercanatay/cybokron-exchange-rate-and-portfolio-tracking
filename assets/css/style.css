@@ -2484,6 +2484,81 @@ body.menu-open {
     font-family: 'JetBrains Mono', monospace;
 }
 
+/* ─── Tag Analytics Strip ─────────────────────────────────────────────── */
+.tag-analytics-strip {
+    background: linear-gradient(135deg, rgba(139, 92, 246, 0.06), rgba(168, 85, 247, 0.04));
+    border-color: rgba(139, 92, 246, 0.15);
+}
+
+/* ─── Currency Totals Strip ──────────────────────────────────────────── */
+.currency-totals-strip {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 1rem;
+    padding: 10px 16px;
+    background: linear-gradient(135deg, rgba(234, 179, 8, 0.06), rgba(245, 158, 11, 0.04));
+    border: 1px solid rgba(234, 179, 8, 0.18);
+    border-radius: 12px;
+}
+
+.currency-totals-label {
+    flex-shrink: 0;
+}
+
+.currency-totals-items {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.currency-total-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    background: rgba(234, 179, 8, 0.10);
+    border: 1px solid rgba(234, 179, 8, 0.22);
+    color: var(--text-primary);
+}
+
+.currency-total-chip.chip-metal {
+    background: rgba(234, 179, 8, 0.12);
+    border-color: rgba(234, 179, 8, 0.25);
+}
+
+.currency-total-chip.chip-crypto {
+    background: rgba(245, 158, 11, 0.10);
+    border-color: rgba(245, 158, 11, 0.22);
+}
+
+.currency-total-chip.chip-fiat {
+    background: rgba(59, 130, 246, 0.08);
+    border-color: rgba(59, 130, 246, 0.18);
+}
+
+.currency-total-code {
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 700;
+    font-size: 0.8rem;
+}
+
+.currency-total-amount {
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 700;
+    font-size: 0.9rem;
+}
+
+.currency-total-name {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    font-weight: 500;
+}
+
 /* ─── Filter Pill Tag Variant ──────────────────────────────────────────── */
 .filter-pill-tag {
     border-style: dashed;
@@ -3257,6 +3332,10 @@ body.menu-open {
     }
 
     .group-analytics-strip {
+        flex-direction: column;
+    }
+
+    .currency-totals-strip {
         flex-direction: column;
     }
 

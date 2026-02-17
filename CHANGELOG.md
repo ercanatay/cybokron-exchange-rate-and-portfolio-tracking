@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.10.11] - 2026-02-17
+
+Currency totals per filter — shows total native amounts (XAU, XAG, etc.) when a group or tag filter is active.
+
+### Features
+- **Currency totals strip** — when filtering by group or tag, a new strip displays total amounts per currency code (e.g. "XAU 58.8200 Altın", "XAG 67.6300 Gümüş") with color-coded chips for precious metals, crypto, and fiat
+- **Tag analytics strip** — selecting a tag filter now shows cost, current value, and profit/loss summary (matching the existing group analytics strip)
+- **Mixed group support** — groups containing multiple currency types show each currency total separately (e.g. gold and silver chips side by side)
+
+### Localization
+- Added `portfolio.analytics.currency_totals` translation key in all 5 languages (TR, EN, DE, FR, AR)
+
 ## [1.10.10] - 2026-02-15
 
 Security hardening v4 — CSP nonce system, strict ownership enforcement, schema integrity, and defense-in-depth improvements.

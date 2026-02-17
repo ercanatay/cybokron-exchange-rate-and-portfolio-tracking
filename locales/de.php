@@ -357,6 +357,7 @@ return [
     'portfolio.analytics.group_cost' => 'Gesamtkosten',
     'portfolio.analytics.group_value' => 'Aktueller Wert',
     'portfolio.analytics.group_pl' => 'Gewinn/Verlust',
+    'portfolio.analytics.currency_totals' => 'Gesamtmenge',
 
     'portfolio.manage.tab_goals' => 'Ziele',
     'portfolio.goals.add' => 'Neues Ziel',

@@ -403,6 +403,7 @@ return [
     'portfolio.analytics.group_cost' => 'Total Cost',
     'portfolio.analytics.group_value' => 'Current Value',
     'portfolio.analytics.group_pl' => 'Profit/Loss',
+    'portfolio.analytics.currency_totals' => 'Total Amount',
     'csv.group' => 'Group',
     'csv.tags' => 'Tags',
     'portfolio.bulk.group_actions' => 'Group Actions',
