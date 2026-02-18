@@ -728,7 +728,7 @@ $annualizedReturn = ($oldestDate && $analyticsCost > 0)
     : null;
 ?>
 <!DOCTYPE html>
-<html lang="<?= htmlspecialchars($currentLocale) ?>">
+<html lang="<?= htmlspecialchars($currentLocale) ?>" data-layout-default="<?= isFullwidthDefault() ? 'fullwidth' : 'normal' ?>">
 
 <head>
     <meta charset="UTF-8">
@@ -740,6 +740,7 @@ $annualizedReturn = ($oldestDate && $analyticsCost > 0)
     'page' => 'portfolio.php',
 ]) ?>
     <script nonce="<?= getCspNonce() ?>">(function(){try{var t=localStorage.getItem('cybokron_theme');if(t==='light'||t==='dark'){document.documentElement.setAttribute('data-theme',t)}else if(window.matchMedia('(prefers-color-scheme:light)').matches){document.documentElement.setAttribute('data-theme','light')}}catch(e){}})();</script>
+    <script nonce="<?= getCspNonce() ?>">(function(){try{var l=localStorage.getItem('cybokron_layout');if(l!=='fullwidth'&&l!=='normal'){l=document.documentElement.getAttribute('data-layout-default')||'normal'}document.documentElement.setAttribute('data-layout',l)}catch(e){}})();</script>
     <link rel="icon" type="image/svg+xml" href="favicon.svg">
     <link rel="stylesheet" href="assets/css/style.css?v=<?= filemtime(__DIR__ . '/assets/css/style.css') ?>">
 </head>

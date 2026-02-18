@@ -609,4 +609,16 @@ return [
     'repair.summary.success' => 'Réparation réussie',
     'repair.summary.failed' => 'Réparation échouée',
     'repair.summary.rates_found' => 'taux trouvés',
+
+    // Layout Toggle
+    'nav.layout_toggle' => 'Basculer la mise en page pleine largeur',
+    'layout.switch_to_fullwidth' => 'Passer en pleine largeur',
+    'layout.switch_to_normal' => 'Passer en largeur normale',
+    'admin.layout_default_title' => 'Paramètres de mise en page',
+    'admin.layout_default_desc' => 'Définir le mode de mise en page par défaut pour les nouveaux visiteurs.',
+    'admin.layout_default_enable' => 'Activer pleine largeur',
+    'admin.layout_default_disable' => 'Désactiver pleine largeur',
+    'admin.layout_default_status_on' => 'Pleine largeur active — La mise en page par défaut est pleine largeur',
+    'admin.layout_default_status_off' => 'Largeur normale — La mise en page par défaut est normale',
+    'admin.layout_default_toggled' => 'Paramètre de mise en page par défaut mis à jour.',
 ];

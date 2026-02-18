@@ -603,4 +603,16 @@ return [
     'repair.summary.success' => 'Onarım başarılı',
     'repair.summary.failed' => 'Onarım başarısız',
     'repair.summary.rates_found' => 'kur bulundu',
+
+    // Layout Toggle
+    'nav.layout_toggle' => 'Tam genişlik düzenini değiştir',
+    'layout.switch_to_fullwidth' => 'Tam genişliğe geç',
+    'layout.switch_to_normal' => 'Normal genişliğe geç',
+    'admin.layout_default_title' => 'Düzen Ayarları',
+    'admin.layout_default_desc' => 'Yeni ziyaretçiler için varsayılan düzen modunu belirleyin.',
+    'admin.layout_default_enable' => 'Tam Genişliği Etkinleştir',
+    'admin.layout_default_disable' => 'Tam Genişliği Kapat',
+    'admin.layout_default_status_on' => 'Tam Genişlik Aktif — Varsayılan düzen tam genişlik',
+    'admin.layout_default_status_off' => 'Normal Genişlik — Varsayılan düzen normal',
+    'admin.layout_default_toggled' => 'Varsayılan düzen ayarı güncellendi.',
 ];

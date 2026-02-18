@@ -1158,6 +1158,21 @@ function isSiteNoindex(): bool
     return $cached;
 }
 
+function isFullwidthDefault(): bool
+{
+    static $cached = null;
+    if ($cached !== null) {
+        return $cached;
+    }
+    try {
+        $row = Database::queryOne('SELECT value FROM settings WHERE `key` = ?', ['layout_fullwidth_default']);
+        $cached = ($row && ($row['value'] ?? '0') === '1');
+    } catch (\Throwable $e) {
+        $cached = false;
+    }
+    return $cached;
+}
+
 /**
  * Generate SEO meta tags for the <head> section.
  *

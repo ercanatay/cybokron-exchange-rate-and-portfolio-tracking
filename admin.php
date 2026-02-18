@@ -176,6 +176,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         $messageType = 'success';
     }
 
+    if ($_POST['action'] === 'toggle_layout_default') {
+        $currentLayout = Database::queryOne('SELECT value FROM settings WHERE `key` = ?', ['layout_fullwidth_default']);
+        $newValue = ($currentLayout && ($currentLayout['value'] ?? '0') === '1') ? '0' : '1';
+        Database::query(
+            'INSERT INTO settings (`key`, value) VALUES (?, ?) ON DUPLICATE KEY UPDATE value = ?',
+            ['layout_fullwidth_default', $newValue, $newValue]
+        );
+        $message = t('admin.layout_default_toggled');
+        $messageType = 'success';
+    }
+
     if ($_POST['action'] === 'save_openrouter_settings') {
         $orApiKey = trim((string) ($_POST['openrouter_api_key'] ?? ''));
         $orModel = trim((string) ($_POST['openrouter_model'] ?? ''));
@@ -199,7 +210,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         $messageType = 'success';
     }
 
-    if (!in_array($_POST['action'], ['update_rates', 'toggle_bank', 'toggle_currency', 'toggle_homepage', 'set_default_bank', 'update_rate_order', 'set_chart_defaults', 'save_widget_config', 'toggle_noindex', 'set_retention_days', 'save_deposit_rate', 'toggle_deposit_comparison', 'save_openrouter_settings'], true)) {
+    if (!in_array($_POST['action'], ['update_rates', 'toggle_bank', 'toggle_currency', 'toggle_homepage', 'set_default_bank', 'update_rate_order', 'set_chart_defaults', 'save_widget_config', 'toggle_noindex', 'set_retention_days', 'save_deposit_rate', 'toggle_deposit_comparison', 'save_openrouter_settings', 'toggle_layout_default'], true)) {
         header('Location: admin.php');
         exit;
     }
@@ -280,7 +291,7 @@ foreach ($allRates as $r) {
 }
 ?>
 <!DOCTYPE html>
-<html lang="<?= htmlspecialchars($currentLocale) ?>">
+<html lang="<?= htmlspecialchars($currentLocale) ?>" data-layout-default="<?= isFullwidthDefault() ? 'fullwidth' : 'normal' ?>">
 
 <head>
     <meta charset="UTF-8">
@@ -292,6 +303,7 @@ foreach ($allRates as $r) {
     'page' => 'admin.php',
 ]) ?>
     <script nonce="<?= htmlspecialchars(getCspNonce()) ?>">(function(){try{var t=localStorage.getItem('cybokron_theme');if(t==='light'||t==='dark'){document.documentElement.setAttribute('data-theme',t)}else if(window.matchMedia('(prefers-color-scheme:light)').matches){document.documentElement.setAttribute('data-theme','light')}}catch(e){}})();</script>
+    <script nonce="<?= htmlspecialchars(getCspNonce()) ?>">(function(){try{var l=localStorage.getItem('cybokron_layout');if(l!=='fullwidth'&&l!=='normal'){l=document.documentElement.getAttribute('data-layout-default')||'normal'}document.documentElement.setAttribute('data-layout',l)}catch(e){}})();</script>
     <link rel="icon" type="image/svg+xml" href="favicon.svg">
     <link rel="stylesheet" href="assets/css/style.css?v=<?= filemtime(__DIR__ . '/assets/css/style.css') ?>">
     <link rel="stylesheet" href="assets/css/admin.css">
@@ -567,6 +579,40 @@ foreach ($allRates as $r) {
                             <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
                             <button type="submit" class="btn <?= $isNoindex ? 'btn-primary' : 'btn-action' ?>" style="white-space:nowrap;">
                                 <?= $isNoindex ? '🌐 ' . t('admin.show') : '🚫 ' . t('admin.hide') ?>
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Layout Settings -->
+            <div class="admin-card">
+                <div class="admin-card-header">
+                    <div class="admin-card-header-left">
+                        <div class="admin-card-icon" style="background: linear-gradient(135deg, #8b5cf620, #6d28d920);">&#x229E;</div>
+                        <div>
+                            <h2><?= t('admin.layout_default_title') ?></h2>
+                            <p><?= t('admin.layout_default_desc') ?></p>
+                        </div>
+                    </div>
+                </div>
+                <div class="admin-card-body">
+                    <?php $isFullwidthDefault = isFullwidthDefault(); ?>
+                    <div class="settings-form" style="display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap;">
+                        <div style="flex:1; min-width:200px;">
+                            <strong><?= t('admin.layout_default_title') ?></strong>
+                            <p style="margin:4px 0 0; font-size:0.85rem; color:var(--text-muted);"><?= t('admin.layout_default_desc') ?></p>
+                            <p style="margin:8px 0 0;">
+                                <span class="badge <?= $isFullwidthDefault ? 'badge-success' : 'badge-muted' ?>">
+                                    <?= $isFullwidthDefault ? t('admin.layout_default_status_on') : t('admin.layout_default_status_off') ?>
+                                </span>
+                            </p>
+                        </div>
+                        <form method="POST" style="margin:0;">
+                            <input type="hidden" name="action" value="toggle_layout_default">
+                            <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
+                            <button type="submit" class="btn <?= $isFullwidthDefault ? 'btn-action' : 'btn-primary' ?>" style="white-space:nowrap;">
+                                <?= $isFullwidthDefault ? t('admin.layout_default_disable') : t('admin.layout_default_enable') ?>
                             </button>
                         </form>
                     </div>

@@ -31,6 +31,7 @@ Cybokron is an open-source PHP/MySQL application for tracking Turkish bank excha
 - **Currency converter** — bidirectional conversion, cross-rates
 - **Bank selector + homepage controls** — default bank, homepage visibility, drag-drop order
 - **Manual rate refresh** from dashboard and admin with CSRF protection
+- **Fullwidth layout toggle** — switch between normal (1200px) and fullwidth (100%) container layout; preference persisted in localStorage, admin-configurable default
 - **Widget layout controls** — show/hide + ordering persisted in settings
 - **Currency icons** for major fiat currencies and precious metal badges
 - **PWA support** — manifest, service worker, offline cache
