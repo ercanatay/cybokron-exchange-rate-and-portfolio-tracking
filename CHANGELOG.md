@@ -2,6 +2,25 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.10.12] - 2026-02-18
+
+Fullwidth layout toggle — users can switch between normal (1200px) and fullwidth (100%) container layout across all pages.
+
+### Added
+- **Fullwidth layout toggle** — header button (desktop + mobile) to switch `.container` max-width between 1200px and 100% with smooth 0.35s CSS transition
+- **Layout persistence** — user preference saved in `localStorage('cybokron_layout')` and restored on page load with flash-prevention inline script
+- **Admin layout default** — admin panel toggle to set default layout mode (`fullwidth` / `normal`) for new visitors via `layout_fullwidth_default` setting
+- **`isFullwidthDefault()` helper** — cached DB lookup for server-side default, follows `isSiteNoindex()` pattern
+- **Flash-prevention script** — inline `<script>` in all 5 pages reads localStorage + falls back to `data-layout-default` attribute to prevent layout shift
+- **Localization** — 10 new translation keys across all 5 languages (TR, EN, DE, FR, AR)
+- **Accessibility** — `aria-pressed` state on toggle buttons, `aria-label` on both desktop and mobile variants
+- **Login page protection** — CSS specificity guard ensures `.login-container` max-width (400px) is never overridden by fullwidth rule
+
+### Files Changed
+- `assets/js/layout.js` (new), `assets/css/style.css`, `includes/helpers.php`, `includes/header.php`
+- `index.php`, `portfolio.php`, `admin.php`, `observability.php`, `openrouter.php`
+- `locales/tr.php`, `locales/en.php`, `locales/de.php`, `locales/fr.php`, `locales/ar.php`
+
 ## [1.10.11] - 2026-02-17
 
 Currency totals per filter — shows total native amounts (XAU, XAG, etc.) when a group or tag filter is active.

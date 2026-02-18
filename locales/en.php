@@ -603,4 +603,16 @@ return [
     'repair.summary.success' => 'Repair successful',
     'repair.summary.failed' => 'Repair failed',
     'repair.summary.rates_found' => 'rates found',
+
+    // Layout Toggle
+    'nav.layout_toggle' => 'Toggle fullwidth layout',
+    'layout.switch_to_fullwidth' => 'Switch to fullwidth',
+    'layout.switch_to_normal' => 'Switch to normal width',
+    'admin.layout_default_title' => 'Layout Settings',
+    'admin.layout_default_desc' => 'Set default layout mode for new visitors.',
+    'admin.layout_default_enable' => 'Enable Fullwidth',
+    'admin.layout_default_disable' => 'Disable Fullwidth',
+    'admin.layout_default_status_on' => 'Fullwidth Active — Default layout is fullwidth',
+    'admin.layout_default_status_off' => 'Normal Width — Default layout is normal',
+    'admin.layout_default_toggled' => 'Default layout setting updated.',
 ];

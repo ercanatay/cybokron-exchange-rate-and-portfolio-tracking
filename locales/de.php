@@ -609,4 +609,16 @@ return [
     'repair.summary.success' => 'Reparatur erfolgreich',
     'repair.summary.failed' => 'Reparatur fehlgeschlagen',
     'repair.summary.rates_found' => 'Kurse gefunden',
+
+    // Layout Toggle
+    'nav.layout_toggle' => 'Volle Breite umschalten',
+    'layout.switch_to_fullwidth' => 'Auf volle Breite wechseln',
+    'layout.switch_to_normal' => 'Auf normale Breite wechseln',
+    'admin.layout_default_title' => 'Layout-Einstellungen',
+    'admin.layout_default_desc' => 'Standard-Layout-Modus für neue Besucher festlegen.',
+    'admin.layout_default_enable' => 'Volle Breite aktivieren',
+    'admin.layout_default_disable' => 'Volle Breite deaktivieren',
+    'admin.layout_default_status_on' => 'Volle Breite aktiv — Standard-Layout ist volle Breite',
+    'admin.layout_default_status_off' => 'Normale Breite — Standard-Layout ist normal',
+    'admin.layout_default_toggled' => 'Standard-Layout-Einstellung aktualisiert.',
 ];

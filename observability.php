@@ -124,7 +124,7 @@ $csrfToken = getCsrfToken();
 $version = getAppVersion();
 ?>
 <!DOCTYPE html>
-<html lang="<?= htmlspecialchars($currentLocale) ?>">
+<html lang="<?= htmlspecialchars($currentLocale) ?>" data-layout-default="<?= isFullwidthDefault() ? 'fullwidth' : 'normal' ?>">
 
 <head>
     <meta charset="UTF-8">
@@ -136,6 +136,7 @@ $version = getAppVersion();
     'page' => 'observability.php',
 ]) ?>
     <script nonce="<?= htmlspecialchars(getCspNonce()) ?>">(function(){try{var t=localStorage.getItem('cybokron_theme');if(t==='light'||t==='dark'){document.documentElement.setAttribute('data-theme',t)}else if(window.matchMedia('(prefers-color-scheme:light)').matches){document.documentElement.setAttribute('data-theme','light')}}catch(e){}})();</script>
+    <script nonce="<?= htmlspecialchars(getCspNonce()) ?>">(function(){try{var l=localStorage.getItem('cybokron_layout');if(l!=='fullwidth'&&l!=='normal'){l=document.documentElement.getAttribute('data-layout-default')||'normal'}document.documentElement.setAttribute('data-layout',l)}catch(e){}})();</script>
     <link rel="icon" type="image/svg+xml" href="favicon.svg">
     <link rel="stylesheet" href="assets/css/style.css?v=<?= filemtime(__DIR__ . '/assets/css/style.css') ?>">
     <link rel="stylesheet" href="assets/css/repair-progress.css?v=<?= filemtime(__DIR__ . '/assets/css/repair-progress.css') ?>">

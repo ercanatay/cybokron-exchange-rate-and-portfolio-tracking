@@ -92,6 +92,15 @@ $_isAdmin = Auth::check() && Auth::isAdmin();
                 <span class="theme-icon">🌙</span>
             </button>
 
+            <!-- Layout toggle -->
+            <button type="button" id="layout-toggle" class="header-action-btn"
+                aria-label="<?= t('nav.layout_toggle') ?>" title="<?= t('nav.layout_toggle') ?>"
+                aria-pressed="false"
+                data-label-expand="<?= htmlspecialchars(t('layout.switch_to_fullwidth')) ?>"
+                data-label-collapse="<?= htmlspecialchars(t('layout.switch_to_normal')) ?>">
+                <span class="layout-icon">&#x229E;</span>
+            </button>
+
             <!-- Auth -->
             <?php if (Auth::check()): ?>
                 <form method="POST" action="logout.php" class="header-auth-form" style="display:inline">
@@ -151,6 +160,13 @@ $_isAdmin = Auth::check() && Auth::isAdmin();
                     data-label-dark="<?= htmlspecialchars(t('theme.switch_to_dark')) ?>">
                     <span class="theme-icon">🌙</span> <?= t('nav.theme_toggle') ?>
                 </button>
+                <button type="button" id="layout-toggle-mobile" class="mobile-action-btn"
+                    aria-pressed="false"
+                    aria-label="<?= htmlspecialchars(t('nav.layout_toggle')) ?>"
+                    data-label-expand="<?= htmlspecialchars(t('layout.switch_to_fullwidth')) ?>"
+                    data-label-collapse="<?= htmlspecialchars(t('layout.switch_to_normal')) ?>">
+                    <span class="layout-icon">&#x229E;</span> <?= t('nav.layout_toggle') ?>
+                </button>
                 <?php if (Auth::check()): ?>
                     <form method="POST" action="logout.php" style="display:inline">
                         <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(getCsrfToken()) ?>">
@@ -208,3 +224,4 @@ $_isAdmin = Auth::check() && Auth::isAdmin();
 })();
 </script>
 <script src="assets/js/theme.js" defer></script>
+<script src="assets/js/layout.js" defer></script>

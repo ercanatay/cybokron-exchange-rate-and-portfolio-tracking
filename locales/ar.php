@@ -609,4 +609,16 @@ return [
     'repair.summary.success' => 'نجح الإصلاح',
     'repair.summary.failed' => 'فشل الإصلاح',
     'repair.summary.rates_found' => 'أسعار وُجدت',
+
+    // Layout Toggle
+    'nav.layout_toggle' => 'تبديل التخطيط بالعرض الكامل',
+    'layout.switch_to_fullwidth' => 'التبديل إلى العرض الكامل',
+    'layout.switch_to_normal' => 'التبديل إلى العرض العادي',
+    'admin.layout_default_title' => 'إعدادات التخطيط',
+    'admin.layout_default_desc' => 'تعيين وضع التخطيط الافتراضي للزوار الجدد.',
+    'admin.layout_default_enable' => 'تفعيل العرض الكامل',
+    'admin.layout_default_disable' => 'تعطيل العرض الكامل',
+    'admin.layout_default_status_on' => 'العرض الكامل نشط — التخطيط الافتراضي بالعرض الكامل',
+    'admin.layout_default_status_off' => 'العرض العادي — التخطيط الافتراضي عادي',
+    'admin.layout_default_toggled' => 'تم تحديث إعداد التخطيط الافتراضي.',
 ];
