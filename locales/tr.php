@@ -755,4 +755,108 @@ return [
     'admin.leverage.test_signal_sell' => 'SAT Sinyali Gönder',
     'admin.leverage.test_signal_success' => '{{direction}} test sinyali emaili gönderildi.',
     'admin.leverage.test_signal_desc' => 'Gerçekçi AL/SAT sinyal emaili gönderir (simüle veri + AI sonucu ile)',
+
+    // ─── Leverage Enhancements ─────────────────────────────────────────
+    // Admin panel sections
+    'admin.leverage.section_telegram' => 'Telegram Bildirimleri',
+    'admin.leverage.telegram_enabled' => 'Telegram Bildirimleri Aktif',
+    'admin.leverage.telegram_bot_token' => 'Bot Token',
+    'admin.leverage.telegram_chat_id' => 'Chat ID',
+    'admin.leverage.telegram_test' => 'Test Mesajı Gönder',
+    'admin.leverage.telegram_test_success' => 'Telegram test mesajı gönderildi.',
+    'admin.leverage.telegram_test_fail' => 'Telegram test mesajı gönderilemedi.',
+    'admin.leverage.telegram_setup_guide' => '@BotFather ile bot oluşturun, token\'ı buraya girin. Chat ID için bota /start gönderin.',
+    'admin.leverage.section_webhook' => 'Webhook Bildirimleri',
+    'admin.leverage.webhook_enabled' => 'Webhook Bildirimleri Aktif',
+    'admin.leverage.webhook_manage_note' => 'Webhook endpoint\'leri Kaldıraç sayfasından yönetilir.',
+    'admin.leverage.section_backtesting' => 'Backtesting',
+    'admin.leverage.backtesting_enabled' => 'Backtesting Aktif',
+    'admin.leverage.backtesting_default_source' => 'Varsayılan Veri Kaynağı',
+    'admin.leverage.backtesting_source_rate_history' => 'Yerel Fiyat Geçmişi',
+    'admin.leverage.backtesting_source_metals_dev' => 'metals.dev API',
+    'admin.leverage.backtesting_source_exchangerate_host' => 'exchangerate.host API',
+    'admin.leverage.backtesting_metals_dev_key' => 'metals.dev API Anahtarı',
+    'admin.leverage.backtesting_exchangerate_host_key' => 'exchangerate.host API Anahtarı',
+    'admin.leverage.section_weekly_report' => 'Haftalık Rapor',
+    'admin.leverage.weekly_report_enabled' => 'Haftalık Rapor Aktif',
+    'admin.leverage.weekly_report_day' => 'Rapor Günü',
+
+    // Leverage form keys
+    'leverage.form.trailing_stop' => 'Trailing Stop',
+    'leverage.form.trailing_stop_enabled' => 'Trailing Stop Aktif',
+    'leverage.form.trailing_stop_type' => 'Trailing Stop Tipi',
+    'leverage.form.trailing_stop_type_auto' => 'Otomatik (Zirve Takibi)',
+    'leverage.form.trailing_stop_type_threshold' => 'Eşik Bazlı',
+    'leverage.form.trailing_stop_pct' => 'Trailing Stop Yüzdesi (%)',
+    'leverage.form.buy_threshold_weak' => 'Alış Zayıf Eşik (%)',
+    'leverage.form.sell_threshold_weak' => 'Satış Zayıf Eşik (%)',
+    'leverage.form.weak_threshold_hint' => 'Güçlü eşikten önce erken uyarı sinyali gönderir. AI analizi tetiklemez.',
+
+    // Backtest keys
+    'leverage.backtest.title' => 'Backtest',
+    'leverage.backtest.run' => 'Backtest Çalıştır',
+    'leverage.backtest.source' => 'Veri Kaynağı',
+    'leverage.backtest.date_from' => 'Başlangıç Tarihi',
+    'leverage.backtest.date_to' => 'Bitiş Tarihi',
+    'leverage.backtest.total_signals' => 'Toplam Sinyal',
+    'leverage.backtest.buy_signals' => 'Alış Sinyalleri',
+    'leverage.backtest.sell_signals' => 'Satış Sinyalleri',
+    'leverage.backtest.total_return' => 'Toplam Getiri',
+    'leverage.backtest.max_drawdown' => 'Maksimum Düşüş',
+    'leverage.backtest.win_rate' => 'Kazanma Oranı',
+    'leverage.backtest.no_data' => 'Seçilen tarih aralığında veri bulunamadı.',
+    'leverage.backtest.running' => 'Backtest çalışıyor...',
+    'leverage.backtest.results' => 'Backtest Sonuçları',
+
+    // History event types
+    'leverage.history.event.weak_buy_signal' => 'Zayıf Alış Sinyali',
+    'leverage.history.event.weak_sell_signal' => 'Zayıf Satış Sinyali',
+    'leverage.history.event.trailing_stop_signal' => 'Trailing Stop Sinyali',
+
+    // Email subject lines
+    'leverage.email.subject_weak' => '[Cybokron] Zayıf {{direction}} Sinyali: {{currency}} {{change}}',
+    'leverage.email.subject_trailing' => '[Cybokron] Trailing Stop: {{currency}} {{change}}',
+    'leverage.email.signal_weak_buy' => 'ZAYIF ALIŞ',
+    'leverage.email.signal_weak_sell' => 'ZAYIF SATIŞ',
+    'leverage.email.signal_trailing_stop' => 'TRAILING STOP',
+
+    // Weekly report keys
+    'leverage.report.subject' => '[Cybokron] Haftalık Kaldıraç Raporu',
+    'leverage.report.title' => 'Haftalık Kaldıraç Raporu',
+    'leverage.report.period' => 'Dönem: {{from}} — {{to}}',
+    'leverage.report.total_signals' => 'Toplam Sinyal',
+    'leverage.report.active_rules' => 'Aktif Kurallar',
+    'leverage.report.paused_rules' => 'Duraklatılmış Kurallar',
+    'leverage.report.no_signals' => 'Bu hafta sinyal üretilmedi.',
+    'leverage.report.signal_table_header' => 'Tarih | Kural | Sinyal | Değişim | AI',
+
+    // Telegram keys
+    'leverage.telegram.signal_title' => '{{direction}} Sinyali: {{currency}}',
+    'leverage.telegram.price_info' => 'Fiyat: {{current}} (Ref: {{reference}})',
+    'leverage.telegram.change_info' => 'Değişim: {{change}}%',
+    'leverage.telegram.ai_info' => 'AI: {{recommendation}} (%{{confidence}})',
+    'leverage.telegram.rule_info' => 'Kural: {{name}}',
+
+    // Webhook keys
+    'leverage.webhook.title' => 'Webhook Endpoint\'leri',
+    'leverage.webhook.add' => 'Webhook Ekle',
+    'leverage.webhook.name' => 'İsim',
+    'leverage.webhook.url' => 'URL',
+    'leverage.webhook.platform' => 'Platform',
+    'leverage.webhook.status' => 'Durum',
+    'leverage.webhook.no_webhooks' => 'Henüz webhook tanımlanmamış.',
+    'leverage.webhook.created' => 'Webhook oluşturuldu.',
+    'leverage.webhook.deleted' => 'Webhook silindi.',
+    'leverage.webhook.toggled' => 'Webhook durumu güncellendi.',
+    'leverage.webhook.invalid_url' => 'Geçersiz webhook URL\'si. HTTPS zorunludur.',
+    'leverage.webhook.ssrf_blocked' => 'Bu URL güvenlik nedeniyle engellendi.',
+
+    // Day names for weekly report
+    'leverage.day.monday' => 'Pazartesi',
+    'leverage.day.tuesday' => 'Salı',
+    'leverage.day.wednesday' => 'Çarşamba',
+    'leverage.day.thursday' => 'Perşembe',
+    'leverage.day.friday' => 'Cuma',
+    'leverage.day.saturday' => 'Cumartesi',
+    'leverage.day.sunday' => 'Pazar',
 ];

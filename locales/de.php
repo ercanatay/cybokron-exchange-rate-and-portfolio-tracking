@@ -750,4 +750,108 @@ return [
     'admin.leverage.test_signal_sell' => 'VERKAUF-Signal senden',
     'admin.leverage.test_signal_success' => '{{direction}} Test-Signal-E-Mail gesendet.',
     'admin.leverage.test_signal_desc' => 'Sendet eine realistische KAUF/VERKAUF-Signal-E-Mail (mit simulierten Daten + KI-Ergebnis)',
+
+    // ─── Leverage Enhancements ─────────────────────────────────────────
+    // Admin panel sections
+    'admin.leverage.section_telegram' => 'Telegram-Benachrichtigungen',
+    'admin.leverage.telegram_enabled' => 'Telegram-Benachrichtigungen aktiv',
+    'admin.leverage.telegram_bot_token' => 'Bot-Token',
+    'admin.leverage.telegram_chat_id' => 'Chat-ID',
+    'admin.leverage.telegram_test' => 'Testnachricht senden',
+    'admin.leverage.telegram_test_success' => 'Telegram-Testnachricht gesendet.',
+    'admin.leverage.telegram_test_fail' => 'Telegram-Testnachricht konnte nicht gesendet werden.',
+    'admin.leverage.telegram_setup_guide' => 'Erstellen Sie einen Bot mit @BotFather und geben Sie das Token hier ein. Senden Sie /start an den Bot, um die Chat-ID zu erhalten.',
+    'admin.leverage.section_webhook' => 'Webhook-Benachrichtigungen',
+    'admin.leverage.webhook_enabled' => 'Webhook-Benachrichtigungen aktiv',
+    'admin.leverage.webhook_manage_note' => 'Webhook-Endpunkte werden auf der Hebel-Seite verwaltet.',
+    'admin.leverage.section_backtesting' => 'Backtesting',
+    'admin.leverage.backtesting_enabled' => 'Backtesting aktiv',
+    'admin.leverage.backtesting_default_source' => 'Standard-Datenquelle',
+    'admin.leverage.backtesting_source_rate_history' => 'Lokaler Kursverlauf',
+    'admin.leverage.backtesting_source_metals_dev' => 'metals.dev API',
+    'admin.leverage.backtesting_source_exchangerate_host' => 'exchangerate.host API',
+    'admin.leverage.backtesting_metals_dev_key' => 'metals.dev API-Schlüssel',
+    'admin.leverage.backtesting_exchangerate_host_key' => 'exchangerate.host API-Schlüssel',
+    'admin.leverage.section_weekly_report' => 'Wochenbericht',
+    'admin.leverage.weekly_report_enabled' => 'Wochenbericht aktiv',
+    'admin.leverage.weekly_report_day' => 'Berichtstag',
+
+    // Leverage form keys
+    'leverage.form.trailing_stop' => 'Trailing Stop',
+    'leverage.form.trailing_stop_enabled' => 'Trailing Stop aktiv',
+    'leverage.form.trailing_stop_type' => 'Trailing-Stop-Typ',
+    'leverage.form.trailing_stop_type_auto' => 'Automatisch (Höchststandverfolgung)',
+    'leverage.form.trailing_stop_type_threshold' => 'Schwellenwertbasiert',
+    'leverage.form.trailing_stop_pct' => 'Trailing-Stop-Prozentsatz (%)',
+    'leverage.form.buy_threshold_weak' => 'Kauf-Warnschwelle (%)',
+    'leverage.form.sell_threshold_weak' => 'Verkauf-Warnschwelle (%)',
+    'leverage.form.weak_threshold_hint' => 'Sendet ein Frühwarnsignal vor der starken Schwelle. Löst keine KI-Analyse aus.',
+
+    // Backtest keys
+    'leverage.backtest.title' => 'Backtest',
+    'leverage.backtest.run' => 'Backtest starten',
+    'leverage.backtest.source' => 'Datenquelle',
+    'leverage.backtest.date_from' => 'Startdatum',
+    'leverage.backtest.date_to' => 'Enddatum',
+    'leverage.backtest.total_signals' => 'Gesamtsignale',
+    'leverage.backtest.buy_signals' => 'Kaufsignale',
+    'leverage.backtest.sell_signals' => 'Verkaufssignale',
+    'leverage.backtest.total_return' => 'Gesamtrendite',
+    'leverage.backtest.max_drawdown' => 'Maximaler Rückgang',
+    'leverage.backtest.win_rate' => 'Gewinnrate',
+    'leverage.backtest.no_data' => 'Keine Daten für den ausgewählten Zeitraum gefunden.',
+    'leverage.backtest.running' => 'Backtest läuft...',
+    'leverage.backtest.results' => 'Backtest-Ergebnisse',
+
+    // History event types
+    'leverage.history.event.weak_buy_signal' => 'Schwaches Kaufsignal',
+    'leverage.history.event.weak_sell_signal' => 'Schwaches Verkaufssignal',
+    'leverage.history.event.trailing_stop_signal' => 'Trailing-Stop-Signal',
+
+    // Email subject lines
+    'leverage.email.subject_weak' => '[Cybokron] Schwaches {{direction}}-Signal: {{currency}} {{change}}',
+    'leverage.email.subject_trailing' => '[Cybokron] Trailing Stop: {{currency}} {{change}}',
+    'leverage.email.signal_weak_buy' => 'SCHWACHER KAUF',
+    'leverage.email.signal_weak_sell' => 'SCHWACHER VERKAUF',
+    'leverage.email.signal_trailing_stop' => 'TRAILING STOP',
+
+    // Weekly report keys
+    'leverage.report.subject' => '[Cybokron] Wöchentlicher Hebel-Bericht',
+    'leverage.report.title' => 'Wöchentlicher Hebel-Bericht',
+    'leverage.report.period' => 'Zeitraum: {{from}} — {{to}}',
+    'leverage.report.total_signals' => 'Gesamtsignale',
+    'leverage.report.active_rules' => 'Aktive Regeln',
+    'leverage.report.paused_rules' => 'Pausierte Regeln',
+    'leverage.report.no_signals' => 'Diese Woche wurden keine Signale erzeugt.',
+    'leverage.report.signal_table_header' => 'Datum | Regel | Signal | Änderung | KI',
+
+    // Telegram keys
+    'leverage.telegram.signal_title' => '{{direction}}-Signal: {{currency}}',
+    'leverage.telegram.price_info' => 'Preis: {{current}} (Ref: {{reference}})',
+    'leverage.telegram.change_info' => 'Änderung: {{change}}%',
+    'leverage.telegram.ai_info' => 'KI: {{recommendation}} ({{confidence}}%)',
+    'leverage.telegram.rule_info' => 'Regel: {{name}}',
+
+    // Webhook keys
+    'leverage.webhook.title' => 'Webhook-Endpunkte',
+    'leverage.webhook.add' => 'Webhook hinzufügen',
+    'leverage.webhook.name' => 'Name',
+    'leverage.webhook.url' => 'URL',
+    'leverage.webhook.platform' => 'Plattform',
+    'leverage.webhook.status' => 'Status',
+    'leverage.webhook.no_webhooks' => 'Noch keine Webhooks definiert.',
+    'leverage.webhook.created' => 'Webhook erstellt.',
+    'leverage.webhook.deleted' => 'Webhook gelöscht.',
+    'leverage.webhook.toggled' => 'Webhook-Status aktualisiert.',
+    'leverage.webhook.invalid_url' => 'Ungültige Webhook-URL. HTTPS ist erforderlich.',
+    'leverage.webhook.ssrf_blocked' => 'Diese URL wurde aus Sicherheitsgründen blockiert.',
+
+    // Day names for weekly report
+    'leverage.day.monday' => 'Montag',
+    'leverage.day.tuesday' => 'Dienstag',
+    'leverage.day.wednesday' => 'Mittwoch',
+    'leverage.day.thursday' => 'Donnerstag',
+    'leverage.day.friday' => 'Freitag',
+    'leverage.day.saturday' => 'Samstag',
+    'leverage.day.sunday' => 'Sonntag',
 ];

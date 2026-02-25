@@ -750,4 +750,108 @@ return [
     'admin.leverage.test_signal_sell' => 'إرسال إشارة بيع',
     'admin.leverage.test_signal_success' => 'تم إرسال بريد إشارة {{direction}} التجريبي.',
     'admin.leverage.test_signal_desc' => 'يرسل بريد إشارة شراء/بيع واقعي (مع بيانات محاكاة + نتيجة الذكاء الاصطناعي)',
+
+    // ─── Leverage Enhancements ─────────────────────────────────────────
+    // Admin panel sections
+    'admin.leverage.section_telegram' => 'إشعارات Telegram',
+    'admin.leverage.telegram_enabled' => 'إشعارات Telegram مفعّلة',
+    'admin.leverage.telegram_bot_token' => 'رمز البوت',
+    'admin.leverage.telegram_chat_id' => 'معرّف المحادثة',
+    'admin.leverage.telegram_test' => 'إرسال رسالة تجريبية',
+    'admin.leverage.telegram_test_success' => 'تم إرسال رسالة Telegram التجريبية.',
+    'admin.leverage.telegram_test_fail' => 'فشل إرسال رسالة Telegram التجريبية.',
+    'admin.leverage.telegram_setup_guide' => 'أنشئ بوتًا باستخدام @BotFather وأدخل الرمز هنا. أرسل /start للبوت للحصول على معرّف المحادثة.',
+    'admin.leverage.section_webhook' => 'إشعارات Webhook',
+    'admin.leverage.webhook_enabled' => 'إشعارات Webhook مفعّلة',
+    'admin.leverage.webhook_manage_note' => 'تتم إدارة نقاط نهاية Webhook من صفحة الرافعة.',
+    'admin.leverage.section_backtesting' => 'الاختبار الرجعي',
+    'admin.leverage.backtesting_enabled' => 'الاختبار الرجعي مفعّل',
+    'admin.leverage.backtesting_default_source' => 'مصدر البيانات الافتراضي',
+    'admin.leverage.backtesting_source_rate_history' => 'سجل الأسعار المحلي',
+    'admin.leverage.backtesting_source_metals_dev' => 'واجهة metals.dev',
+    'admin.leverage.backtesting_source_exchangerate_host' => 'واجهة exchangerate.host',
+    'admin.leverage.backtesting_metals_dev_key' => 'مفتاح واجهة metals.dev',
+    'admin.leverage.backtesting_exchangerate_host_key' => 'مفتاح واجهة exchangerate.host',
+    'admin.leverage.section_weekly_report' => 'التقرير الأسبوعي',
+    'admin.leverage.weekly_report_enabled' => 'التقرير الأسبوعي مفعّل',
+    'admin.leverage.weekly_report_day' => 'يوم التقرير',
+
+    // Leverage form keys
+    'leverage.form.trailing_stop' => 'إيقاف متحرك',
+    'leverage.form.trailing_stop_enabled' => 'الإيقاف المتحرك مفعّل',
+    'leverage.form.trailing_stop_type' => 'نوع الإيقاف المتحرك',
+    'leverage.form.trailing_stop_type_auto' => 'تلقائي (تتبع القمة)',
+    'leverage.form.trailing_stop_type_threshold' => 'مبني على الحد',
+    'leverage.form.trailing_stop_pct' => 'نسبة الإيقاف المتحرك (%)',
+    'leverage.form.buy_threshold_weak' => 'حد الشراء الضعيف (%)',
+    'leverage.form.sell_threshold_weak' => 'حد البيع الضعيف (%)',
+    'leverage.form.weak_threshold_hint' => 'يرسل إشارة تحذير مبكرة قبل الحد القوي. لا يُشغّل تحليل الذكاء الاصطناعي.',
+
+    // Backtest keys
+    'leverage.backtest.title' => 'الاختبار الرجعي',
+    'leverage.backtest.run' => 'تشغيل الاختبار الرجعي',
+    'leverage.backtest.source' => 'مصدر البيانات',
+    'leverage.backtest.date_from' => 'تاريخ البداية',
+    'leverage.backtest.date_to' => 'تاريخ النهاية',
+    'leverage.backtest.total_signals' => 'إجمالي الإشارات',
+    'leverage.backtest.buy_signals' => 'إشارات الشراء',
+    'leverage.backtest.sell_signals' => 'إشارات البيع',
+    'leverage.backtest.total_return' => 'العائد الإجمالي',
+    'leverage.backtest.max_drawdown' => 'أقصى انخفاض',
+    'leverage.backtest.win_rate' => 'معدل الربح',
+    'leverage.backtest.no_data' => 'لم يتم العثور على بيانات للفترة المحددة.',
+    'leverage.backtest.running' => 'جارٍ تشغيل الاختبار الرجعي...',
+    'leverage.backtest.results' => 'نتائج الاختبار الرجعي',
+
+    // History event types
+    'leverage.history.event.weak_buy_signal' => 'إشارة شراء ضعيفة',
+    'leverage.history.event.weak_sell_signal' => 'إشارة بيع ضعيفة',
+    'leverage.history.event.trailing_stop_signal' => 'إشارة إيقاف متحرك',
+
+    // Email subject lines
+    'leverage.email.subject_weak' => '[Cybokron] إشارة {{direction}} ضعيفة: {{currency}} {{change}}',
+    'leverage.email.subject_trailing' => '[Cybokron] إيقاف متحرك: {{currency}} {{change}}',
+    'leverage.email.signal_weak_buy' => 'شراء ضعيف',
+    'leverage.email.signal_weak_sell' => 'بيع ضعيف',
+    'leverage.email.signal_trailing_stop' => 'إيقاف متحرك',
+
+    // Weekly report keys
+    'leverage.report.subject' => '[Cybokron] التقرير الأسبوعي للرافعة',
+    'leverage.report.title' => 'التقرير الأسبوعي للرافعة',
+    'leverage.report.period' => 'الفترة: {{from}} — {{to}}',
+    'leverage.report.total_signals' => 'إجمالي الإشارات',
+    'leverage.report.active_rules' => 'القواعد النشطة',
+    'leverage.report.paused_rules' => 'القواعد المتوقفة',
+    'leverage.report.no_signals' => 'لم يتم توليد إشارات هذا الأسبوع.',
+    'leverage.report.signal_table_header' => 'التاريخ | القاعدة | الإشارة | التغيير | AI',
+
+    // Telegram keys
+    'leverage.telegram.signal_title' => 'إشارة {{direction}}: {{currency}}',
+    'leverage.telegram.price_info' => 'السعر: {{current}} (المرجع: {{reference}})',
+    'leverage.telegram.change_info' => 'التغيير: {{change}}%',
+    'leverage.telegram.ai_info' => 'AI: {{recommendation}} ({{confidence}}%)',
+    'leverage.telegram.rule_info' => 'القاعدة: {{name}}',
+
+    // Webhook keys
+    'leverage.webhook.title' => 'نقاط نهاية Webhook',
+    'leverage.webhook.add' => 'إضافة Webhook',
+    'leverage.webhook.name' => 'الاسم',
+    'leverage.webhook.url' => 'الرابط',
+    'leverage.webhook.platform' => 'المنصة',
+    'leverage.webhook.status' => 'الحالة',
+    'leverage.webhook.no_webhooks' => 'لم يتم تعريف أي webhook بعد.',
+    'leverage.webhook.created' => 'تم إنشاء Webhook.',
+    'leverage.webhook.deleted' => 'تم حذف Webhook.',
+    'leverage.webhook.toggled' => 'تم تحديث حالة Webhook.',
+    'leverage.webhook.invalid_url' => 'رابط webhook غير صالح. HTTPS مطلوب.',
+    'leverage.webhook.ssrf_blocked' => 'تم حظر هذا الرابط لأسباب أمنية.',
+
+    // Day names for weekly report
+    'leverage.day.monday' => 'الإثنين',
+    'leverage.day.tuesday' => 'الثلاثاء',
+    'leverage.day.wednesday' => 'الأربعاء',
+    'leverage.day.thursday' => 'الخميس',
+    'leverage.day.friday' => 'الجمعة',
+    'leverage.day.saturday' => 'السبت',
+    'leverage.day.sunday' => 'الأحد',
 ];

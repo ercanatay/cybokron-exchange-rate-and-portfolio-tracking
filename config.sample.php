@@ -136,6 +136,21 @@ define('SENDGRID_FROM_EMAIL', 'noreply@localhost');  // Sender email address
 define('SENDGRID_FROM_NAME', 'Cybokron Leverage');   // Sender display name
 define('SENDGRID_ALLOWED_HOSTS', ['api.sendgrid.com']); // Host whitelist
 
+// ─── Leverage Telegram Notifications ───────────────────────────────────────
+define('LEVERAGE_TELEGRAM_ENABLED', false);
+
+// ─── Leverage Webhook Notifications ────────────────────────────────────────
+define('LEVERAGE_WEBHOOK_ENABLED', false);
+
+// ─── Backtesting ───────────────────────────────────────────────────────────
+define('BACKTESTING_ENABLED', true);
+define('BACKTESTING_DEFAULT_SOURCE', 'rate_history');
+define('BACKTESTING_ALLOWED_HOSTS', ['api.metals.dev', 'api.exchangerate.host']);
+
+// ─── Leverage Weekly Report ────────────────────────────────────────────────
+define('LEVERAGE_WEEKLY_REPORT_ENABLED', false);
+define('LEVERAGE_WEEKLY_REPORT_DAY', 'monday');
+
 // ─── Currency Display ────────────────────────────────────────────────────────
 // Default currencies to show on dashboard (empty = show all)
 $DISPLAY_CURRENCIES = [
