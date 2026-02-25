@@ -147,13 +147,14 @@ class LeverageEngine
             }
         }
 
-        // Update rule trigger state
+        // Update rule trigger state + auto-reset reference for next cycle
         Database::update('leverage_rules', [
             'last_triggered_at' => date('Y-m-d H:i:s'),
             'last_trigger_direction' => $direction,
+            'reference_price' => $currentPrice,
         ], 'id = ?', [$ruleId]);
 
-        cybokron_log("Leverage rule #{$ruleId} triggered: {$direction} signal, change={$changePercent}%");
+        cybokron_log("Leverage rule #{$ruleId} triggered: {$direction} signal, change={$changePercent}%, reference reset " . number_format($referencePrice, 2) . " → " . number_format($currentPrice, 2));
 
         return [
             'direction' => $direction,
@@ -448,9 +449,17 @@ class LeverageEngine
             $html .= '<table style="width:100%;border-collapse:collapse;margin:16px 0">';
             $html .= "<tr>{$th}" . $e(t('leverage.email.amount')) . "</td>{$td}" . $portfolio['amount'] . '</td></tr>';
             $html .= "<tr>{$th}" . $e(t('leverage.email.avg_cost')) . "</td>{$td}₺" . $portfolio['avg_cost'] . '</td></tr>';
-            $html .= "<tr>{$th}" . $e(t('leverage.email.pnl')) . "</td>{$td}" . $portfolio['pnl'] . '%</td></tr>';
+            $html .= "<tr>{$th}" . $e(t('leverage.email.total_cost')) . "</td>{$td}₺" . $portfolio['total_cost'] . '</td></tr>';
+            $html .= "<tr>{$th}" . $e(t('leverage.email.current_value')) . "</td>{$td}₺" . $portfolio['current_value'] . '</td></tr>';
+            $pnlColor = str_starts_with($portfolio['pnl_amount'], '+') ? '#27ae60' : '#e74c3c';
+            $html .= "<tr>{$th}" . $e(t('leverage.email.pnl')) . "</td><td style=\"padding:8px;border:1px solid #ddd;color:{$pnlColor}\">₺" . $portfolio['pnl_amount'] . ' (' . $portfolio['pnl'] . '%)</td></tr>';
+            $html .= "<tr>{$th}" . $e(t('leverage.email.position_count')) . "</td>{$td}" . $portfolio['position_count'] . '</td></tr>';
             $html .= '</table>';
         }
+
+        $html .= '<p style="background:#fff3cd;padding:10px;border-radius:4px;border:1px solid #ffc107;font-size:13px;color:#856404">';
+        $html .= $e(t('leverage.email.reference_reset', ['price' => '₺' . number_format($currentPrice, 2, ',', '.')]));
+        $html .= '</p>';
 
         $html .= '<hr style="margin:20px 0;border:none;border-top:1px solid #ddd">';
         $html .= '<p style="color:#666;font-size:12px">' . $e(t('leverage.email.rule')) . ': ' . $e($rule['name']) . '<br>';
@@ -497,6 +506,19 @@ class LeverageEngine
             }
         }
 
+        $portfolio = self::getPortfolioContext($rule);
+        if ($portfolio['amount'] !== 'N/A') {
+            $text .= "\n" . t('leverage.email.portfolio_title') . ":\n";
+            $text .= t('leverage.email.amount') . ": {$portfolio['amount']}\n";
+            $text .= t('leverage.email.avg_cost') . ": TL {$portfolio['avg_cost']}\n";
+            $text .= t('leverage.email.total_cost') . ": TL {$portfolio['total_cost']}\n";
+            $text .= t('leverage.email.current_value') . ": TL {$portfolio['current_value']}\n";
+            $text .= t('leverage.email.pnl') . ": TL {$portfolio['pnl_amount']} ({$portfolio['pnl']}%)\n";
+            $text .= t('leverage.email.position_count') . ": {$portfolio['position_count']}\n";
+        }
+
+        $text .= "\n" . t('leverage.email.reference_reset', ['price' => 'TL ' . number_format($currentPrice, 2)]) . "\n";
+
         $text .= "\n---\n";
         $text .= t('leverage.email.rule') . ": {$rule['name']}\n";
         $text .= t('leverage.email.date') . ": " . date('d.m.Y H:i') . "\n";
@@ -529,12 +551,15 @@ class LeverageEngine
      */
     private static function getPortfolioContext(array $rule): array
     {
-        $default = ['amount' => 'N/A', 'avg_cost' => 'N/A', 'pnl' => 'N/A'];
+        $default = ['amount' => 'N/A', 'avg_cost' => 'N/A', 'pnl' => 'N/A',
+                     'total_cost' => 'N/A', 'current_value' => 'N/A', 'pnl_amount' => 'N/A', 'position_count' => 'N/A'];
         $currencyCode = strtoupper(trim($rule['currency_code']));
         $sourceType = $rule['source_type'] ?? 'currency';
         $sourceId = isset($rule['source_id']) ? (int) $rule['source_id'] : null;
 
-        $baseSql = 'SELECT SUM(p.amount) AS total_amount, AVG(p.buy_rate) AS avg_cost
+        $baseSql = 'SELECT SUM(p.amount) AS total_amount,
+                           SUM(p.amount * p.buy_rate) AS total_cost,
+                           COUNT(*) AS position_count
                     FROM portfolio p
                     JOIN currencies c ON c.id = p.currency_id
                     WHERE c.code = ? AND p.deleted_at IS NULL';
@@ -554,19 +579,31 @@ class LeverageEngine
         }
 
         $amount = (float) $row['total_amount'];
-        $avgCost = (float) $row['avg_cost'];
+        $totalCost = (float) $row['total_cost'];
+        $avgCost = $amount > 0 ? $totalCost / $amount : 0;
+        $positionCount = (int) $row['position_count'];
 
         $currentRate = self::getCurrentRate($currencyCode);
         $pnl = 'N/A';
+        $currentValue = 'N/A';
+        $pnlAmount = 'N/A';
         if ($currentRate !== null && $avgCost > 0) {
             $currentPrice = (float) $currentRate['sell_rate'];
+            $currentValueNum = $amount * $currentPrice;
+            $pnlAmountNum = $currentValueNum - $totalCost;
             $pnl = number_format((($currentPrice - $avgCost) / $avgCost) * 100, 2);
+            $currentValue = number_format($currentValueNum, 2, ',', '.');
+            $pnlAmount = ($pnlAmountNum >= 0 ? '+' : '') . number_format($pnlAmountNum, 2, ',', '.');
         }
 
         return [
             'amount' => number_format($amount, 4),
             'avg_cost' => number_format($avgCost, 2),
             'pnl' => $pnl,
+            'total_cost' => number_format($totalCost, 2, ',', '.'),
+            'current_value' => $currentValue,
+            'pnl_amount' => $pnlAmount,
+            'position_count' => (string) $positionCount,
         ];
     }
 
