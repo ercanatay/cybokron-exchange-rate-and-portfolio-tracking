@@ -271,6 +271,91 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             );
         }
 
+        // Telegram
+        $telegramEnabledPost = isset($_POST['telegram_enabled']) ? '1' : '0';
+        Database::query(
+            'INSERT INTO settings (`key`, value) VALUES (?, ?) ON DUPLICATE KEY UPDATE value = ?',
+            ['telegram_enabled', $telegramEnabledPost, $telegramEnabledPost]
+        );
+
+        if (!empty($_POST['telegram_bot_token'])) {
+            $token = trim($_POST['telegram_bot_token']);
+            // Only update if not the masked placeholder
+            if ($token !== '••••••••' && strpos($token, '•') === false) {
+                $encToken = encryptSettingValue($token);
+                Database::query(
+                    'INSERT INTO settings (`key`, value) VALUES (?, ?) ON DUPLICATE KEY UPDATE value = ?',
+                    ['telegram_bot_token', $encToken, $encToken]
+                );
+            }
+        }
+
+        if (isset($_POST['telegram_chat_id'])) {
+            $telegramChatIdPost = trim($_POST['telegram_chat_id']);
+            Database::query(
+                'INSERT INTO settings (`key`, value) VALUES (?, ?) ON DUPLICATE KEY UPDATE value = ?',
+                ['telegram_chat_id', $telegramChatIdPost, $telegramChatIdPost]
+            );
+        }
+
+        // Webhook
+        $webhookEnabledPost = isset($_POST['webhook_enabled']) ? '1' : '0';
+        Database::query(
+            'INSERT INTO settings (`key`, value) VALUES (?, ?) ON DUPLICATE KEY UPDATE value = ?',
+            ['webhook_enabled', $webhookEnabledPost, $webhookEnabledPost]
+        );
+
+        // Backtesting
+        $backtestingEnabledPost = isset($_POST['backtesting_enabled']) ? '1' : '0';
+        Database::query(
+            'INSERT INTO settings (`key`, value) VALUES (?, ?) ON DUPLICATE KEY UPDATE value = ?',
+            ['backtesting_enabled', $backtestingEnabledPost, $backtestingEnabledPost]
+        );
+
+        $backtestingDefaultSourcePost = $_POST['backtesting_default_source'] ?? 'rate_history';
+        Database::query(
+            'INSERT INTO settings (`key`, value) VALUES (?, ?) ON DUPLICATE KEY UPDATE value = ?',
+            ['backtesting_default_source', $backtestingDefaultSourcePost, $backtestingDefaultSourcePost]
+        );
+
+        if (!empty($_POST['backtesting_metals_dev_api_key'])) {
+            $key = trim($_POST['backtesting_metals_dev_api_key']);
+            if ($key !== '••••••••' && strpos($key, '•') === false) {
+                $encKey = encryptSettingValue($key);
+                Database::query(
+                    'INSERT INTO settings (`key`, value) VALUES (?, ?) ON DUPLICATE KEY UPDATE value = ?',
+                    ['backtesting_metals_dev_api_key', $encKey, $encKey]
+                );
+            }
+        }
+
+        if (!empty($_POST['backtesting_exchangerate_host_api_key'])) {
+            $key = trim($_POST['backtesting_exchangerate_host_api_key']);
+            if ($key !== '••••••••' && strpos($key, '•') === false) {
+                $encKey = encryptSettingValue($key);
+                Database::query(
+                    'INSERT INTO settings (`key`, value) VALUES (?, ?) ON DUPLICATE KEY UPDATE value = ?',
+                    ['backtesting_exchangerate_host_api_key', $encKey, $encKey]
+                );
+            }
+        }
+
+        // Weekly Report
+        $weeklyReportEnabledPost = isset($_POST['weekly_report_enabled']) ? '1' : '0';
+        Database::query(
+            'INSERT INTO settings (`key`, value) VALUES (?, ?) ON DUPLICATE KEY UPDATE value = ?',
+            ['leverage_weekly_report_enabled', $weeklyReportEnabledPost, $weeklyReportEnabledPost]
+        );
+
+        $allowedDays = ['monday','tuesday','wednesday','thursday','friday','saturday','sunday'];
+        $weeklyReportDayPost = strtolower(trim($_POST['weekly_report_day'] ?? 'monday'));
+        if (in_array($weeklyReportDayPost, $allowedDays, true)) {
+            Database::query(
+                'INSERT INTO settings (`key`, value) VALUES (?, ?) ON DUPLICATE KEY UPDATE value = ?',
+                ['leverage_weekly_report_day', $weeklyReportDayPost, $weeklyReportDayPost]
+            );
+        }
+
         $message = t('admin.leverage.saved');
         $messageType = 'success';
     }
@@ -297,6 +382,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         }
     }
 
+    if ($_POST['action'] === 'test_telegram') {
+        require_once __DIR__ . '/includes/TelegramNotifier.php';
+        $telegram = new TelegramNotifier(Database::getInstance());
+        $result = $telegram->sendTestMessage();
+        if ($result['success']) {
+            $message = t('admin.leverage.telegram_test_success');
+            $messageType = 'success';
+        } else {
+            $message = t('admin.leverage.telegram_test_fail') . ': ' . $result['error'];
+            $messageType = 'error';
+        }
+    }
+
     if ($_POST['action'] === 'test_leverage_signal_buy' || $_POST['action'] === 'test_leverage_signal_sell') {
         require_once __DIR__ . '/includes/LeverageEngine.php';
         $dir = $_POST['action'] === 'test_leverage_signal_buy' ? 'buy' : 'sell';
@@ -310,7 +408,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         }
     }
 
-    if (!in_array($_POST['action'], ['update_rates', 'toggle_bank', 'toggle_currency', 'toggle_homepage', 'set_default_bank', 'update_rate_order', 'set_chart_defaults', 'save_widget_config', 'toggle_noindex', 'set_retention_days', 'save_deposit_rate', 'toggle_deposit_comparison', 'save_openrouter_settings', 'toggle_layout_default', 'save_leverage_settings', 'test_leverage_email', 'test_leverage_signal_buy', 'test_leverage_signal_sell'], true)) {
+    if (!in_array($_POST['action'], ['update_rates', 'toggle_bank', 'toggle_currency', 'toggle_homepage', 'set_default_bank', 'update_rate_order', 'set_chart_defaults', 'save_widget_config', 'toggle_noindex', 'set_retention_days', 'save_deposit_rate', 'toggle_deposit_comparison', 'save_openrouter_settings', 'toggle_layout_default', 'save_leverage_settings', 'test_leverage_email', 'test_leverage_signal_buy', 'test_leverage_signal_sell', 'test_telegram'], true)) {
         header('Location: admin.php');
         exit;
     }
@@ -427,6 +525,46 @@ if ($leverageNotifyEmailsJson !== '') {
     }
 }
 $leverageNotifyEmailsDisplay = implode(', ', $leverageNotifyEmailsList);
+
+// Telegram
+$telegramEnabledRow = Database::queryOne('SELECT value FROM settings WHERE `key` = ?', ['telegram_enabled']);
+$telegramEnabled = $telegramEnabledRow ? $telegramEnabledRow['value'] : (defined('LEVERAGE_TELEGRAM_ENABLED') ? (LEVERAGE_TELEGRAM_ENABLED ? '1' : '0') : '0');
+$telegramBotTokenRow = Database::queryOne('SELECT value FROM settings WHERE `key` = ?', ['telegram_bot_token']);
+$telegramBotToken = trim($telegramBotTokenRow['value'] ?? '');
+$telegramBotTokenMasked = !empty($telegramBotToken) ? '••••••••' : '';
+$telegramChatIdRow = Database::queryOne('SELECT value FROM settings WHERE `key` = ?', ['telegram_chat_id']);
+$telegramChatId = trim($telegramChatIdRow['value'] ?? '');
+if ($telegramChatId === '' && defined('ALERT_TELEGRAM_CHAT_ID')) {
+    $telegramChatId = (string) ALERT_TELEGRAM_CHAT_ID;
+}
+
+// Webhook
+$webhookEnabledRow = Database::queryOne('SELECT value FROM settings WHERE `key` = ?', ['webhook_enabled']);
+$webhookEnabled = $webhookEnabledRow ? $webhookEnabledRow['value'] : (defined('LEVERAGE_WEBHOOK_ENABLED') ? (LEVERAGE_WEBHOOK_ENABLED ? '1' : '0') : '0');
+
+// Backtesting
+$backtestingEnabledRow = Database::queryOne('SELECT value FROM settings WHERE `key` = ?', ['backtesting_enabled']);
+$backtestingEnabled = $backtestingEnabledRow ? $backtestingEnabledRow['value'] : (defined('BACKTESTING_ENABLED') ? (BACKTESTING_ENABLED ? '1' : '0') : '1');
+$backtestingDefaultSourceRow = Database::queryOne('SELECT value FROM settings WHERE `key` = ?', ['backtesting_default_source']);
+$backtestingDefaultSource = trim($backtestingDefaultSourceRow['value'] ?? '');
+if ($backtestingDefaultSource === '') {
+    $backtestingDefaultSource = defined('BACKTESTING_DEFAULT_SOURCE') ? BACKTESTING_DEFAULT_SOURCE : 'rate_history';
+}
+$backtestingMetalsDevKeyRow = Database::queryOne('SELECT value FROM settings WHERE `key` = ?', ['backtesting_metals_dev_api_key']);
+$backtestingMetalsDevKey = trim($backtestingMetalsDevKeyRow['value'] ?? '');
+$backtestingMetalsDevKeyMasked = !empty($backtestingMetalsDevKey) ? '••••••••' : '';
+$backtestingExchangeRateHostKeyRow = Database::queryOne('SELECT value FROM settings WHERE `key` = ?', ['backtesting_exchangerate_host_api_key']);
+$backtestingExchangeRateHostKey = trim($backtestingExchangeRateHostKeyRow['value'] ?? '');
+$backtestingExchangeRateHostKeyMasked = !empty($backtestingExchangeRateHostKey) ? '••••••••' : '';
+
+// Weekly Report
+$weeklyReportEnabledRow = Database::queryOne('SELECT value FROM settings WHERE `key` = ?', ['leverage_weekly_report_enabled']);
+$weeklyReportEnabled = $weeklyReportEnabledRow ? $weeklyReportEnabledRow['value'] : (defined('LEVERAGE_WEEKLY_REPORT_ENABLED') ? (LEVERAGE_WEEKLY_REPORT_ENABLED ? '1' : '0') : '0');
+$weeklyReportDayRow = Database::queryOne('SELECT value FROM settings WHERE `key` = ?', ['leverage_weekly_report_day']);
+$weeklyReportDay = trim($weeklyReportDayRow['value'] ?? '');
+if ($weeklyReportDay === '') {
+    $weeklyReportDay = defined('LEVERAGE_WEEKLY_REPORT_DAY') ? LEVERAGE_WEEKLY_REPORT_DAY : 'monday';
+}
 
 $widgetLabels = [
     'bank_selector' => '🏦 ' . t('admin.widget_bank_selector'),
@@ -1182,9 +1320,131 @@ foreach ($allRates as $r) {
                             </div>
                         </div>
 
+                        <!-- Telegram -->
+                        <div class="leverage-section">
+                            <div class="leverage-section-header">
+                                <span class="leverage-section-icon">&#128241;</span>
+                                <span class="leverage-section-title"><?= t('admin.leverage.section_telegram') ?></span>
+                            </div>
+                            <div class="or-field-group">
+                                <div class="or-field">
+                                    <label style="display:flex; align-items:center; gap:8px; cursor:pointer; padding-top:20px;">
+                                        <input type="checkbox" name="telegram_enabled" value="1" <?= $telegramEnabled === '1' ? 'checked' : '' ?>
+                                               style="width:18px; height:18px; accent-color:var(--primary,#3b82f6);">
+                                        <span style="font-weight:600;"><?= t('admin.leverage.telegram_enabled') ?></span>
+                                    </label>
+                                </div>
+                                <div class="or-field">
+                                    <label for="telegram_bot_token"><?= t('admin.leverage.telegram_bot_token') ?></label>
+                                    <input type="password" id="telegram_bot_token" name="telegram_bot_token"
+                                           value="<?= htmlspecialchars($telegramBotTokenMasked) ?>"
+                                           class="form-control" placeholder="123456:ABC-DEF..." autocomplete="off">
+                                </div>
+                                <div class="or-field">
+                                    <label for="telegram_chat_id"><?= t('admin.leverage.telegram_chat_id') ?></label>
+                                    <input type="text" id="telegram_chat_id" name="telegram_chat_id"
+                                           value="<?= htmlspecialchars($telegramChatId) ?>"
+                                           class="form-control" placeholder="-1001234567890">
+                                </div>
+                            </div>
+                            <small class="or-field-hint" style="margin-top:8px;"><?= t('admin.leverage.telegram_setup_guide') ?></small>
+                        </div>
+
+                        <!-- Webhook -->
+                        <div class="leverage-section">
+                            <div class="leverage-section-header">
+                                <span class="leverage-section-icon">&#128279;</span>
+                                <span class="leverage-section-title"><?= t('admin.leverage.section_webhook') ?></span>
+                            </div>
+                            <div class="or-field-group">
+                                <div class="or-field">
+                                    <label style="display:flex; align-items:center; gap:8px; cursor:pointer; padding-top:20px;">
+                                        <input type="checkbox" name="webhook_enabled" value="1" <?= $webhookEnabled === '1' ? 'checked' : '' ?>
+                                               style="width:18px; height:18px; accent-color:var(--primary,#3b82f6);">
+                                        <span style="font-weight:600;"><?= t('admin.leverage.webhook_enabled') ?></span>
+                                    </label>
+                                </div>
+                            </div>
+                            <small class="or-field-hint" style="margin-top:8px;"><?= t('admin.leverage.webhook_manage_note') ?></small>
+                        </div>
+
+                        <!-- Backtesting -->
+                        <div class="leverage-section">
+                            <div class="leverage-section-header">
+                                <span class="leverage-section-icon">&#128202;</span>
+                                <span class="leverage-section-title"><?= t('admin.leverage.section_backtesting') ?></span>
+                            </div>
+                            <div class="or-field-group">
+                                <div class="or-field">
+                                    <label style="display:flex; align-items:center; gap:8px; cursor:pointer; padding-top:20px;">
+                                        <input type="checkbox" name="backtesting_enabled" value="1" <?= $backtestingEnabled === '1' ? 'checked' : '' ?>
+                                               style="width:18px; height:18px; accent-color:var(--primary,#3b82f6);">
+                                        <span style="font-weight:600;"><?= t('admin.leverage.backtesting_enabled') ?></span>
+                                    </label>
+                                </div>
+                                <div class="or-field">
+                                    <label for="backtesting_default_source"><?= t('admin.leverage.backtesting_default_source') ?></label>
+                                    <select id="backtesting_default_source" name="backtesting_default_source">
+                                        <option value="rate_history" <?= $backtestingDefaultSource === 'rate_history' ? 'selected' : '' ?>><?= t('admin.leverage.backtesting_source_rate_history') ?></option>
+                                        <option value="metals_dev" <?= $backtestingDefaultSource === 'metals_dev' ? 'selected' : '' ?>><?= t('admin.leverage.backtesting_source_metals_dev') ?></option>
+                                        <option value="exchangerate_host" <?= $backtestingDefaultSource === 'exchangerate_host' ? 'selected' : '' ?>><?= t('admin.leverage.backtesting_source_exchangerate_host') ?></option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="or-field-group" style="margin-top:12px;">
+                                <div class="or-field">
+                                    <label for="backtesting_metals_dev_api_key"><?= t('admin.leverage.backtesting_metals_dev_key') ?></label>
+                                    <input type="password" id="backtesting_metals_dev_api_key" name="backtesting_metals_dev_api_key"
+                                           value="<?= htmlspecialchars($backtestingMetalsDevKeyMasked) ?>"
+                                           class="form-control" autocomplete="off">
+                                </div>
+                                <div class="or-field">
+                                    <label for="backtesting_exchangerate_host_api_key"><?= t('admin.leverage.backtesting_exchangerate_host_key') ?></label>
+                                    <input type="password" id="backtesting_exchangerate_host_api_key" name="backtesting_exchangerate_host_api_key"
+                                           value="<?= htmlspecialchars($backtestingExchangeRateHostKeyMasked) ?>"
+                                           class="form-control" autocomplete="off">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Weekly Report -->
+                        <div class="leverage-section">
+                            <div class="leverage-section-header">
+                                <span class="leverage-section-icon">&#128197;</span>
+                                <span class="leverage-section-title"><?= t('admin.leverage.section_weekly_report') ?></span>
+                            </div>
+                            <div class="or-field-group">
+                                <div class="or-field">
+                                    <label style="display:flex; align-items:center; gap:8px; cursor:pointer; padding-top:20px;">
+                                        <input type="checkbox" name="weekly_report_enabled" value="1" <?= $weeklyReportEnabled === '1' ? 'checked' : '' ?>
+                                               style="width:18px; height:18px; accent-color:var(--primary,#3b82f6);">
+                                        <span style="font-weight:600;"><?= t('admin.leverage.weekly_report_enabled') ?></span>
+                                    </label>
+                                </div>
+                                <div class="or-field">
+                                    <label for="weekly_report_day"><?= t('admin.leverage.weekly_report_day') ?></label>
+                                    <select id="weekly_report_day" name="weekly_report_day">
+                                        <?php
+                                        $weekDays = ['monday','tuesday','wednesday','thursday','friday','saturday','sunday'];
+                                        foreach ($weekDays as $dayOption):
+                                        ?>
+                                        <option value="<?= $dayOption ?>" <?= $weeklyReportDay === $dayOption ? 'selected' : '' ?>><?= t('leverage.day.' . $dayOption) ?></option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
                         <div class="or-actions">
                             <button type="submit" class="btn btn-primary"><?= t('admin.save') ?></button>
                         </div>
+                    </form>
+
+                    <!-- Telegram Test Button (separate form) -->
+                    <form method="POST" action="admin.php" style="margin-bottom: 1rem;">
+                        <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
+                        <input type="hidden" name="action" value="test_telegram">
+                        <button type="submit" class="btn btn-sm"><?= t('admin.leverage.telegram_test') ?></button>
                     </form>
 
                     <!-- Test Emails -->
