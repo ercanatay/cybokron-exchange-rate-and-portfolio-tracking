@@ -74,6 +74,83 @@ class LeverageEngine
         $buyThreshold = (float) $rule['buy_threshold'];
         $sellThreshold = (float) $rule['sell_threshold'];
 
+        // ── Trailing stop check (before threshold check) ────────────────────
+        if ((int) ($rule['trailing_stop_enabled'] ?? 0) === 1) {
+            $trailingStopPct = (float) ($rule['trailing_stop_pct'] ?? 5.0);
+            $trailingStopType = $rule['trailing_stop_type'] ?? 'auto';
+
+            if ($trailingStopType === 'auto') {
+                $peakPrice = (float) ($rule['peak_price'] ?? $referencePrice);
+
+                // Update peak if current price exceeds it
+                if ($currentPrice > $peakPrice) {
+                    Database::update('leverage_rules', [
+                        'peak_price' => $currentPrice,
+                    ], 'id = ?', [$ruleId]);
+                    $peakPrice = $currentPrice;
+                }
+
+                // Calculate drop from peak
+                if ($peakPrice > 0) {
+                    $dropFromPeak = (($peakPrice - $currentPrice) / $peakPrice) * 100;
+                    if ($dropFromPeak >= $trailingStopPct) {
+                        self::updateLastChecked($ruleId);
+                        self::handleTrailingStopSignal($rule, $changePercent, $currentPrice);
+                        return [
+                            'direction' => 'sell',
+                            'change_percent' => $changePercent,
+                            'ai_recommendation' => null,
+                            'notification_sent' => true,
+                        ];
+                    }
+                }
+            } elseif ($trailingStopType === 'threshold') {
+                // Calculate drop from reference price
+                if ($referencePrice > 0) {
+                    $dropFromReference = (($referencePrice - $currentPrice) / $referencePrice) * 100;
+                    if ($dropFromReference >= $trailingStopPct) {
+                        self::updateLastChecked($ruleId);
+                        self::handleTrailingStopSignal($rule, $changePercent, $currentPrice);
+                        return [
+                            'direction' => 'sell',
+                            'change_percent' => $changePercent,
+                            'ai_recommendation' => null,
+                            'notification_sent' => true,
+                        ];
+                    }
+                }
+            }
+        }
+
+        // ── Weak threshold check (before strong threshold) ──────────────────
+        $buyThresholdWeak = isset($rule['buy_threshold_weak']) && $rule['buy_threshold_weak'] !== null
+            ? (float) $rule['buy_threshold_weak'] : null;
+        $sellThresholdWeak = isset($rule['sell_threshold_weak']) && $rule['sell_threshold_weak'] !== null
+            ? (float) $rule['sell_threshold_weak'] : null;
+
+        if ($buyThresholdWeak !== null && $changePercent <= $buyThresholdWeak && $changePercent > $buyThreshold) {
+            self::updateLastChecked($ruleId);
+            self::handleWeakSignal($rule, 'buy', $changePercent, $currentPrice, 'weak_buy_signal');
+            return [
+                'direction' => 'buy',
+                'change_percent' => $changePercent,
+                'ai_recommendation' => null,
+                'notification_sent' => true,
+            ];
+        }
+
+        if ($sellThresholdWeak !== null && $changePercent >= $sellThresholdWeak && $changePercent < $sellThreshold) {
+            self::updateLastChecked($ruleId);
+            self::handleWeakSignal($rule, 'sell', $changePercent, $currentPrice, 'weak_sell_signal');
+            return [
+                'direction' => 'sell',
+                'change_percent' => $changePercent,
+                'ai_recommendation' => null,
+                'notification_sent' => true,
+            ];
+        }
+
+        // ── Strong threshold check ──────────────────────────────────────────
         // Determine signal direction
         $direction = null;
         if ($changePercent <= $buyThreshold) {
@@ -134,17 +211,13 @@ class LeverageEngine
 
         $historyId = Database::insert('leverage_history', $historyData);
 
-        // Send email
-        $emailSent = false;
-        $recipients = SendGridMailer::getNotifyEmails();
-        if (!empty($recipients)) {
-            $emailSent = self::sendSignalEmail($rule, $currentRate, $changePercent, $direction, $aiResult, $recipients);
-            if ($emailSent) {
-                Database::update('leverage_history', [
-                    'notification_sent' => 1,
-                    'notification_channel' => 'email',
-                ], 'id = ?', [$historyId]);
-            }
+        // Multi-channel dispatch
+        $channels = self::dispatchAllChannels($rule, $direction, $changePercent, $aiResult, $eventType);
+        if ($channels !== '') {
+            Database::update('leverage_history', [
+                'notification_sent' => 1,
+                'notification_channel' => $channels,
+            ], 'id = ?', [$historyId]);
         }
 
         // Update rule trigger state + auto-reset reference for next cycle
@@ -160,7 +233,7 @@ class LeverageEngine
             'direction' => $direction,
             'change_percent' => $changePercent,
             'ai_recommendation' => $aiResult['recommendation'] ?? null,
-            'notification_sent' => $emailSent,
+            'notification_sent' => $channels !== '',
         ];
     }
 
@@ -356,6 +429,164 @@ class LeverageEngine
         ];
     }
 
+    // ─── Trailing stop & weak signal handlers ────────────────────────────────
+
+    /**
+     * Handle trailing stop signal — save history, dispatch all channels, reset peak+reference.
+     */
+    private static function handleTrailingStopSignal(array $rule, float $changePct, float $currentPrice): void
+    {
+        $ruleId = (int) $rule['id'];
+        $eventType = 'trailing_stop_signal';
+        $direction = 'sell'; // trailing stop is always a sell signal
+        $referencePrice = (float) $rule['reference_price'];
+
+        // Save to leverage_history (NO AI for trailing stop)
+        $historyData = [
+            'rule_id' => $ruleId,
+            'event_type' => $eventType,
+            'price_at_event' => $currentPrice,
+            'reference_price_at_event' => $referencePrice,
+            'change_percent' => round($changePct, 2),
+            'ai_response' => null,
+            'ai_recommendation' => null,
+            'notification_sent' => 0,
+            'notification_channel' => null,
+            'notes' => 'Trailing stop triggered',
+        ];
+
+        $historyId = Database::insert('leverage_history', $historyData);
+
+        // Dispatch to all channels
+        $channels = self::dispatchAllChannels($rule, $direction, $changePct, null, $eventType);
+
+        // Update history record with notification_channel
+        if ($channels !== '') {
+            Database::update('leverage_history', [
+                'notification_sent' => 1,
+                'notification_channel' => $channels,
+            ], 'id = ?', [$historyId]);
+        }
+
+        // Reset: peak_price = current_price, reference_price = current_price
+        // Update rule: last_triggered_at, last_trigger_direction = 'sell'
+        Database::update('leverage_rules', [
+            'peak_price' => $currentPrice,
+            'reference_price' => $currentPrice,
+            'last_triggered_at' => date('Y-m-d H:i:s'),
+            'last_trigger_direction' => 'sell',
+        ], 'id = ?', [$ruleId]);
+
+        cybokron_log("Leverage rule #{$ruleId} trailing stop triggered: price={$currentPrice}, change={$changePct}%, reference+peak reset");
+    }
+
+    /**
+     * Handle weak signal — save history, dispatch all channels, NO reference/direction update.
+     */
+    private static function handleWeakSignal(array $rule, string $direction, float $changePct, float $currentPrice, string $eventType): void
+    {
+        $ruleId = (int) $rule['id'];
+        $referencePrice = (float) $rule['reference_price'];
+
+        // Save to leverage_history (NO AI for weak signals)
+        $historyData = [
+            'rule_id' => $ruleId,
+            'event_type' => $eventType,
+            'price_at_event' => $currentPrice,
+            'reference_price_at_event' => $referencePrice,
+            'change_percent' => round($changePct, 2),
+            'ai_response' => null,
+            'ai_recommendation' => null,
+            'notification_sent' => 0,
+            'notification_channel' => null,
+            'notes' => null,
+        ];
+
+        $historyId = Database::insert('leverage_history', $historyData);
+
+        // Dispatch to all channels
+        $channels = self::dispatchAllChannels($rule, $direction, $changePct, null, $eventType);
+
+        // Update history record with notification_channel
+        if ($channels !== '') {
+            Database::update('leverage_history', [
+                'notification_sent' => 1,
+                'notification_channel' => $channels,
+            ], 'id = ?', [$historyId]);
+        }
+
+        // DO NOT update: reference_price, last_trigger_direction, last_triggered_at
+        // Weak signals are informational only
+        cybokron_log("Leverage rule #{$ruleId} weak signal: {$eventType}, direction={$direction}, change={$changePct}%");
+    }
+
+    /**
+     * Dispatch signal to all enabled notification channels.
+     *
+     * @return string Comma-separated channel list (e.g., "email,telegram,webhook")
+     */
+    private static function dispatchAllChannels(array $rule, string $direction, float $changePct, ?array $aiResult, string $eventType): string
+    {
+        $channels = [];
+
+        // 1. Email (SendGridMailer) — existing flow
+        try {
+            $recipients = SendGridMailer::getNotifyEmails();
+            if (!empty($recipients)) {
+                $currentRate = [
+                    'sell_rate' => $rule['_current_price'] ?? $rule['reference_price'],
+                    'buy_rate' => $rule['_current_price'] ?? $rule['reference_price'],
+                ];
+                // Resolve current rate from DB if not embedded in rule
+                $currencyCode = strtoupper(trim($rule['currency_code'] ?? ''));
+                if ($currencyCode !== '') {
+                    $liveRate = self::getCurrentRate($currencyCode);
+                    if ($liveRate !== null) {
+                        $currentRate = $liveRate;
+                    }
+                }
+                $emailSent = self::sendSignalEmail($rule, $currentRate, $changePct, $direction, $aiResult, $recipients, $eventType);
+                if ($emailSent) {
+                    $channels[] = 'email';
+                }
+            }
+        } catch (\Throwable $e) {
+            cybokron_log("Email dispatch failed: " . $e->getMessage(), 'ERROR');
+        }
+
+        // 2. Telegram (TelegramNotifier)
+        if (class_exists('TelegramNotifier')) {
+            $pdo = Database::getInstance();
+            $telegram = new TelegramNotifier($pdo);
+            if ($telegram->isEnabled()) {
+                try {
+                    $result = $telegram->sendLeverageSignal($rule, $direction, $changePct, $aiResult, $eventType);
+                    if ($result['success']) {
+                        $channels[] = 'telegram';
+                    }
+                } catch (\Throwable $e) {
+                    cybokron_log("Telegram dispatch failed: " . $e->getMessage(), 'ERROR');
+                }
+            }
+        }
+
+        // 3. Webhooks (LeverageWebhookDispatcher)
+        if (class_exists('LeverageWebhookDispatcher')) {
+            if (LeverageWebhookDispatcher::isEnabled()) {
+                try {
+                    $result = LeverageWebhookDispatcher::dispatch($rule, $direction, $changePct, $aiResult, $eventType);
+                    if ($result['sent'] > 0) {
+                        $channels[] = 'webhook';
+                    }
+                } catch (\Throwable $e) {
+                    cybokron_log("Webhook dispatch failed: " . $e->getMessage(), 'ERROR');
+                }
+            }
+        }
+
+        return implode(',', $channels);
+    }
+
     // ─── Email ──────────────────────────────────────────────────────────────
 
     /**
@@ -367,12 +598,22 @@ class LeverageEngine
         float $changePercent,
         string $direction,
         ?array $aiResult,
-        array $recipients
+        array $recipients,
+        string $eventType = 'leverage_signal'
     ): bool {
         $currencyCode = strtoupper(trim($rule['currency_code']));
         $changeStr = ($changePercent >= 0 ? '+' : '') . number_format($changePercent, 1) . '%';
 
-        if ($aiResult !== null) {
+        // Build subject based on event type
+        $isWeakSignal = str_contains($eventType, 'weak_');
+        $isTrailingStop = $eventType === 'trailing_stop_signal';
+
+        if ($isWeakSignal) {
+            $weakLabel = $direction === 'buy' ? t('leverage.email.signal_weak_buy') : t('leverage.email.signal_weak_sell');
+            $subject = "[Cybokron] {$weakLabel} — {$currencyCode} ({$changeStr})";
+        } elseif ($isTrailingStop) {
+            $subject = "[Cybokron] Trailing Stop — {$currencyCode} ({$changeStr})";
+        } elseif ($aiResult !== null) {
             $subjectKey = $direction === 'buy' ? 'leverage.email.subject_buy' : 'leverage.email.subject_sell';
             $subject = t($subjectKey, [
                 'currency' => $currencyCode,
@@ -392,8 +633,8 @@ class LeverageEngine
         $referencePrice = (float) $rule['reference_price'];
         $currentPrice = (float) $currentRate['sell_rate'];
 
-        $html = self::buildEmailHtml($rule, $referencePrice, $currentPrice, $changePercent, $direction, $aiResult);
-        $text = self::buildEmailText($rule, $referencePrice, $currentPrice, $changePercent, $direction, $aiResult);
+        $html = self::buildEmailHtml($rule, $referencePrice, $currentPrice, $changePercent, $direction, $aiResult, $eventType);
+        $text = self::buildEmailText($rule, $referencePrice, $currentPrice, $changePercent, $direction, $aiResult, $eventType);
 
         $result = SendGridMailer::send($recipients, $subject, $html, $text);
         return $result['success'];
@@ -405,10 +646,22 @@ class LeverageEngine
         float $currentPrice,
         float $changePercent,
         string $direction,
-        ?array $aiResult
+        ?array $aiResult,
+        string $eventType = 'leverage_signal'
     ): string {
         $currencyCode = strtoupper(trim($rule['currency_code']));
-        $signalLabel = $direction === 'buy' ? t('leverage.email.signal_buy') : t('leverage.email.signal_sell');
+        $isWeakSignal = str_contains($eventType, 'weak_');
+        $isTrailingStop = $eventType === 'trailing_stop_signal';
+
+        if ($isWeakSignal) {
+            $signalLabel = $direction === 'buy'
+                ? t('leverage.email.signal_weak_buy')
+                : t('leverage.email.signal_weak_sell');
+        } elseif ($isTrailingStop) {
+            $signalLabel = 'Trailing Stop';
+        } else {
+            $signalLabel = $direction === 'buy' ? t('leverage.email.signal_buy') : t('leverage.email.signal_sell');
+        }
         $signalColor = $direction === 'buy' ? '#e74c3c' : '#27ae60';
         $changeStr = ($changePercent >= 0 ? '+' : '') . number_format($changePercent, 2) . '%';
         $threshold = $direction === 'buy' ? $rule['buy_threshold'] : $rule['sell_threshold'];
@@ -479,10 +732,22 @@ class LeverageEngine
         float $currentPrice,
         float $changePercent,
         string $direction,
-        ?array $aiResult
+        ?array $aiResult,
+        string $eventType = 'leverage_signal'
     ): string {
         $currencyCode = strtoupper(trim($rule['currency_code']));
-        $signalLabel = $direction === 'buy' ? t('leverage.email.signal_buy') : t('leverage.email.signal_sell');
+        $isWeakSignal = str_contains($eventType, 'weak_');
+        $isTrailingStop = $eventType === 'trailing_stop_signal';
+
+        if ($isWeakSignal) {
+            $signalLabel = $direction === 'buy'
+                ? t('leverage.email.signal_weak_buy')
+                : t('leverage.email.signal_weak_sell');
+        } elseif ($isTrailingStop) {
+            $signalLabel = 'Trailing Stop';
+        } else {
+            $signalLabel = $direction === 'buy' ? t('leverage.email.signal_buy') : t('leverage.email.signal_sell');
+        }
         $changeStr = ($changePercent >= 0 ? '+' : '') . number_format($changePercent, 2) . '%';
         $threshold = $direction === 'buy' ? $rule['buy_threshold'] : $rule['sell_threshold'];
 
@@ -705,6 +970,17 @@ class LeverageEngine
         $aiEnabled = isset($data['ai_enabled']) ? 1 : 0;
         $strategyContext = self::sanitizeStrategyContext($data['strategy_context'] ?? '');
 
+        // New fields: trailing stop & weak thresholds
+        $trailingStopEnabled = isset($data['trailing_stop_enabled']) ? (int) (bool) $data['trailing_stop_enabled'] : 0;
+        $trailingStopType = in_array($data['trailing_stop_type'] ?? 'auto', ['auto', 'threshold'], true)
+            ? ($data['trailing_stop_type'] ?? 'auto') : 'auto';
+        $trailingStopPct = isset($data['trailing_stop_pct']) && $data['trailing_stop_pct'] !== ''
+            ? (float) $data['trailing_stop_pct'] : null;
+        $buyThresholdWeak = isset($data['buy_threshold_weak']) && $data['buy_threshold_weak'] !== ''
+            ? (float) $data['buy_threshold_weak'] : null;
+        $sellThresholdWeak = isset($data['sell_threshold_weak']) && $data['sell_threshold_weak'] !== ''
+            ? (float) $data['sell_threshold_weak'] : null;
+
         if ($name === '') {
             throw new InvalidArgumentException(t('leverage.form.error.name'));
         }
@@ -732,7 +1008,7 @@ class LeverageEngine
             }
         }
 
-        return Database::insert('leverage_rules', [
+        $insertData = [
             'name' => $name,
             'source_type' => $sourceType,
             'source_id' => $sourceId,
@@ -742,8 +1018,20 @@ class LeverageEngine
             'reference_price' => $referencePrice,
             'ai_enabled' => $aiEnabled,
             'strategy_context' => $strategyContext !== '' ? $strategyContext : null,
+            'trailing_stop_enabled' => $trailingStopEnabled,
+            'trailing_stop_type' => $trailingStopType,
+            'trailing_stop_pct' => $trailingStopPct,
+            'buy_threshold_weak' => $buyThresholdWeak,
+            'sell_threshold_weak' => $sellThresholdWeak,
             'status' => 'active',
-        ]);
+        ];
+
+        // If trailing stop enabled and type is 'auto', set peak_price = reference_price
+        if ($trailingStopEnabled && $trailingStopType === 'auto') {
+            $insertData['peak_price'] = $referencePrice;
+        }
+
+        return Database::insert('leverage_rules', $insertData);
     }
 
     /**
@@ -776,6 +1064,40 @@ class LeverageEngine
         if (array_key_exists('strategy_context', $data)) {
             $ctx = self::sanitizeStrategyContext($data['strategy_context'] ?? '');
             $update['strategy_context'] = $ctx !== '' ? $ctx : null;
+        }
+
+        // Trailing stop fields
+        if (array_key_exists('trailing_stop_enabled', $data)) {
+            $update['trailing_stop_enabled'] = (int) (bool) $data['trailing_stop_enabled'];
+        }
+        if (isset($data['trailing_stop_type'])) {
+            $update['trailing_stop_type'] = in_array($data['trailing_stop_type'], ['auto', 'threshold'], true)
+                ? $data['trailing_stop_type'] : 'auto';
+        }
+        if (array_key_exists('trailing_stop_pct', $data)) {
+            $update['trailing_stop_pct'] = ($data['trailing_stop_pct'] !== null && $data['trailing_stop_pct'] !== '')
+                ? (float) $data['trailing_stop_pct'] : null;
+        }
+
+        // Weak threshold fields
+        if (array_key_exists('buy_threshold_weak', $data)) {
+            $update['buy_threshold_weak'] = ($data['buy_threshold_weak'] !== null && $data['buy_threshold_weak'] !== '')
+                ? (float) $data['buy_threshold_weak'] : null;
+        }
+        if (array_key_exists('sell_threshold_weak', $data)) {
+            $update['sell_threshold_weak'] = ($data['sell_threshold_weak'] !== null && $data['sell_threshold_weak'] !== '')
+                ? (float) $data['sell_threshold_weak'] : null;
+        }
+
+        // If trailing stop enabled and type is auto, ensure peak_price is set
+        if (isset($update['trailing_stop_enabled']) && $update['trailing_stop_enabled'] === 1) {
+            $tsType = $update['trailing_stop_type'] ?? ($data['trailing_stop_type'] ?? 'auto');
+            if ($tsType === 'auto') {
+                $currentRule = Database::queryOne('SELECT reference_price, peak_price FROM leverage_rules WHERE id = ?', [$id]);
+                if ($currentRule && ($currentRule['peak_price'] === null || (float) $currentRule['peak_price'] <= 0)) {
+                    $update['peak_price'] = (float) ($currentRule['reference_price'] ?? 0);
+                }
+            }
         }
 
         if (!empty($update)) {
@@ -987,19 +1309,14 @@ class LeverageEngine
     }
 
     /**
-     * Send a realistic test signal email (for admin preview).
+     * Send a realistic test signal to all enabled channels (for admin preview).
      *
      * @param string $direction 'buy' or 'sell'
-     * @return array{success:bool, error?:string}
+     * @return array{success:bool, channels?:string, error?:string}
      */
     public static function sendTestSignal(string $direction): array
     {
         require_once __DIR__ . '/SendGridMailer.php';
-
-        $recipients = SendGridMailer::getNotifyEmails();
-        if (empty($recipients)) {
-            return ['success' => false, 'error' => t('admin.leverage.test_email_error', ['error' => 'No recipients configured'])];
-        }
 
         $rule = Database::queryOne(
             'SELECT * FROM leverage_rules WHERE status = ? ORDER BY id LIMIT 1',
@@ -1032,14 +1349,16 @@ class LeverageEngine
                 : 'Pozisyonun bir kısmının satılarak kâr realize edilmesi önerilir.',
         ];
 
-        $mockRate = [
-            'sell_rate' => $simulatedPrice,
-            'buy_rate' => $simulatedPrice * 0.98,
-        ];
+        // Inject simulated current price into rule for channel dispatchers
+        $rule['_current_price'] = $simulatedPrice;
+        $rule['current_price'] = $simulatedPrice;
 
-        $sent = self::sendSignalEmail($rule, $mockRate, $changePercent, $direction, $aiResult, $recipients);
-        return $sent
-            ? ['success' => true]
-            : ['success' => false, 'error' => 'SendGrid API call failed'];
+        $eventType = $direction === 'buy' ? 'buy_signal' : 'sell_signal';
+        $channels = self::dispatchAllChannels($rule, $direction, $changePercent, $aiResult, $eventType);
+
+        if ($channels !== '') {
+            return ['success' => true, 'channels' => $channels];
+        }
+        return ['success' => false, 'error' => 'No notification channels delivered successfully'];
     }
 }
