@@ -10,6 +10,8 @@
 
 require_once __DIR__ . '/../includes/helpers.php';
 require_once __DIR__ . '/../includes/SendGridMailer.php';
+require_once __DIR__ . '/../includes/TelegramNotifier.php';
+require_once __DIR__ . '/../includes/LeverageWebhookDispatcher.php';
 require_once __DIR__ . '/../includes/LeverageEngine.php';
 cybokron_init();
 ensureCliExecution();
