@@ -274,6 +274,7 @@ jobs:
              echo 'Non-production files cleaned from public_html'"
 
       - name: Configure cron jobs
+        continue-on-error: true
         run: |
           ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \
             ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} bash -s << 'CRON_EOF'
