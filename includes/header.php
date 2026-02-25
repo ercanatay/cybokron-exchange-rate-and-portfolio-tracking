@@ -44,6 +44,10 @@ $_isAdmin = Auth::check() && Auth::isAdmin();
                         <?= $_headerActivePage === 'openrouter' ? ' aria-current="page"' : '' ?>>
                         AI
                     </a>
+                    <a href="leverage.php" class="header-nav-link <?= $_headerActivePage === 'leverage' ? 'active' : '' ?>"
+                        <?= $_headerActivePage === 'leverage' ? ' aria-current="page"' : '' ?>>
+                        <?= t('nav.leverage') ?>
+                    </a>
                     <a href="admin.php" class="header-nav-link <?= $_headerActivePage === 'admin' ? 'active' : '' ?>"
                         <?= $_headerActivePage === 'admin' ? ' aria-current="page"' : '' ?>>
                         <?= t('admin.title') ?>
@@ -140,6 +144,9 @@ $_isAdmin = Auth::check() && Auth::isAdmin();
                 </a>
                 <a href="openrouter.php" class="mobile-nav-link <?= $_headerActivePage === 'openrouter' ? 'active' : '' ?>">
                     <span class="mobile-nav-icon">🤖</span> AI
+                </a>
+                <a href="leverage.php" class="mobile-nav-link <?= $_headerActivePage === 'leverage' ? 'active' : '' ?>">
+                    <span class="mobile-nav-icon">⚡</span> <?= t('nav.leverage') ?>
                 </a>
                 <a href="admin.php" class="mobile-nav-link <?= $_headerActivePage === 'admin' ? 'active' : '' ?>">
                     <span class="mobile-nav-icon">⚙️</span> <?= t('admin.title') ?>
