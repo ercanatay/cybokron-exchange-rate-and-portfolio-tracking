@@ -120,6 +120,22 @@ define('ALERT_TELEGRAM_BOT_TOKEN', '');            // Optional: Telegram bot tok
 define('ALERT_TELEGRAM_CHAT_ID', '');              // Optional: Telegram chat ID
 define('ALERT_WEBHOOK_URL', '');                   // Optional: Webhook URL for channel=webhook
 
+// ─── Leverage & AI Analysis ─────────────────────────────────────────────────
+define('LEVERAGE_ENABLED', true);                    // Enable leverage tracking system
+define('LEVERAGE_CHECK_INTERVAL_MINUTES', 15);       // Cron check interval
+define('LEVERAGE_COOLDOWN_MINUTES', 60);             // Min minutes between same rule triggers
+define('LEVERAGE_AI_ENABLED', true);                 // Enable AI pre-analysis on signals
+define('LEVERAGE_AI_MODEL', 'google/gemini-3.1-pro-preview'); // OpenRouter model for leverage AI
+define('LEVERAGE_AI_MAX_TOKENS', 800);               // Max response tokens
+define('LEVERAGE_AI_TIMEOUT_SECONDS', 30);           // API timeout
+
+// ─── SendGrid Email ─────────────────────────────────────────────────────────
+define('SENDGRID_ENABLED', true);                    // Enable SendGrid for notifications
+define('SENDGRID_API_KEY', '');                      // SendGrid API key
+define('SENDGRID_FROM_EMAIL', 'noreply@localhost');  // Sender email address
+define('SENDGRID_FROM_NAME', 'Cybokron Leverage');   // Sender display name
+define('SENDGRID_ALLOWED_HOSTS', ['api.sendgrid.com']); // Host whitelist
+
 // ─── Currency Display ────────────────────────────────────────────────────────
 // Default currencies to show on dashboard (empty = show all)
 $DISPLAY_CURRENCIES = [
