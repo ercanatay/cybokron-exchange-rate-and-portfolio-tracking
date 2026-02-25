@@ -297,7 +297,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         }
     }
 
-    if (!in_array($_POST['action'], ['update_rates', 'toggle_bank', 'toggle_currency', 'toggle_homepage', 'set_default_bank', 'update_rate_order', 'set_chart_defaults', 'save_widget_config', 'toggle_noindex', 'set_retention_days', 'save_deposit_rate', 'toggle_deposit_comparison', 'save_openrouter_settings', 'toggle_layout_default', 'save_leverage_settings', 'test_leverage_email'], true)) {
+    if ($_POST['action'] === 'test_leverage_signal_buy' || $_POST['action'] === 'test_leverage_signal_sell') {
+        require_once __DIR__ . '/includes/LeverageEngine.php';
+        $dir = $_POST['action'] === 'test_leverage_signal_buy' ? 'buy' : 'sell';
+        $result = LeverageEngine::sendTestSignal($dir);
+        if ($result['success']) {
+            $message = t('admin.leverage.test_signal_success', ['direction' => $dir === 'buy' ? t('leverage.email.signal_buy') : t('leverage.email.signal_sell')]);
+            $messageType = 'success';
+        } else {
+            $message = t('admin.leverage.test_email_error', ['error' => $result['error'] ?? 'Unknown error']);
+            $messageType = 'error';
+        }
+    }
+
+    if (!in_array($_POST['action'], ['update_rates', 'toggle_bank', 'toggle_currency', 'toggle_homepage', 'set_default_bank', 'update_rate_order', 'set_chart_defaults', 'save_widget_config', 'toggle_noindex', 'set_retention_days', 'save_deposit_rate', 'toggle_deposit_comparison', 'save_openrouter_settings', 'toggle_layout_default', 'save_leverage_settings', 'test_leverage_email', 'test_leverage_signal_buy', 'test_leverage_signal_sell'], true)) {
         header('Location: admin.php');
         exit;
     }
@@ -1057,43 +1070,56 @@ foreach ($allRates as $r) {
                             <p><?= t('admin.leverage.desc') ?></p>
                         </div>
                     </div>
+                    <?php if ($leverageEnabledVal === '1'): ?>
+                        <span class="badge badge-success">● <?= t('admin.config_set') ?></span>
+                    <?php else: ?>
+                        <span class="badge badge-muted">○ <?= t('admin.config_not_set') ?></span>
+                    <?php endif; ?>
                 </div>
                 <div class="admin-card-body">
                     <form method="POST" action="admin.php" class="or-settings-form">
                         <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
                         <input type="hidden" name="action" value="save_leverage_settings">
 
-                        <!-- Leverage Settings Group -->
-                        <fieldset style="border:1px solid var(--border-color,#e2e8f0); border-radius:8px; padding:16px; margin:0 0 20px;">
-                            <legend style="font-weight:600; padding:0 8px; font-size:0.95rem;"><?= t('admin.leverage.title') ?></legend>
-                            <div class="or-field-group">
+                        <!-- General -->
+                        <div class="leverage-section">
+                            <div class="leverage-section-header">
+                                <span class="leverage-section-icon">&#9881;</span>
+                                <span class="leverage-section-title"><?= t('admin.leverage.section_general') ?></span>
+                            </div>
+                            <div class="or-field-group" style="grid-template-columns: auto 1fr 1fr;">
                                 <div class="or-field">
-                                    <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
-                                        <input type="checkbox" name="leverage_enabled" value="1" <?= $leverageEnabledVal === '1' ? 'checked' : '' ?>>
-                                        <span><?= t('admin.leverage.enabled') ?></span>
+                                    <label style="display:flex; align-items:center; gap:8px; cursor:pointer; padding-top:20px;">
+                                        <input type="checkbox" name="leverage_enabled" value="1" <?= $leverageEnabledVal === '1' ? 'checked' : '' ?>
+                                               style="width:18px; height:18px; accent-color:var(--primary,#3b82f6);">
+                                        <span style="font-weight:600;"><?= t('admin.leverage.enabled') ?></span>
                                     </label>
                                 </div>
                                 <div class="or-field">
                                     <label for="leverage_check_interval_minutes"><?= t('admin.leverage.check_interval') ?></label>
                                     <input type="number" id="leverage_check_interval_minutes" name="leverage_check_interval_minutes"
-                                           value="<?= $leverageCheckIntervalVal ?>" min="5" step="1" style="max-width:120px;">
+                                           value="<?= $leverageCheckIntervalVal ?>" min="5" step="1">
                                 </div>
                                 <div class="or-field">
                                     <label for="leverage_cooldown_minutes"><?= t('admin.leverage.cooldown') ?></label>
                                     <input type="number" id="leverage_cooldown_minutes" name="leverage_cooldown_minutes"
-                                           value="<?= $leverageCooldownVal ?>" min="15" step="1" style="max-width:120px;">
+                                           value="<?= $leverageCooldownVal ?>" min="15" step="1">
                                 </div>
                             </div>
-                        </fieldset>
+                        </div>
 
-                        <!-- AI Settings Group -->
-                        <fieldset style="border:1px solid var(--border-color,#e2e8f0); border-radius:8px; padding:16px; margin:0 0 20px;">
-                            <legend style="font-weight:600; padding:0 8px; font-size:0.95rem;">AI</legend>
+                        <!-- AI -->
+                        <div class="leverage-section">
+                            <div class="leverage-section-header">
+                                <span class="leverage-section-icon">&#129302;</span>
+                                <span class="leverage-section-title">AI <?= t('admin.leverage.section_analysis') ?></span>
+                            </div>
                             <div class="or-field-group">
                                 <div class="or-field">
-                                    <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
-                                        <input type="checkbox" name="leverage_ai_enabled" value="1" <?= $leverageAiEnabledVal === '1' ? 'checked' : '' ?>>
-                                        <span><?= t('admin.leverage.ai_enabled') ?></span>
+                                    <label style="display:flex; align-items:center; gap:8px; cursor:pointer; padding-top:20px;">
+                                        <input type="checkbox" name="leverage_ai_enabled" value="1" <?= $leverageAiEnabledVal === '1' ? 'checked' : '' ?>
+                                               style="width:18px; height:18px; accent-color:var(--primary,#3b82f6);">
+                                        <span style="font-weight:600;"><?= t('admin.leverage.ai_enabled') ?></span>
                                     </label>
                                 </div>
                                 <div class="or-field">
@@ -1104,16 +1130,23 @@ foreach ($allRates as $r) {
                                     <small class="or-field-hint"><?= t('admin.leverage.ai_model_desc') ?></small>
                                 </div>
                             </div>
-                        </fieldset>
+                        </div>
 
-                        <!-- SendGrid Settings Group -->
-                        <fieldset style="border:1px solid var(--border-color,#e2e8f0); border-radius:8px; padding:16px; margin:0 0 20px;">
-                            <legend style="font-weight:600; padding:0 8px; font-size:0.95rem;">SendGrid</legend>
+                        <!-- SendGrid -->
+                        <div class="leverage-section">
+                            <div class="leverage-section-header">
+                                <span class="leverage-section-icon">&#9993;</span>
+                                <span class="leverage-section-title">SendGrid</span>
+                                <?php if ($sendgridApiKeyExists): ?>
+                                    <span class="badge badge-success" style="margin-left:8px; font-size:0.7rem;">● API Key <?= t('admin.config_set') ?></span>
+                                <?php endif; ?>
+                            </div>
                             <div class="or-field-group">
                                 <div class="or-field">
-                                    <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
-                                        <input type="checkbox" name="sendgrid_enabled" value="1" <?= $sendgridEnabledVal === '1' ? 'checked' : '' ?>>
-                                        <span><?= t('admin.leverage.sendgrid_enabled') ?></span>
+                                    <label style="display:flex; align-items:center; gap:8px; cursor:pointer; padding-top:20px;">
+                                        <input type="checkbox" name="sendgrid_enabled" value="1" <?= $sendgridEnabledVal === '1' ? 'checked' : '' ?>
+                                               style="width:18px; height:18px; accent-color:var(--primary,#3b82f6);">
+                                        <span style="font-weight:600;"><?= t('admin.leverage.sendgrid_enabled') ?></span>
                                     </label>
                                 </div>
                                 <div class="or-field">
@@ -1124,10 +1157,9 @@ foreach ($allRates as $r) {
                                                autocomplete="off" spellcheck="false">
                                         <button type="button" class="or-toggle-vis" onclick="var i=document.getElementById('sendgrid_api_key');i.type=i.type==='password'?'text':'password';this.textContent=i.type==='password'?'&#x1F441;':'&#x1F648;'" title="<?= t('admin.openrouter_toggle_key') ?>">&#x1F441;</button>
                                     </div>
-                                    <?php if ($sendgridApiKeyExists): ?>
-                                        <small class="or-field-hint"><?= t('admin.openrouter_key_source_db') ?></small>
-                                    <?php endif; ?>
                                 </div>
+                            </div>
+                            <div class="or-field-group" style="margin-top:12px;">
                                 <div class="or-field">
                                     <label for="sendgrid_from_email"><?= t('admin.leverage.sendgrid_from_email') ?></label>
                                     <input type="email" id="sendgrid_from_email" name="sendgrid_from_email"
@@ -1140,28 +1172,49 @@ foreach ($allRates as $r) {
                                            value="<?= htmlspecialchars($sendgridFromNameVal) ?>"
                                            placeholder="Cybokron Leverage">
                                 </div>
-                                <div class="or-field">
-                                    <label for="leverage_notify_emails"><?= t('admin.leverage.notify_emails') ?></label>
-                                    <input type="text" id="leverage_notify_emails" name="leverage_notify_emails"
-                                           value="<?= htmlspecialchars($leverageNotifyEmailsDisplay) ?>"
-                                           placeholder="user1@example.com, user2@example.com">
-                                    <small class="or-field-hint"><?= t('admin.leverage.notify_emails_desc') ?></small>
-                                </div>
                             </div>
-                        </fieldset>
+                            <div class="or-field" style="margin-top:12px;">
+                                <label for="leverage_notify_emails"><?= t('admin.leverage.notify_emails') ?></label>
+                                <input type="text" id="leverage_notify_emails" name="leverage_notify_emails"
+                                       value="<?= htmlspecialchars($leverageNotifyEmailsDisplay) ?>"
+                                       placeholder="user1@example.com, user2@example.com">
+                                <small class="or-field-hint"><?= t('admin.leverage.notify_emails_desc') ?></small>
+                            </div>
+                        </div>
 
                         <div class="or-actions">
                             <button type="submit" class="btn btn-primary"><?= t('admin.save') ?></button>
                         </div>
                     </form>
 
-                    <!-- Test Email (separate form) -->
-                    <div style="margin-top:16px; padding-top:16px; border-top:1px solid var(--border-color,#e2e8f0);">
-                        <form method="POST" action="admin.php" style="display:inline;">
-                            <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
-                            <input type="hidden" name="action" value="test_leverage_email">
-                            <button type="submit" class="btn btn-sm"><?= t('admin.leverage.test_email') ?></button>
-                        </form>
+                    <!-- Test Emails -->
+                    <div class="leverage-section" style="margin-top:20px; padding-top:20px; border-top:1px solid var(--border-color,#e2e8f0);">
+                        <div class="leverage-section-header">
+                            <span class="leverage-section-icon">&#128233;</span>
+                            <span class="leverage-section-title"><?= t('admin.leverage.section_test') ?></span>
+                        </div>
+                        <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:12px;">
+                            <form method="POST" action="admin.php" style="display:inline;">
+                                <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
+                                <input type="hidden" name="action" value="test_leverage_email">
+                                <button type="submit" class="btn btn-sm"><?= t('admin.leverage.test_email') ?></button>
+                            </form>
+                            <form method="POST" action="admin.php" style="display:inline;">
+                                <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
+                                <input type="hidden" name="action" value="test_leverage_signal_buy">
+                                <button type="submit" class="btn btn-sm" style="background:#fee2e2; color:#dc2626; border-color:#fca5a5;">
+                                    &#9660; <?= t('admin.leverage.test_signal_buy') ?>
+                                </button>
+                            </form>
+                            <form method="POST" action="admin.php" style="display:inline;">
+                                <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
+                                <input type="hidden" name="action" value="test_leverage_signal_sell">
+                                <button type="submit" class="btn btn-sm" style="background:#dcfce7; color:#16a34a; border-color:#86efac;">
+                                    &#9650; <?= t('admin.leverage.test_signal_sell') ?>
+                                </button>
+                            </form>
+                        </div>
+                        <small class="or-field-hint" style="margin-top:8px;"><?= t('admin.leverage.test_signal_desc') ?></small>
                     </div>
                 </div>
             </div>

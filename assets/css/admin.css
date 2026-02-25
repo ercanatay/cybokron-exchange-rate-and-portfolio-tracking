@@ -895,3 +895,37 @@
         grid-template-columns: 1fr;
     }
 }
+
+/* ─── Leverage Section ─────────────────────────────────────────────────── */
+.leverage-section {
+    padding: 16px;
+    margin-bottom: 16px;
+    background: var(--surface-secondary, #f8fafc);
+    border-radius: 10px;
+    border: 1px solid var(--border-color, #e2e8f0);
+}
+
+.leverage-section-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 14px;
+}
+
+.leverage-section-icon {
+    font-size: 1.1rem;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--surface, #fff);
+    border-radius: 6px;
+    border: 1px solid var(--border-color, #e2e8f0);
+}
+
+.leverage-section-title {
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: var(--text, #1e293b);
+}

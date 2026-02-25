@@ -748,4 +748,11 @@ return [
     'admin.leverage.saved' => 'Kaldıraç ayarları kaydedildi.',
     'admin.leverage.enabled' => 'Kaldıraç Sistemi',
     'admin.leverage.sendgrid_enabled' => 'SendGrid Aktif',
+    'admin.leverage.section_general' => 'Genel',
+    'admin.leverage.section_analysis' => 'Analiz',
+    'admin.leverage.section_test' => 'Email Testi',
+    'admin.leverage.test_signal_buy' => 'AL Sinyali Gönder',
+    'admin.leverage.test_signal_sell' => 'SAT Sinyali Gönder',
+    'admin.leverage.test_signal_success' => '{{direction}} test sinyali emaili gönderildi.',
+    'admin.leverage.test_signal_desc' => 'Gerçekçi AL/SAT sinyal emaili gönderir (simüle veri + AI sonucu ile)',
 ];

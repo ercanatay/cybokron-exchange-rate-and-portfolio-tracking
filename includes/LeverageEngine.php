@@ -985,4 +985,61 @@ class LeverageEngine
         // If translation returns the key itself, fallback to uppercase
         return $label !== $key ? $label : strtoupper($recommendation);
     }
+
+    /**
+     * Send a realistic test signal email (for admin preview).
+     *
+     * @param string $direction 'buy' or 'sell'
+     * @return array{success:bool, error?:string}
+     */
+    public static function sendTestSignal(string $direction): array
+    {
+        require_once __DIR__ . '/SendGridMailer.php';
+
+        $recipients = SendGridMailer::getNotifyEmails();
+        if (empty($recipients)) {
+            return ['success' => false, 'error' => t('admin.leverage.test_email_error', ['error' => 'No recipients configured'])];
+        }
+
+        $rule = Database::queryOne(
+            'SELECT * FROM leverage_rules WHERE status = ? ORDER BY id LIMIT 1',
+            ['active']
+        );
+        if (!$rule) {
+            return ['success' => false, 'error' => 'No active leverage rule found'];
+        }
+
+        $referencePrice = (float) $rule['reference_price'];
+        $threshold = $direction === 'buy'
+            ? abs((float) $rule['buy_threshold'])
+            : abs((float) $rule['sell_threshold']);
+
+        // Simulate a threshold breach
+        $changePercent = $direction === 'buy'
+            ? -($threshold + 1.5)
+            : ($threshold + 1.5);
+        $simulatedPrice = $referencePrice * (1 + $changePercent / 100);
+
+        $aiResult = [
+            'recommendation' => $direction === 'buy' ? 'strong_buy' : 'strong_sell',
+            'confidence' => 82,
+            'reasoning' => $direction === 'buy'
+                ? 'Fiyat referans noktasından önemli ölçüde düşmüştür. Teknik destek bölgesine yaklaşılmıştır, alım fırsatı değerlendirilebilir.'
+                : 'Fiyat hedef seviyenin üzerine çıkmıştır. Kâr realizasyonu için uygun bir zaman dilimindedir.',
+            'risk_level' => 'medium',
+            'suggested_action' => $direction === 'buy'
+                ? 'Mevcut fiyat seviyesinde kademeli alım yapılması önerilir.'
+                : 'Pozisyonun bir kısmının satılarak kâr realize edilmesi önerilir.',
+        ];
+
+        $mockRate = [
+            'sell_rate' => $simulatedPrice,
+            'buy_rate' => $simulatedPrice * 0.98,
+        ];
+
+        $sent = self::sendSignalEmail($rule, $mockRate, $changePercent, $direction, $aiResult, $recipients);
+        return $sent
+            ? ['success' => true]
+            : ['success' => false, 'error' => 'SendGrid API call failed'];
+    }
 }

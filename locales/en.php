@@ -748,4 +748,11 @@ return [
     'admin.leverage.saved' => 'Leverage settings saved.',
     'admin.leverage.enabled' => 'Leverage System',
     'admin.leverage.sendgrid_enabled' => 'SendGrid Enabled',
+    'admin.leverage.section_general' => 'General',
+    'admin.leverage.section_analysis' => 'Analysis',
+    'admin.leverage.section_test' => 'Email Testing',
+    'admin.leverage.test_signal_buy' => 'Send BUY Signal',
+    'admin.leverage.test_signal_sell' => 'Send SELL Signal',
+    'admin.leverage.test_signal_success' => '{{direction}} test signal email sent.',
+    'admin.leverage.test_signal_desc' => 'Sends a realistic BUY/SELL signal email (with simulated data + AI result)',
 ];

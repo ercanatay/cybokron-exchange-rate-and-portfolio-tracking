@@ -743,4 +743,11 @@ return [
     'admin.leverage.saved' => 'تم حفظ إعدادات الرافعة.',
     'admin.leverage.enabled' => 'نظام الرافعة',
     'admin.leverage.sendgrid_enabled' => 'SendGrid نشط',
+    'admin.leverage.section_general' => 'عام',
+    'admin.leverage.section_analysis' => 'تحليل',
+    'admin.leverage.section_test' => 'اختبار البريد الإلكتروني',
+    'admin.leverage.test_signal_buy' => 'إرسال إشارة شراء',
+    'admin.leverage.test_signal_sell' => 'إرسال إشارة بيع',
+    'admin.leverage.test_signal_success' => 'تم إرسال بريد إشارة {{direction}} التجريبي.',
+    'admin.leverage.test_signal_desc' => 'يرسل بريد إشارة شراء/بيع واقعي (مع بيانات محاكاة + نتيجة الذكاء الاصطناعي)',
 ];

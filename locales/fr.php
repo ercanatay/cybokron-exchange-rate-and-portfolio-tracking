@@ -743,4 +743,11 @@ return [
     'admin.leverage.saved' => 'Paramètres de levier enregistrés.',
     'admin.leverage.enabled' => 'Système de levier',
     'admin.leverage.sendgrid_enabled' => 'SendGrid actif',
+    'admin.leverage.section_general' => 'Général',
+    'admin.leverage.section_analysis' => 'Analyse',
+    'admin.leverage.section_test' => 'Test e-mail',
+    'admin.leverage.test_signal_buy' => 'Envoyer signal ACHAT',
+    'admin.leverage.test_signal_sell' => 'Envoyer signal VENTE',
+    'admin.leverage.test_signal_success' => 'E-mail de test du signal {{direction}} envoyé.',
+    'admin.leverage.test_signal_desc' => 'Envoie un e-mail de signal ACHAT/VENTE réaliste (avec données simulées + résultat IA)',
 ];

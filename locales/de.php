@@ -743,4 +743,11 @@ return [
     'admin.leverage.saved' => 'Hebel-Einstellungen gespeichert.',
     'admin.leverage.enabled' => 'Hebel-System',
     'admin.leverage.sendgrid_enabled' => 'SendGrid Aktiv',
+    'admin.leverage.section_general' => 'Allgemein',
+    'admin.leverage.section_analysis' => 'Analyse',
+    'admin.leverage.section_test' => 'E-Mail-Test',
+    'admin.leverage.test_signal_buy' => 'KAUF-Signal senden',
+    'admin.leverage.test_signal_sell' => 'VERKAUF-Signal senden',
+    'admin.leverage.test_signal_success' => '{{direction}} Test-Signal-E-Mail gesendet.',
+    'admin.leverage.test_signal_desc' => 'Sendet eine realistische KAUF/VERKAUF-Signal-E-Mail (mit simulierten Daten + KI-Ergebnis)',
 ];
