@@ -333,6 +333,12 @@ CREATE TABLE IF NOT EXISTS `leverage_rules` (
     `currency_code` varchar(10) NOT NULL,
     `buy_threshold` decimal(8,2) NOT NULL DEFAULT -15.00,
     `sell_threshold` decimal(8,2) NOT NULL DEFAULT 30.00,
+    `trailing_stop_enabled` tinyint(1) NOT NULL DEFAULT 0,
+    `trailing_stop_type` enum('auto','threshold') NOT NULL DEFAULT 'auto',
+    `trailing_stop_pct` decimal(8,2) NULL,
+    `peak_price` decimal(18,6) NULL,
+    `buy_threshold_weak` decimal(8,2) NULL,
+    `sell_threshold_weak` decimal(8,2) NULL,
     `reference_price` decimal(18,6) NOT NULL,
     `ai_enabled` tinyint(1) NOT NULL DEFAULT 1,
     `strategy_context` text DEFAULT NULL,
@@ -352,20 +358,57 @@ CREATE TABLE IF NOT EXISTS `leverage_rules` (
 CREATE TABLE IF NOT EXISTS `leverage_history` (
     `id` int unsigned NOT NULL AUTO_INCREMENT,
     `rule_id` int unsigned NOT NULL,
-    `event_type` enum('buy_signal','sell_signal','ai_analysis','price_update','status_change') NOT NULL,
+    `event_type` enum('buy_signal','sell_signal','weak_buy_signal','weak_sell_signal','trailing_stop_signal','ai_analysis','price_update','status_change') NOT NULL,
     `price_at_event` decimal(18,6) DEFAULT NULL,
     `reference_price_at_event` decimal(18,6) DEFAULT NULL,
     `change_percent` decimal(8,2) DEFAULT NULL,
     `ai_response` text DEFAULT NULL,
     `ai_recommendation` enum('strong_buy','buy','hold','sell','strong_sell') DEFAULT NULL,
     `notification_sent` tinyint(1) NOT NULL DEFAULT 0,
-    `notification_channel` varchar(20) DEFAULT NULL,
+    `notification_channel` varchar(100) DEFAULT NULL,
     `notes` text DEFAULT NULL,
     `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (`id`),
     KEY `idx_rule` (`rule_id`),
     KEY `idx_event` (`event_type`),
     CONSTRAINT `fk_leverage_history_rule` FOREIGN KEY (`rule_id`) REFERENCES `leverage_rules` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ─── Leverage Webhooks ──────────────────────────────────────────────────
+
+CREATE TABLE IF NOT EXISTS `leverage_webhooks` (
+    `id` int unsigned NOT NULL AUTO_INCREMENT,
+    `name` varchar(100) NOT NULL,
+    `url` varchar(500) NOT NULL,
+    `platform` enum('generic','discord','slack') NOT NULL DEFAULT 'generic',
+    `is_active` tinyint(1) NOT NULL DEFAULT 1,
+    `last_sent_at` datetime NULL,
+    `last_status_code` int NULL,
+    `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`),
+    KEY `idx_active` (`is_active`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ─── Leverage Backtests ─────────────────────────────────────────────────
+
+CREATE TABLE IF NOT EXISTS `leverage_backtests` (
+    `id` int unsigned NOT NULL AUTO_INCREMENT,
+    `rule_id` int unsigned NOT NULL,
+    `data_source` varchar(50) NOT NULL DEFAULT 'rate_history',
+    `date_from` date NOT NULL,
+    `date_to` date NOT NULL,
+    `total_signals` int NOT NULL DEFAULT 0,
+    `buy_signals` int NOT NULL DEFAULT 0,
+    `sell_signals` int NOT NULL DEFAULT 0,
+    `total_return_pct` decimal(8,2) NULL,
+    `max_drawdown_pct` decimal(8,2) NULL,
+    `win_rate_pct` decimal(8,2) NULL,
+    `result_data` json NULL,
+    `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`),
+    KEY `idx_rule` (`rule_id`),
+    CONSTRAINT `fk_leverage_backtests_rule` FOREIGN KEY (`rule_id`) REFERENCES `leverage_rules` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 SET FOREIGN_KEY_CHECKS = 1;
@@ -455,7 +498,17 @@ INSERT INTO `settings` (`key`, `value`) VALUES
     ('sendgrid_api_key', ''),
     ('sendgrid_from_email', 'noreply@example.com'),
     ('sendgrid_from_name', 'Cybokron Leverage'),
-    ('leverage_notify_emails', '["admin@example.com"]')
+    ('leverage_notify_emails', '["admin@example.com"]'),
+    ('telegram_enabled', '0'),
+    ('telegram_bot_token', ''),
+    ('telegram_chat_id', ''),
+    ('webhook_enabled', '0'),
+    ('backtesting_enabled', '1'),
+    ('backtesting_default_source', 'rate_history'),
+    ('backtesting_metals_dev_api_key', ''),
+    ('backtesting_exchangerate_host_api_key', ''),
+    ('leverage_weekly_report_enabled', '0'),
+    ('leverage_weekly_report_day', 'monday')
 ON DUPLICATE KEY UPDATE `key` = `key`;
 
 -- Admin user is created by database/update_admin_password.php with a proper bcrypt hash.
