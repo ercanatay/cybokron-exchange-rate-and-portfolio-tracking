@@ -2,6 +2,27 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.12.0] - 2026-02-25
+
+Leverage system enhancements — automatic reference price cycling, enriched portfolio data in signal emails, full i18n for email templates, automated cron deployment.
+
+### Added
+- **Auto reference reset** — after a buy/sell signal triggers, reference price automatically resets to current price, enabling continuous buy→sell→buy circulation cycles without manual intervention
+- **Enhanced portfolio info in emails** — signal emails now include total cost (₺), current value (₺), P/L amount (₺), P/L percentage, and position count alongside existing amount and average cost
+- **Reference reset notice** — yellow info banner in signal emails notifying that reference has been auto-updated for the next cycle
+- **Email i18n** — all hardcoded Turkish text in email templates replaced with `t()` locale keys; 21 email keys added to TR/EN, ~100 leverage keys added to DE/FR/AR locales
+- **Automated cron deployment** — deploy pipeline now auto-configures cron jobs (adds `check_leverage.php` to chain or installs full crontab if missing)
+
+### Fixed
+- **Email encoding** — replaced HTML entities (`&gbreve;`, `&scedil;`, `&imath;`) with direct UTF-8 characters; added `<meta charset="UTF-8">` to email HTML wrapper
+- **Database API** — fixed `Database::lastInsertId()` calls (method doesn't exist) to use `Database::insert()` return value
+- **Deploy workflow** — added `LEVERAGE_*` and `SENDGRID_*` defines to config.php template, `SENDGRID_API_KEY` secret injection
+
+### Files Modified
+- `includes/LeverageEngine.php` — auto-reset logic, enriched `getPortfolioContext()`, updated email builders
+- `locales/tr.php`, `locales/en.php`, `locales/de.php`, `locales/fr.php`, `locales/ar.php` — new email + leverage keys
+- `.github/workflows/deploy.yml` — cron auto-configuration step
+
 ## [1.11.0] - 2026-02-25
 
 AI-powered leverage tracking system — monitors precious metals, forex, and other assets against configurable buy/sell thresholds, triggers Gemini AI pre-analysis, and sends email signals via SendGrid.
