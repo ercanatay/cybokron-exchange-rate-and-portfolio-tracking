@@ -413,49 +413,50 @@ class LeverageEngine
         $threshold = $direction === 'buy' ? $rule['buy_threshold'] : $rule['sell_threshold'];
         $portfolio = self::getPortfolioContext($rule);
 
-        $html = '<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px">';
-        $html .= '<h2 style="color:' . $signalColor . '">' . $signalLabel . ' SiNYALi &mdash; ' . htmlspecialchars($currencyCode) . '</h2>';
+        $html = '<!DOCTYPE html><html><head><meta charset="UTF-8"></head><body>';
+        $html .= '<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px">';
+        $html .= '<h2 style="color:' . $signalColor . '">' . $signalLabel . ' SİNYALİ — ' . htmlspecialchars($currencyCode, ENT_QUOTES, 'UTF-8') . '</h2>';
 
         $html .= '<table style="width:100%;border-collapse:collapse;margin:16px 0">';
-        $html .= '<tr><td style="padding:8px;border:1px solid #ddd;font-weight:bold">Referans</td><td style="padding:8px;border:1px solid #ddd">&#8378;' . number_format($referencePrice, 2, ',', '.') . '</td></tr>';
-        $html .= '<tr><td style="padding:8px;border:1px solid #ddd;font-weight:bold">G&uuml;ncel</td><td style="padding:8px;border:1px solid #ddd">&#8378;' . number_format($currentPrice, 2, ',', '.') . '</td></tr>';
-        $html .= '<tr><td style="padding:8px;border:1px solid #ddd;font-weight:bold">De&gbreve;i&scedil;im</td><td style="padding:8px;border:1px solid #ddd;color:' . $signalColor . '">' . $changeStr . '</td></tr>';
-        $html .= '<tr><td style="padding:8px;border:1px solid #ddd;font-weight:bold">E&scedil;ik</td><td style="padding:8px;border:1px solid #ddd">' . $threshold . '% (a&scedil;ild&imath;)</td></tr>';
+        $html .= '<tr><td style="padding:8px;border:1px solid #ddd;font-weight:bold">Referans</td><td style="padding:8px;border:1px solid #ddd">₺' . number_format($referencePrice, 2, ',', '.') . '</td></tr>';
+        $html .= '<tr><td style="padding:8px;border:1px solid #ddd;font-weight:bold">Güncel</td><td style="padding:8px;border:1px solid #ddd">₺' . number_format($currentPrice, 2, ',', '.') . '</td></tr>';
+        $html .= '<tr><td style="padding:8px;border:1px solid #ddd;font-weight:bold">Değişim</td><td style="padding:8px;border:1px solid #ddd;color:' . $signalColor . '">' . $changeStr . '</td></tr>';
+        $html .= '<tr><td style="padding:8px;border:1px solid #ddd;font-weight:bold">Eşik</td><td style="padding:8px;border:1px solid #ddd">' . $threshold . '% (aşıldı)</td></tr>';
         $html .= '</table>';
 
         if ($aiResult !== null) {
             $recLabel = self::getRecommendationLabel($aiResult['recommendation']);
             $html .= '<h3>AI Analiz (Gemini)</h3>';
             $html .= '<table style="width:100%;border-collapse:collapse;margin:16px 0">';
-            $html .= '<tr><td style="padding:8px;border:1px solid #ddd;font-weight:bold">&Ouml;neri</td><td style="padding:8px;border:1px solid #ddd">' . htmlspecialchars($recLabel) . '</td></tr>';
-            $html .= '<tr><td style="padding:8px;border:1px solid #ddd;font-weight:bold">G&uuml;ven</td><td style="padding:8px;border:1px solid #ddd">%' . $aiResult['confidence'] . '</td></tr>';
+            $html .= '<tr><td style="padding:8px;border:1px solid #ddd;font-weight:bold">Öneri</td><td style="padding:8px;border:1px solid #ddd">' . htmlspecialchars($recLabel, ENT_QUOTES, 'UTF-8') . '</td></tr>';
+            $html .= '<tr><td style="padding:8px;border:1px solid #ddd;font-weight:bold">Güven</td><td style="padding:8px;border:1px solid #ddd">%' . $aiResult['confidence'] . '</td></tr>';
             $html .= '<tr><td style="padding:8px;border:1px solid #ddd;font-weight:bold">Risk</td><td style="padding:8px;border:1px solid #ddd">' . ucfirst($aiResult['risk_level']) . '</td></tr>';
             $html .= '</table>';
             if (!empty($aiResult['reasoning'])) {
-                $html .= '<p style="background:#f8f9fa;padding:12px;border-radius:6px;font-style:italic">' . nl2br(htmlspecialchars($aiResult['reasoning'])) . '</p>';
+                $html .= '<p style="background:#f8f9fa;padding:12px;border-radius:6px;font-style:italic">' . nl2br(htmlspecialchars($aiResult['reasoning'], ENT_QUOTES, 'UTF-8')) . '</p>';
             }
             if (!empty($aiResult['suggested_action'])) {
-                $html .= '<p><strong>&Ouml;nerilen Aksiyon:</strong> ' . htmlspecialchars($aiResult['suggested_action']) . '</p>';
+                $html .= '<p><strong>Önerilen Aksiyon:</strong> ' . htmlspecialchars($aiResult['suggested_action'], ENT_QUOTES, 'UTF-8') . '</p>';
             }
         }
 
         if ($portfolio['amount'] !== 'N/A') {
-            $html .= '<h3>Portf&ouml;y Durumu</h3>';
+            $html .= '<h3>Portföy Durumu</h3>';
             $html .= '<table style="width:100%;border-collapse:collapse;margin:16px 0">';
             $html .= '<tr><td style="padding:8px;border:1px solid #ddd;font-weight:bold">Miktar</td><td style="padding:8px;border:1px solid #ddd">' . $portfolio['amount'] . '</td></tr>';
-            $html .= '<tr><td style="padding:8px;border:1px solid #ddd;font-weight:bold">Ort. Maliyet</td><td style="padding:8px;border:1px solid #ddd">&#8378;' . $portfolio['avg_cost'] . '</td></tr>';
+            $html .= '<tr><td style="padding:8px;border:1px solid #ddd;font-weight:bold">Ort. Maliyet</td><td style="padding:8px;border:1px solid #ddd">₺' . $portfolio['avg_cost'] . '</td></tr>';
             $html .= '<tr><td style="padding:8px;border:1px solid #ddd;font-weight:bold">K/Z</td><td style="padding:8px;border:1px solid #ddd">' . $portfolio['pnl'] . '%</td></tr>';
             $html .= '</table>';
         }
 
         $html .= '<hr style="margin:20px 0;border:none;border-top:1px solid #ddd">';
-        $html .= '<p style="color:#666;font-size:12px">Kural: ' . htmlspecialchars($rule['name']) . '<br>';
+        $html .= '<p style="color:#666;font-size:12px">Kural: ' . htmlspecialchars($rule['name'], ENT_QUOTES, 'UTF-8') . '<br>';
         $html .= 'Tarih: ' . date('d.m.Y H:i') . '<br>';
         $appUrl = defined('APP_URL') ? APP_URL : '';
         if ($appUrl !== '') {
-            $html .= '<a href="' . htmlspecialchars($appUrl) . '/leverage.php">Kald&imath;ra&ccedil; Paneli</a>';
+            $html .= '<a href="' . htmlspecialchars($appUrl, ENT_QUOTES, 'UTF-8') . '/leverage.php">Kaldıraç Paneli</a>';
         }
-        $html .= '</p></div>';
+        $html .= '</p></div></body></html>';
 
         return $html;
     }
