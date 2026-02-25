@@ -273,36 +273,68 @@ jobs:
              rm -f ~/public_html/LICENSE && \
              echo 'Non-production files cleaned from public_html'"
 
-      - name: Verify cron jobs
-        continue-on-error: true
+      - name: Configure cron jobs
         run: |
           ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \
             ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} bash -s << 'CRON_EOF'
+          set -e
+
           echo "=== Current crontab ==="
           crontab -l 2>/dev/null || echo "(empty)"
 
-          if crontab -l 2>/dev/null | grep -qF 'update_rates.php'; then
-            echo "OK: update_rates cron exists"
-          else
-            echo "WARNING: update_rates cron NOT found — add via cPanel"
+          # Define expected cron entries
+          MAIN_CRON='*/15 0-9 * * * /usr/local/bin/php ~/public_html/cron/update_rates.php >> ~/cybokron-logs/cron.log 2>&1 && /usr/local/bin/php ~/public_html/cron/check_alerts.php >> ~/cybokron-logs/cron.log 2>&1 && /usr/local/bin/php ~/public_html/cron/check_leverage.php >> ~/cybokron-logs/cron.log 2>&1'
+          CLEANUP_CRON='0 4 * * 0 /usr/local/bin/php ~/public_html/cron/cleanup_rate_history.php >> ~/cybokron-logs/cron.log 2>&1'
+
+          CHANGED=false
+
+          # Check if check_leverage.php is missing from the main cron chain
+          if crontab -l 2>/dev/null | grep -qF 'update_rates.php' && ! crontab -l 2>/dev/null | grep -qF 'check_leverage.php'; then
+            echo "Adding check_leverage.php to existing cron chain..."
+            crontab -l 2>/dev/null | sed 's|check_alerts.php >> ~/cybokron-logs/cron.log 2>&1$|check_alerts.php >> ~/cybokron-logs/cron.log 2>\&1 \&\& /usr/local/bin/php ~/public_html/cron/check_leverage.php >> ~/cybokron-logs/cron.log 2>\&1|' | crontab -
+            CHANGED=true
           fi
 
-          if crontab -l 2>/dev/null | grep -qF 'check_alerts.php'; then
-            echo "OK: check_alerts cron exists"
-          else
-            echo "WARNING: check_alerts cron NOT found — add via cPanel"
+          # If no crontab at all, install full crontab
+          if ! crontab -l 2>/dev/null | grep -qF 'update_rates.php'; then
+            echo "Installing full crontab..."
+            cat > /tmp/cybokron_cron << CRONFILE
+          # Cybokron - Kur guncelleme + alarm kontrolu + kaldirac
+          # Sunucu CST (UTC-6), Turkiye UTC+3. TR 09:00-18:00 = CST 00:00-09:00
+          */15 0-9 * * * /usr/local/bin/php ~/public_html/cron/update_rates.php >> ~/cybokron-logs/cron.log 2>&1 && /usr/local/bin/php ~/public_html/cron/check_alerts.php >> ~/cybokron-logs/cron.log 2>&1 && /usr/local/bin/php ~/public_html/cron/check_leverage.php >> ~/cybokron-logs/cron.log 2>&1
+
+          # Cybokron - Eski kur gecmisi temizligi (Pazar 04:00 CST = TR Pazar 13:00)
+          0 4 * * 0 /usr/local/bin/php ~/public_html/cron/cleanup_rate_history.php >> ~/cybokron-logs/cron.log 2>&1
+          CRONFILE
+            crontab /tmp/cybokron_cron
+            rm -f /tmp/cybokron_cron
+            CHANGED=true
           fi
 
-          if crontab -l 2>/dev/null | grep -qF 'cleanup_rate_history.php'; then
-            echo "OK: cleanup_rate_history cron exists"
-          else
-            echo "WARNING: cleanup_rate_history cron NOT found — add via cPanel"
+          echo ""
+          echo "=== Cron verification ==="
+          CRONS="update_rates.php check_alerts.php check_leverage.php cleanup_rate_history.php"
+          ALL_OK=true
+          for CRON_FILE in $CRONS; do
+            if crontab -l 2>/dev/null | grep -qF "$CRON_FILE"; then
+              echo "OK: $CRON_FILE"
+            else
+              echo "MISSING: $CRON_FILE"
+              ALL_OK=false
+            fi
+          done
+
+          if [ "$CHANGED" = true ]; then
+            echo ""
+            echo "=== Updated crontab ==="
+            crontab -l
           fi
 
-          if crontab -l 2>/dev/null | grep -qF 'check_leverage.php'; then
-            echo "OK: check_leverage cron exists"
+          if [ "$ALL_OK" = true ]; then
+            echo "All cron jobs configured correctly"
           else
-            echo "WARNING: check_leverage cron NOT found — add via cPanel"
+            echo "WARNING: Some cron jobs are missing"
+            exit 1
           fi
           CRON_EOF
 
