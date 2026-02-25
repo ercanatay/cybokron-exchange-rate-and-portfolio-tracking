@@ -175,7 +175,7 @@ Mevcut kurumdan yükseltme için:
 
 ```bash
 cd cybokron-exchange-rate-and-portfolio-tracking
-mysql -h 127.0.0.1 -P 3306 -u root -p***REDACTED*** cyb_exchange < database/migrations/add_display_order.sql
+mysql -h 127.0.0.1 -P 3306 -u root -p cyb_exchange < database/migrations/add_display_order.sql
 ```
 
 ## 📦 Versiyon

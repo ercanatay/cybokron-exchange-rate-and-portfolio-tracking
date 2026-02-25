@@ -103,7 +103,7 @@ jobs:
           define('RATE_HISTORY_RETENTION_DAYS', 365);
           define('RATE_UPDATE_WEBHOOK_URL', '');
           define('RATE_UPDATE_WEBHOOK_URLS', []);
-          define('ALERT_EMAIL_FROM', 'noreply@example.com');
+          define('ALERT_EMAIL_FROM', '${{ secrets.ALERT_EMAIL_FROM }}');
           define('ALERT_EMAIL_TO', '');
           define('ALERT_COOLDOWN_MINUTES', 60);
           define('ALERT_TELEGRAM_BOT_TOKEN', '');
@@ -118,7 +118,7 @@ jobs:
           define('LEVERAGE_AI_TIMEOUT_SECONDS', 30);
           define('SENDGRID_ENABLED', true);
           define('SENDGRID_API_KEY', '__SENDGRID_API_KEY__');
-          define('SENDGRID_FROM_EMAIL', 'noreply@example.com');
+          define('SENDGRID_FROM_EMAIL', '${{ secrets.SENDGRID_FROM_EMAIL }}');
           define('SENDGRID_FROM_NAME', 'Cybokron Leverage');
           define('SENDGRID_ALLOWED_HOSTS', ['api.sendgrid.com']);
           $DISPLAY_CURRENCIES = ['USD', 'EUR', 'GBP', 'XAU'];
@@ -208,7 +208,7 @@ jobs:
             --exclude='repairs/' \
             --exclude='error_log' \
             -e "ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no" \
-            ./ ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:***REDACTED_PATH***
+            ./ ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ secrets.DEPLOY_PATH }}
 
       - name: Post-deploy setup
         run: |

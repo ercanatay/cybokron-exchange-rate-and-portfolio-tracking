@@ -30,7 +30,7 @@
 
 **Step 3: Migration çalıştır**
 Run: `php database/migrator.php`
-Doğrula: `mysql -u root -p***REDACTED*** -h 127.0.0.1 cyb_exchange -e "SHOW TABLES LIKE 'leverage%';"`
+Doğrula: `mysql -u root -p -h 127.0.0.1 cyb_exchange -e "SHOW TABLES LIKE 'leverage%';"`
 
 **Step 4: Commit**
 `git commit -m "feat(db): add leverage_rules and leverage_history tables with settings seed"`
