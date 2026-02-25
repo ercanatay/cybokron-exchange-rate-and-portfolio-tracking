@@ -25,6 +25,7 @@ Cybokron is an open-source PHP/MySQL application for tracking Turkish bank excha
 - **Deposit interest comparison** — each goal card shows what-if deposit return vs actual portfolio performance, with per-goal rate override
 - **Session-based authentication** (login, logout, admin/user roles)
 - **Cloudflare Turnstile CAPTCHA** on login page (managed mode, auto-pass for most users)
+- **AI-powered leverage tracking** — configurable buy/sell thresholds per currency with Gemini AI pre-analysis, SendGrid email signals, portfolio group/tag integration, visual progress bars, and admin-configurable settings
 - **Alert system** — email, Telegram, webhook notifications on rate thresholds
 - **Rate history** with retention policy and cleanup cron
 - **Chart.js dashboard** — rate trends, portfolio distribution pie chart

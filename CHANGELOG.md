@@ -2,6 +2,39 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.11.0] - 2026-02-25
+
+AI-powered leverage tracking system — monitors precious metals, forex, and other assets against configurable buy/sell thresholds, triggers Gemini AI pre-analysis, and sends email signals via SendGrid.
+
+### Added
+- **Leverage rule engine** — define rules per currency (XAG, XAU, USD, etc.) with customizable buy/sell thresholds (default: -15%/+30% based on 3-year silver volatility analysis); supports portfolio group and tag scoping
+- **AI pre-analysis** — when a threshold is breached, Gemini 3.1 Pro Preview (via OpenRouter) analyzes price trend, gold/silver ratio, portfolio position, and user strategy context; returns recommendation with confidence score
+- **SendGrid email notifications** — HTML+text signal emails with price summary, AI recommendation, portfolio position, and rule details; multiple recipients configurable from admin panel
+- **Leverage management page** (`leverage.php`) — summary cards, rule cards with visual progress bars (red=buy zone, gray=neutral, green=sell zone), create/edit modal, signal history table
+- **Admin leverage settings** — AI model selection, SendGrid API key (AES-256-GCM encrypted), notification recipients, check interval, cooldown period, test email functionality
+- **Cron job** (`cron/check_leverage.php`) — periodic rule evaluation with cooldown and direction-aware repeat prevention
+- **Navigation link** — "Kaldıraç" menu item in header (admin-only, desktop + mobile)
+- **Database tables** — `leverage_rules` and `leverage_history` with settings seed (migration 013)
+- **Localization** — Turkish and English translations for all leverage UI elements
+
+### Security
+- SendGrid API key encrypted at rest (AES-256-GCM, same pattern as OpenRouter key)
+- SendGrid host allowlist validation (`SENDGRID_ALLOWED_HOSTS`)
+- Strategy context isolated in `<user_context>` block with 500-char limit and control character stripping
+- Email recipient validation (FILTER_VALIDATE_EMAIL, max 10 recipients)
+- CSRF protection on all leverage POST actions
+
+### Files Added
+- `includes/LeverageEngine.php`, `includes/SendGridMailer.php`
+- `leverage.php`, `assets/js/leverage.js`
+- `cron/check_leverage.php`
+- `database/migrations/013_leverage.sql`
+
+### Files Modified
+- `includes/header.php`, `admin.php`
+- `config.sample.php`, `locales/tr.php`, `locales/en.php`
+- `database/database.sql`
+
 ## [1.10.12] - 2026-02-18
 
 Fullwidth layout toggle — users can switch between normal (1200px) and fullwidth (100%) container layout across all pages.
