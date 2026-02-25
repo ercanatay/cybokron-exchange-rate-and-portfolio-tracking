@@ -210,7 +210,94 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         $messageType = 'success';
     }
 
-    if (!in_array($_POST['action'], ['update_rates', 'toggle_bank', 'toggle_currency', 'toggle_homepage', 'set_default_bank', 'update_rate_order', 'set_chart_defaults', 'save_widget_config', 'toggle_noindex', 'set_retention_days', 'save_deposit_rate', 'toggle_deposit_comparison', 'save_openrouter_settings', 'toggle_layout_default'], true)) {
+    if ($_POST['action'] === 'save_leverage_settings') {
+        $leverageEnabled = isset($_POST['leverage_enabled']) ? '1' : '0';
+        $leverageAiEnabled = isset($_POST['leverage_ai_enabled']) ? '1' : '0';
+        $leverageAiModel = trim((string) ($_POST['leverage_ai_model'] ?? ''));
+        $leverageCheckInterval = max(5, (int) ($_POST['leverage_check_interval_minutes'] ?? 15));
+        $leverageCooldown = max(15, (int) ($_POST['leverage_cooldown_minutes'] ?? 60));
+        $sendgridEnabled = isset($_POST['sendgrid_enabled']) ? '1' : '0';
+        $sendgridApiKey = trim((string) ($_POST['sendgrid_api_key'] ?? ''));
+        $sendgridFromEmail = trim((string) ($_POST['sendgrid_from_email'] ?? ''));
+        $sendgridFromName = trim((string) ($_POST['sendgrid_from_name'] ?? ''));
+        $leverageNotifyEmailsRaw = trim((string) ($_POST['leverage_notify_emails'] ?? ''));
+
+        $upsertSettings = [
+            'leverage_enabled' => $leverageEnabled,
+            'leverage_ai_enabled' => $leverageAiEnabled,
+            'leverage_check_interval_minutes' => (string) $leverageCheckInterval,
+            'leverage_cooldown_minutes' => (string) $leverageCooldown,
+            'sendgrid_enabled' => $sendgridEnabled,
+        ];
+
+        // AI model
+        if ($leverageAiModel !== '' && preg_match('/^[a-zA-Z0-9._\/-]{3,120}$/', $leverageAiModel)) {
+            $upsertSettings['leverage_ai_model'] = $leverageAiModel;
+        }
+
+        // SendGrid API key — encrypt if non-empty, skip if empty (don't overwrite)
+        if ($sendgridApiKey !== '' && strlen($sendgridApiKey) <= 500) {
+            $upsertSettings['sendgrid_api_key'] = encryptSettingValue($sendgridApiKey);
+        }
+
+        // SendGrid from email — validate
+        if ($sendgridFromEmail !== '' && filter_var($sendgridFromEmail, FILTER_VALIDATE_EMAIL)) {
+            $upsertSettings['sendgrid_from_email'] = $sendgridFromEmail;
+        }
+
+        // SendGrid from name
+        if ($sendgridFromName !== '') {
+            $upsertSettings['sendgrid_from_name'] = substr($sendgridFromName, 0, 100);
+        }
+
+        // Notification emails — comma-separated → JSON array, validate each, max 10
+        if ($leverageNotifyEmailsRaw !== '') {
+            $emailParts = array_map('trim', explode(',', $leverageNotifyEmailsRaw));
+            $validEmails = [];
+            foreach ($emailParts as $emailPart) {
+                if ($emailPart !== '' && filter_var($emailPart, FILTER_VALIDATE_EMAIL) && count($validEmails) < 10) {
+                    $validEmails[] = $emailPart;
+                }
+            }
+            $upsertSettings['leverage_notify_emails'] = json_encode(array_values($validEmails), JSON_UNESCAPED_UNICODE);
+        } else {
+            $upsertSettings['leverage_notify_emails'] = json_encode([], JSON_UNESCAPED_UNICODE);
+        }
+
+        foreach ($upsertSettings as $settKey => $settVal) {
+            Database::query(
+                'INSERT INTO settings (`key`, value) VALUES (?, ?) ON DUPLICATE KEY UPDATE value = ?',
+                [$settKey, $settVal, $settVal]
+            );
+        }
+
+        $message = t('admin.leverage.saved');
+        $messageType = 'success';
+    }
+
+    if ($_POST['action'] === 'test_leverage_email') {
+        require_once __DIR__ . '/includes/SendGridMailer.php';
+        $notifyEmails = SendGridMailer::getNotifyEmails();
+        if (empty($notifyEmails)) {
+            $message = t('admin.leverage.test_email_error', ['error' => 'No notification recipients configured']);
+            $messageType = 'error';
+        } else {
+            $testSubject = '[Cybokron] Test Email';
+            $testTimestamp = date('Y-m-d H:i:s');
+            $testHtml = '<p>This is a test email from Cybokron Leverage system.</p><p>Timestamp: ' . htmlspecialchars($testTimestamp) . '</p>';
+            $testText = 'This is a test email from Cybokron Leverage system. Timestamp: ' . $testTimestamp;
+            $result = SendGridMailer::send($notifyEmails, $testSubject, $testHtml, $testText);
+            if ($result['success']) {
+                $message = t('admin.leverage.test_email_success');
+                $messageType = 'success';
+            } else {
+                $message = t('admin.leverage.test_email_error', ['error' => $result['error']]);
+                $messageType = 'error';
+            }
+        }
+    }
+
+    if (!in_array($_POST['action'], ['update_rates', 'toggle_bank', 'toggle_currency', 'toggle_homepage', 'set_default_bank', 'update_rate_order', 'set_chart_defaults', 'save_widget_config', 'toggle_noindex', 'set_retention_days', 'save_deposit_rate', 'toggle_deposit_comparison', 'save_openrouter_settings', 'toggle_layout_default', 'save_leverage_settings', 'test_leverage_email'], true)) {
         header('Location: admin.php');
         exit;
     }
@@ -275,6 +362,58 @@ if (!empty($widgetConfigRaw['value'])) {
     }
 }
 usort($widgetConfig, fn($a, $b) => ($a['order'] ?? 0) <=> ($b['order'] ?? 0));
+
+// Leverage settings
+$leverageEnabledRow = Database::queryOne('SELECT value FROM settings WHERE `key` = ?', ['leverage_enabled']);
+$leverageEnabledVal = $leverageEnabledRow ? $leverageEnabledRow['value'] : (defined('LEVERAGE_ENABLED') ? (LEVERAGE_ENABLED ? '1' : '0') : '0');
+$leverageAiEnabledRow = Database::queryOne('SELECT value FROM settings WHERE `key` = ?', ['leverage_ai_enabled']);
+$leverageAiEnabledVal = $leverageAiEnabledRow ? $leverageAiEnabledRow['value'] : (defined('LEVERAGE_AI_ENABLED') ? (LEVERAGE_AI_ENABLED ? '1' : '0') : '0');
+$leverageAiModelRow = Database::queryOne('SELECT value FROM settings WHERE `key` = ?', ['leverage_ai_model']);
+$leverageAiModelVal = trim($leverageAiModelRow['value'] ?? '');
+if ($leverageAiModelVal === '') {
+    $leverageAiModelVal = defined('LEVERAGE_AI_MODEL') ? trim((string) LEVERAGE_AI_MODEL) : 'google/gemini-3.1-pro-preview';
+}
+$leverageCheckIntervalRow = Database::queryOne('SELECT value FROM settings WHERE `key` = ?', ['leverage_check_interval_minutes']);
+$leverageCheckIntervalVal = (int) ($leverageCheckIntervalRow['value'] ?? (defined('LEVERAGE_CHECK_INTERVAL_MINUTES') ? LEVERAGE_CHECK_INTERVAL_MINUTES : 15));
+$leverageCooldownRow = Database::queryOne('SELECT value FROM settings WHERE `key` = ?', ['leverage_cooldown_minutes']);
+$leverageCooldownVal = (int) ($leverageCooldownRow['value'] ?? (defined('LEVERAGE_COOLDOWN_MINUTES') ? LEVERAGE_COOLDOWN_MINUTES : 60));
+$sendgridEnabledRow = Database::queryOne('SELECT value FROM settings WHERE `key` = ?', ['sendgrid_enabled']);
+$sendgridEnabledVal = $sendgridEnabledRow ? $sendgridEnabledRow['value'] : (defined('SENDGRID_ENABLED') ? (SENDGRID_ENABLED ? '1' : '0') : '0');
+$sendgridApiKeyRow = Database::queryOne('SELECT value FROM settings WHERE `key` = ?', ['sendgrid_api_key']);
+$sendgridApiKeyDbVal = trim($sendgridApiKeyRow['value'] ?? '');
+$sendgridApiKeyExists = false;
+$sendgridApiKeyMasked = '';
+if ($sendgridApiKeyDbVal !== '') {
+    $decrypted = decryptSettingValue($sendgridApiKeyDbVal);
+    if ($decrypted !== '') {
+        $sendgridApiKeyExists = true;
+        $sendgridApiKeyMasked = str_repeat('•', 8) . substr($decrypted, -4);
+    }
+} elseif (defined('SENDGRID_API_KEY') && trim((string) SENDGRID_API_KEY) !== '') {
+    $sendgridApiKeyExists = true;
+    $configKey = trim((string) SENDGRID_API_KEY);
+    $sendgridApiKeyMasked = str_repeat('•', 8) . substr($configKey, -4);
+}
+$sendgridFromEmailRow = Database::queryOne('SELECT value FROM settings WHERE `key` = ?', ['sendgrid_from_email']);
+$sendgridFromEmailVal = trim($sendgridFromEmailRow['value'] ?? '');
+if ($sendgridFromEmailVal === '') {
+    $sendgridFromEmailVal = defined('SENDGRID_FROM_EMAIL') ? trim((string) SENDGRID_FROM_EMAIL) : '';
+}
+$sendgridFromNameRow = Database::queryOne('SELECT value FROM settings WHERE `key` = ?', ['sendgrid_from_name']);
+$sendgridFromNameVal = trim($sendgridFromNameRow['value'] ?? '');
+if ($sendgridFromNameVal === '') {
+    $sendgridFromNameVal = defined('SENDGRID_FROM_NAME') ? trim((string) SENDGRID_FROM_NAME) : 'Cybokron';
+}
+$leverageNotifyEmailsRow = Database::queryOne('SELECT value FROM settings WHERE `key` = ?', ['leverage_notify_emails']);
+$leverageNotifyEmailsJson = trim($leverageNotifyEmailsRow['value'] ?? '');
+$leverageNotifyEmailsList = [];
+if ($leverageNotifyEmailsJson !== '') {
+    $decoded = json_decode($leverageNotifyEmailsJson, true);
+    if (is_array($decoded)) {
+        $leverageNotifyEmailsList = array_filter($decoded, fn($e) => filter_var($e, FILTER_VALIDATE_EMAIL));
+    }
+}
+$leverageNotifyEmailsDisplay = implode(', ', $leverageNotifyEmailsList);
 
 $widgetLabels = [
     'bank_selector' => '🏦 ' . t('admin.widget_bank_selector'),
@@ -905,6 +1044,125 @@ foreach ($allRates as $r) {
                             <a href="openrouter.php" class="btn-action"><?= t('admin.openrouter_panel_link') ?> →</a>
                         </div>
                     </form>
+                </div>
+            </div>
+
+            <!-- Leverage Settings -->
+            <div class="admin-card">
+                <div class="admin-card-header">
+                    <div class="admin-card-header-left">
+                        <div class="admin-card-icon" style="background: linear-gradient(135deg, #f59e0b20, #ef444420);">&#9889;</div>
+                        <div>
+                            <h2><?= t('admin.leverage.title') ?></h2>
+                            <p><?= t('admin.leverage.desc') ?></p>
+                        </div>
+                    </div>
+                </div>
+                <div class="admin-card-body">
+                    <form method="POST" action="admin.php" class="or-settings-form">
+                        <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
+                        <input type="hidden" name="action" value="save_leverage_settings">
+
+                        <!-- Leverage Settings Group -->
+                        <fieldset style="border:1px solid var(--border-color,#e2e8f0); border-radius:8px; padding:16px; margin:0 0 20px;">
+                            <legend style="font-weight:600; padding:0 8px; font-size:0.95rem;"><?= t('admin.leverage.title') ?></legend>
+                            <div class="or-field-group">
+                                <div class="or-field">
+                                    <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+                                        <input type="checkbox" name="leverage_enabled" value="1" <?= $leverageEnabledVal === '1' ? 'checked' : '' ?>>
+                                        <span><?= t('admin.leverage.enabled') ?></span>
+                                    </label>
+                                </div>
+                                <div class="or-field">
+                                    <label for="leverage_check_interval_minutes"><?= t('admin.leverage.check_interval') ?></label>
+                                    <input type="number" id="leverage_check_interval_minutes" name="leverage_check_interval_minutes"
+                                           value="<?= $leverageCheckIntervalVal ?>" min="5" step="1" style="max-width:120px;">
+                                </div>
+                                <div class="or-field">
+                                    <label for="leverage_cooldown_minutes"><?= t('admin.leverage.cooldown') ?></label>
+                                    <input type="number" id="leverage_cooldown_minutes" name="leverage_cooldown_minutes"
+                                           value="<?= $leverageCooldownVal ?>" min="15" step="1" style="max-width:120px;">
+                                </div>
+                            </div>
+                        </fieldset>
+
+                        <!-- AI Settings Group -->
+                        <fieldset style="border:1px solid var(--border-color,#e2e8f0); border-radius:8px; padding:16px; margin:0 0 20px;">
+                            <legend style="font-weight:600; padding:0 8px; font-size:0.95rem;">AI</legend>
+                            <div class="or-field-group">
+                                <div class="or-field">
+                                    <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+                                        <input type="checkbox" name="leverage_ai_enabled" value="1" <?= $leverageAiEnabledVal === '1' ? 'checked' : '' ?>>
+                                        <span><?= t('admin.leverage.ai_enabled') ?></span>
+                                    </label>
+                                </div>
+                                <div class="or-field">
+                                    <label for="leverage_ai_model"><?= t('admin.leverage.ai_model') ?></label>
+                                    <input type="text" id="leverage_ai_model" name="leverage_ai_model"
+                                           value="<?= htmlspecialchars($leverageAiModelVal) ?>"
+                                           placeholder="google/gemini-3.1-pro-preview" spellcheck="false">
+                                    <small class="or-field-hint"><?= t('admin.leverage.ai_model_desc') ?></small>
+                                </div>
+                            </div>
+                        </fieldset>
+
+                        <!-- SendGrid Settings Group -->
+                        <fieldset style="border:1px solid var(--border-color,#e2e8f0); border-radius:8px; padding:16px; margin:0 0 20px;">
+                            <legend style="font-weight:600; padding:0 8px; font-size:0.95rem;">SendGrid</legend>
+                            <div class="or-field-group">
+                                <div class="or-field">
+                                    <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+                                        <input type="checkbox" name="sendgrid_enabled" value="1" <?= $sendgridEnabledVal === '1' ? 'checked' : '' ?>>
+                                        <span><?= t('admin.leverage.sendgrid_enabled') ?></span>
+                                    </label>
+                                </div>
+                                <div class="or-field">
+                                    <label for="sendgrid_api_key"><?= t('admin.leverage.sendgrid_key') ?></label>
+                                    <div class="or-input-wrapper">
+                                        <input type="password" id="sendgrid_api_key" name="sendgrid_api_key"
+                                               placeholder="<?= $sendgridApiKeyExists ? $sendgridApiKeyMasked : 'SG.xxx...' ?>"
+                                               autocomplete="off" spellcheck="false">
+                                        <button type="button" class="or-toggle-vis" onclick="var i=document.getElementById('sendgrid_api_key');i.type=i.type==='password'?'text':'password';this.textContent=i.type==='password'?'&#x1F441;':'&#x1F648;'" title="<?= t('admin.openrouter_toggle_key') ?>">&#x1F441;</button>
+                                    </div>
+                                    <?php if ($sendgridApiKeyExists): ?>
+                                        <small class="or-field-hint"><?= t('admin.openrouter_key_source_db') ?></small>
+                                    <?php endif; ?>
+                                </div>
+                                <div class="or-field">
+                                    <label for="sendgrid_from_email"><?= t('admin.leverage.sendgrid_from_email') ?></label>
+                                    <input type="email" id="sendgrid_from_email" name="sendgrid_from_email"
+                                           value="<?= htmlspecialchars($sendgridFromEmailVal) ?>"
+                                           placeholder="noreply@example.com">
+                                </div>
+                                <div class="or-field">
+                                    <label for="sendgrid_from_name"><?= t('admin.leverage.sendgrid_from_name') ?></label>
+                                    <input type="text" id="sendgrid_from_name" name="sendgrid_from_name"
+                                           value="<?= htmlspecialchars($sendgridFromNameVal) ?>"
+                                           placeholder="Cybokron Leverage">
+                                </div>
+                                <div class="or-field">
+                                    <label for="leverage_notify_emails"><?= t('admin.leverage.notify_emails') ?></label>
+                                    <input type="text" id="leverage_notify_emails" name="leverage_notify_emails"
+                                           value="<?= htmlspecialchars($leverageNotifyEmailsDisplay) ?>"
+                                           placeholder="user1@example.com, user2@example.com">
+                                    <small class="or-field-hint"><?= t('admin.leverage.notify_emails_desc') ?></small>
+                                </div>
+                            </div>
+                        </fieldset>
+
+                        <div class="or-actions">
+                            <button type="submit" class="btn btn-primary"><?= t('admin.save') ?></button>
+                        </div>
+                    </form>
+
+                    <!-- Test Email (separate form) -->
+                    <div style="margin-top:16px; padding-top:16px; border-top:1px solid var(--border-color,#e2e8f0);">
+                        <form method="POST" action="admin.php" style="display:inline;">
+                            <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
+                            <input type="hidden" name="action" value="test_leverage_email">
+                            <button type="submit" class="btn btn-sm"><?= t('admin.leverage.test_email') ?></button>
+                        </form>
+                    </div>
                 </div>
             </div>
 
