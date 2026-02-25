@@ -30,6 +30,7 @@ jobs:
           TURNSTILE_SECRET_KEY: ${{ secrets.TURNSTILE_SECRET_KEY }}
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           GITHUB_API_TOKEN: ${{ secrets.CYBOKRON_GITHUB_PAT }}
+          SENDGRID_API_KEY: ${{ secrets.SENDGRID_API_KEY }}
         run: |
           cat > config.php << 'PHPEOF'
           <?php
@@ -108,6 +109,18 @@ jobs:
           define('ALERT_TELEGRAM_BOT_TOKEN', '');
           define('ALERT_TELEGRAM_CHAT_ID', '');
           define('ALERT_WEBHOOK_URL', '');
+          define('LEVERAGE_ENABLED', true);
+          define('LEVERAGE_CHECK_INTERVAL_MINUTES', 15);
+          define('LEVERAGE_COOLDOWN_MINUTES', 60);
+          define('LEVERAGE_AI_ENABLED', true);
+          define('LEVERAGE_AI_MODEL', 'google/gemini-3.1-pro-preview');
+          define('LEVERAGE_AI_MAX_TOKENS', 800);
+          define('LEVERAGE_AI_TIMEOUT_SECONDS', 30);
+          define('SENDGRID_ENABLED', true);
+          define('SENDGRID_API_KEY', '__SENDGRID_API_KEY__');
+          define('SENDGRID_FROM_EMAIL', 'noreply@example.com');
+          define('SENDGRID_FROM_NAME', 'Cybokron Leverage');
+          define('SENDGRID_ALLOWED_HOSTS', ['api.sendgrid.com']);
           $DISPLAY_CURRENCIES = ['USD', 'EUR', 'GBP', 'XAU'];
           define('LOG_ENABLED', true);
           define('LOG_FILE', dirname(__DIR__) . '/cybokron-logs/cybokron.log');
@@ -124,6 +137,7 @@ jobs:
           sed -i "s|__TURNSTILE_SECRET_KEY__|${TURNSTILE_SECRET_KEY}|g" config.php
           sed -i "s|__OPENROUTER_API_KEY__|${OPENROUTER_API_KEY}|g" config.php
           sed -i "s|__GITHUB_API_TOKEN__|${GITHUB_API_TOKEN}|g" config.php
+          sed -i "s|__SENDGRID_API_KEY__|${SENDGRID_API_KEY}|g" config.php
 
       - name: Setup SSH key
         run: |
@@ -178,6 +192,7 @@ jobs:
             --exclude='Dockerfile' \
             --exclude='.Jules/' \
             --exclude='.DS_Store' \
+            --exclude='test_*.php' \
             --exclude='config.sample.php' \
             --exclude='config.docker.php' \
             --exclude='database/database.sql' \
@@ -282,6 +297,12 @@ jobs:
             echo "OK: cleanup_rate_history cron exists"
           else
             echo "WARNING: cleanup_rate_history cron NOT found — add via cPanel"
+          fi
+
+          if crontab -l 2>/dev/null | grep -qF 'check_leverage.php'; then
+            echo "OK: check_leverage cron exists"
+          else
+            echo "WARNING: check_leverage cron NOT found — add via cPanel"
           fi
           CRON_EOF
 
