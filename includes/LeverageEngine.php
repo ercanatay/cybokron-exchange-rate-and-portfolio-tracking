@@ -132,8 +132,7 @@ class LeverageEngine
             'notes' => null,
         ];
 
-        Database::insert('leverage_history', $historyData);
-        $historyId = (int) Database::lastInsertId();
+        $historyId = Database::insert('leverage_history', $historyData);
 
         // Send email
         $emailSent = false;
@@ -692,7 +691,7 @@ class LeverageEngine
             }
         }
 
-        Database::insert('leverage_rules', [
+        return Database::insert('leverage_rules', [
             'name' => $name,
             'source_type' => $sourceType,
             'source_id' => $sourceId,
@@ -704,8 +703,6 @@ class LeverageEngine
             'strategy_context' => $strategyContext !== '' ? $strategyContext : null,
             'status' => 'active',
         ]);
-
-        return (int) Database::lastInsertId();
     }
 
     /**
