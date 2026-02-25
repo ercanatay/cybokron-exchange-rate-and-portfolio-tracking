@@ -380,7 +380,7 @@ class LeverageEngine
                 'confidence' => $aiResult['confidence'],
             ]);
         } else {
-            $signal = $direction === 'buy' ? 'AL' : 'SAT';
+            $signal = $direction === 'buy' ? t('leverage.email.signal_buy') : t('leverage.email.signal_sell');
             $subject = t('leverage.email.subject_no_ai', [
                 'signal' => $signal,
                 'currency' => $currencyCode,
@@ -407,54 +407,57 @@ class LeverageEngine
         ?array $aiResult
     ): string {
         $currencyCode = strtoupper(trim($rule['currency_code']));
-        $signalLabel = $direction === 'buy' ? 'AL' : 'SAT';
+        $signalLabel = $direction === 'buy' ? t('leverage.email.signal_buy') : t('leverage.email.signal_sell');
         $signalColor = $direction === 'buy' ? '#e74c3c' : '#27ae60';
         $changeStr = ($changePercent >= 0 ? '+' : '') . number_format($changePercent, 2) . '%';
         $threshold = $direction === 'buy' ? $rule['buy_threshold'] : $rule['sell_threshold'];
         $portfolio = self::getPortfolioContext($rule);
+        $e = fn(string $s): string => htmlspecialchars($s, ENT_QUOTES, 'UTF-8');
+        $td = '<td style="padding:8px;border:1px solid #ddd">';
+        $th = '<td style="padding:8px;border:1px solid #ddd;font-weight:bold">';
 
         $html = '<!DOCTYPE html><html><head><meta charset="UTF-8"></head><body>';
         $html .= '<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px">';
-        $html .= '<h2 style="color:' . $signalColor . '">' . $signalLabel . ' SİNYALİ — ' . htmlspecialchars($currencyCode, ENT_QUOTES, 'UTF-8') . '</h2>';
+        $html .= '<h2 style="color:' . $signalColor . '">' . $e(t('leverage.email.signal_label', ['signal' => $signalLabel, 'currency' => $currencyCode])) . '</h2>';
 
         $html .= '<table style="width:100%;border-collapse:collapse;margin:16px 0">';
-        $html .= '<tr><td style="padding:8px;border:1px solid #ddd;font-weight:bold">Referans</td><td style="padding:8px;border:1px solid #ddd">₺' . number_format($referencePrice, 2, ',', '.') . '</td></tr>';
-        $html .= '<tr><td style="padding:8px;border:1px solid #ddd;font-weight:bold">Güncel</td><td style="padding:8px;border:1px solid #ddd">₺' . number_format($currentPrice, 2, ',', '.') . '</td></tr>';
-        $html .= '<tr><td style="padding:8px;border:1px solid #ddd;font-weight:bold">Değişim</td><td style="padding:8px;border:1px solid #ddd;color:' . $signalColor . '">' . $changeStr . '</td></tr>';
-        $html .= '<tr><td style="padding:8px;border:1px solid #ddd;font-weight:bold">Eşik</td><td style="padding:8px;border:1px solid #ddd">' . $threshold . '% (aşıldı)</td></tr>';
+        $html .= "<tr>{$th}" . $e(t('leverage.email.reference')) . "</td>{$td}₺" . number_format($referencePrice, 2, ',', '.') . '</td></tr>';
+        $html .= "<tr>{$th}" . $e(t('leverage.email.current')) . "</td>{$td}₺" . number_format($currentPrice, 2, ',', '.') . '</td></tr>';
+        $html .= "<tr>{$th}" . $e(t('leverage.email.change')) . "</td><td style=\"padding:8px;border:1px solid #ddd;color:{$signalColor}\">" . $changeStr . '</td></tr>';
+        $html .= "<tr>{$th}" . $e(t('leverage.email.threshold')) . "</td>{$td}" . $e(t('leverage.email.threshold_breached', ['threshold' => $threshold])) . '</td></tr>';
         $html .= '</table>';
 
         if ($aiResult !== null) {
             $recLabel = self::getRecommendationLabel($aiResult['recommendation']);
-            $html .= '<h3>AI Analiz (Gemini)</h3>';
+            $html .= '<h3>' . $e(t('leverage.email.ai_title')) . '</h3>';
             $html .= '<table style="width:100%;border-collapse:collapse;margin:16px 0">';
-            $html .= '<tr><td style="padding:8px;border:1px solid #ddd;font-weight:bold">Öneri</td><td style="padding:8px;border:1px solid #ddd">' . htmlspecialchars($recLabel, ENT_QUOTES, 'UTF-8') . '</td></tr>';
-            $html .= '<tr><td style="padding:8px;border:1px solid #ddd;font-weight:bold">Güven</td><td style="padding:8px;border:1px solid #ddd">%' . $aiResult['confidence'] . '</td></tr>';
-            $html .= '<tr><td style="padding:8px;border:1px solid #ddd;font-weight:bold">Risk</td><td style="padding:8px;border:1px solid #ddd">' . ucfirst($aiResult['risk_level']) . '</td></tr>';
+            $html .= "<tr>{$th}" . $e(t('leverage.email.recommendation')) . "</td>{$td}" . $e($recLabel) . '</td></tr>';
+            $html .= "<tr>{$th}" . $e(t('leverage.email.confidence')) . "</td>{$td}%" . $aiResult['confidence'] . '</td></tr>';
+            $html .= "<tr>{$th}" . $e(t('leverage.email.risk')) . "</td>{$td}" . ucfirst($aiResult['risk_level']) . '</td></tr>';
             $html .= '</table>';
             if (!empty($aiResult['reasoning'])) {
-                $html .= '<p style="background:#f8f9fa;padding:12px;border-radius:6px;font-style:italic">' . nl2br(htmlspecialchars($aiResult['reasoning'], ENT_QUOTES, 'UTF-8')) . '</p>';
+                $html .= '<p style="background:#f8f9fa;padding:12px;border-radius:6px;font-style:italic">' . nl2br($e($aiResult['reasoning'])) . '</p>';
             }
             if (!empty($aiResult['suggested_action'])) {
-                $html .= '<p><strong>Önerilen Aksiyon:</strong> ' . htmlspecialchars($aiResult['suggested_action'], ENT_QUOTES, 'UTF-8') . '</p>';
+                $html .= '<p><strong>' . $e(t('leverage.email.suggested_action')) . ':</strong> ' . $e($aiResult['suggested_action']) . '</p>';
             }
         }
 
         if ($portfolio['amount'] !== 'N/A') {
-            $html .= '<h3>Portföy Durumu</h3>';
+            $html .= '<h3>' . $e(t('leverage.email.portfolio_title')) . '</h3>';
             $html .= '<table style="width:100%;border-collapse:collapse;margin:16px 0">';
-            $html .= '<tr><td style="padding:8px;border:1px solid #ddd;font-weight:bold">Miktar</td><td style="padding:8px;border:1px solid #ddd">' . $portfolio['amount'] . '</td></tr>';
-            $html .= '<tr><td style="padding:8px;border:1px solid #ddd;font-weight:bold">Ort. Maliyet</td><td style="padding:8px;border:1px solid #ddd">₺' . $portfolio['avg_cost'] . '</td></tr>';
-            $html .= '<tr><td style="padding:8px;border:1px solid #ddd;font-weight:bold">K/Z</td><td style="padding:8px;border:1px solid #ddd">' . $portfolio['pnl'] . '%</td></tr>';
+            $html .= "<tr>{$th}" . $e(t('leverage.email.amount')) . "</td>{$td}" . $portfolio['amount'] . '</td></tr>';
+            $html .= "<tr>{$th}" . $e(t('leverage.email.avg_cost')) . "</td>{$td}₺" . $portfolio['avg_cost'] . '</td></tr>';
+            $html .= "<tr>{$th}" . $e(t('leverage.email.pnl')) . "</td>{$td}" . $portfolio['pnl'] . '%</td></tr>';
             $html .= '</table>';
         }
 
         $html .= '<hr style="margin:20px 0;border:none;border-top:1px solid #ddd">';
-        $html .= '<p style="color:#666;font-size:12px">Kural: ' . htmlspecialchars($rule['name'], ENT_QUOTES, 'UTF-8') . '<br>';
-        $html .= 'Tarih: ' . date('d.m.Y H:i') . '<br>';
+        $html .= '<p style="color:#666;font-size:12px">' . $e(t('leverage.email.rule')) . ': ' . $e($rule['name']) . '<br>';
+        $html .= $e(t('leverage.email.date')) . ': ' . date('d.m.Y H:i') . '<br>';
         $appUrl = defined('APP_URL') ? APP_URL : '';
         if ($appUrl !== '') {
-            $html .= '<a href="' . htmlspecialchars($appUrl, ENT_QUOTES, 'UTF-8') . '/leverage.php">Kaldıraç Paneli</a>';
+            $html .= '<a href="' . $e($appUrl) . '/leverage.php">' . $e(t('leverage.email.panel_link')) . '</a>';
         }
         $html .= '</p></div></body></html>';
 
@@ -470,33 +473,33 @@ class LeverageEngine
         ?array $aiResult
     ): string {
         $currencyCode = strtoupper(trim($rule['currency_code']));
-        $signalLabel = $direction === 'buy' ? 'AL' : 'SAT';
+        $signalLabel = $direction === 'buy' ? t('leverage.email.signal_buy') : t('leverage.email.signal_sell');
         $changeStr = ($changePercent >= 0 ? '+' : '') . number_format($changePercent, 2) . '%';
         $threshold = $direction === 'buy' ? $rule['buy_threshold'] : $rule['sell_threshold'];
 
-        $text = "{$signalLabel} SINYALI -- {$currencyCode}\n\n";
-        $text .= "Referans: TL " . number_format($referencePrice, 2) . "\n";
-        $text .= "Guncel: TL " . number_format($currentPrice, 2) . "\n";
-        $text .= "Degisim: {$changeStr}\n";
-        $text .= "Esik: {$threshold}% (asildi)\n\n";
+        $text = t('leverage.email.signal_label', ['signal' => $signalLabel, 'currency' => $currencyCode]) . "\n\n";
+        $text .= t('leverage.email.reference') . ": TL " . number_format($referencePrice, 2) . "\n";
+        $text .= t('leverage.email.current') . ": TL " . number_format($currentPrice, 2) . "\n";
+        $text .= t('leverage.email.change') . ": {$changeStr}\n";
+        $text .= t('leverage.email.threshold') . ": " . t('leverage.email.threshold_breached', ['threshold' => $threshold]) . "\n\n";
 
         if ($aiResult !== null) {
             $recLabel = self::getRecommendationLabel($aiResult['recommendation']);
-            $text .= "AI Analiz:\n";
-            $text .= "Oneri: {$recLabel}\n";
-            $text .= "Guven: %{$aiResult['confidence']}\n";
-            $text .= "Risk: " . ucfirst($aiResult['risk_level']) . "\n";
+            $text .= t('leverage.email.ai_title') . ":\n";
+            $text .= t('leverage.email.recommendation') . ": {$recLabel}\n";
+            $text .= t('leverage.email.confidence') . ": %{$aiResult['confidence']}\n";
+            $text .= t('leverage.email.risk') . ": " . ucfirst($aiResult['risk_level']) . "\n";
             if (!empty($aiResult['reasoning'])) {
                 $text .= "\n{$aiResult['reasoning']}\n";
             }
             if (!empty($aiResult['suggested_action'])) {
-                $text .= "\nOnerilen Aksiyon: {$aiResult['suggested_action']}\n";
+                $text .= "\n" . t('leverage.email.suggested_action') . ": {$aiResult['suggested_action']}\n";
             }
         }
 
         $text .= "\n---\n";
-        $text .= "Kural: {$rule['name']}\n";
-        $text .= "Tarih: " . date('d.m.Y H:i') . "\n";
+        $text .= t('leverage.email.rule') . ": {$rule['name']}\n";
+        $text .= t('leverage.email.date') . ": " . date('d.m.Y H:i') . "\n";
 
         return $text;
     }
@@ -940,13 +943,9 @@ class LeverageEngine
 
     private static function getRecommendationLabel(string $recommendation): string
     {
-        $map = [
-            'strong_buy' => 'GUCLU AL',
-            'buy' => 'AL',
-            'hold' => 'TUT',
-            'sell' => 'SAT',
-            'strong_sell' => 'GUCLU SAT',
-        ];
-        return $map[$recommendation] ?? strtoupper($recommendation);
+        $key = 'leverage.ai.' . $recommendation;
+        $label = t($key);
+        // If translation returns the key itself, fallback to uppercase
+        return $label !== $key ? $label : strtoupper($recommendation);
     }
 }
