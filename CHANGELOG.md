@@ -2,6 +2,43 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.13.0] - 2026-02-25
+
+Leverage system major expansion — Telegram notifications, webhook dispatch, backtesting engine, trailing stop, weak thresholds, and weekly reports.
+
+### Added
+- **Telegram notifications** — `TelegramNotifier.php` sends leverage signals via Telegram Bot API with HTML formatting, encrypted bot token (AES-256-GCM), host validation
+- **Webhook dispatch** — `LeverageWebhookDispatcher.php` sends signals to multiple endpoints with platform-specific payloads (generic JSON, Discord embeds, Slack blocks), HTTPS-only with SSRF protection
+- **Backtesting engine** — `BacktestEngine.php` simulates rule signals against historical data from 3 sources: local rate_history, metals.dev API, exchangerate.host API
+- **Trailing stop** — two modes per rule: auto (peak price tracking with high watermark) and threshold (drop from reference), configurable percentage
+- **Weak thresholds** — early warning signals (`buy_threshold_weak`, `sell_threshold_weak`) that fire without AI analysis, cooldown, or reference update
+- **Multi-channel dispatch** — `dispatchAllChannels()` in LeverageEngine sends to email + Telegram + webhook independently with per-channel error handling
+- **Weekly leverage report** — `cron/weekly_leverage_report.php` sends 7-day signal summary email with HTML formatting
+- **Admin panel settings** — 4 new sections: Telegram (token, chat ID, test button), Webhook (enable/disable), Backtesting (source select, 2 API keys), Weekly Report (enable, day selector)
+- **Backtest UI** — modal with source/date range selection, summary cards (total return, max drawdown, win rate)
+- **Webhook management UI** — CRUD table on leverage page for endpoint management
+- **i18n** — 80+ new translation keys across all 5 languages (TR/EN/DE/FR/AR)
+
+### Database
+- New tables: `leverage_webhooks`, `leverage_backtests`
+- `leverage_rules`: 6 new columns (trailing_stop_enabled, trailing_stop_type, trailing_stop_pct, peak_price, buy_threshold_weak, sell_threshold_weak)
+- `leverage_history`: notification_channel expanded to VARCHAR(100), event_type ENUM expanded with weak_buy_signal, weak_sell_signal, trailing_stop_signal
+- 10 new settings seed values
+
+### Files Added
+- `includes/TelegramNotifier.php`, `includes/LeverageWebhookDispatcher.php`, `includes/BacktestEngine.php`
+- `cron/weekly_leverage_report.php`
+- `database/migrations/014_leverage_enhancements.sql`
+
+### Files Modified
+- `includes/LeverageEngine.php` — trailing stop, weak threshold, multi-channel dispatch
+- `leverage.php`, `assets/js/leverage.js` — trailing stop/backtest/webhook UI
+- `admin.php` — 4 new settings sections
+- `config.sample.php` — 7 new defines
+- `locales/tr.php`, `en.php`, `de.php`, `fr.php`, `ar.php` — 80+ new keys each
+- `cron/check_leverage.php` — new require_once for notification classes
+- `database/database.sql` — fresh install schema updated
+
 ## [1.12.0] - 2026-02-25
 
 Leverage system enhancements — automatic reference price cycling, enriched portfolio data in signal emails, full i18n for email templates, automated cron deployment.
