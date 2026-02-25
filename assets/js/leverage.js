@@ -31,6 +31,13 @@
     var sourceGroupSelect = document.getElementById('source-group');
     var sourceTagSelect = document.getElementById('source-tag');
 
+    // New field references
+    var trailingStopCheckbox = document.getElementById('trailing_stop_enabled');
+    var trailingStopOptions = document.getElementById('trailing-stop-options');
+    var trailingStopPctInput = document.getElementById('trailing_stop_pct');
+    var buyThresholdWeakInput = document.getElementById('buy_threshold_weak');
+    var sellThresholdWeakInput = document.getElementById('sell_threshold_weak');
+
     // ─── Modal Open/Close ────────────────────────────────────────────────────
 
     function openModal() {
@@ -52,6 +59,15 @@
         if (buyThresholdInput) buyThresholdInput.value = '-15.00';
         if (sellThresholdInput) sellThresholdInput.value = '30.00';
         if (aiEnabledCheckbox) aiEnabledCheckbox.checked = true;
+        if (buyThresholdWeakInput) buyThresholdWeakInput.value = '';
+        if (sellThresholdWeakInput) sellThresholdWeakInput.value = '';
+        if (trailingStopCheckbox) trailingStopCheckbox.checked = false;
+        if (trailingStopOptions) trailingStopOptions.style.display = 'none';
+        if (trailingStopPctInput) trailingStopPctInput.value = '';
+        var tsTypeRadios = document.querySelectorAll('input[name="trailing_stop_type"]');
+        tsTypeRadios.forEach(function (radio) {
+            radio.checked = radio.value === 'auto';
+        });
         updateSourceTypeVisibility('currency');
         updateStrategyCounter();
     }
@@ -81,10 +97,26 @@
 
     // Close on Escape key
     document.addEventListener('keydown', function (e) {
-        if (e.key === 'Escape' && modal && modal.classList.contains('open')) {
-            closeModal();
+        if (e.key === 'Escape') {
+            if (modal && modal.classList.contains('open')) {
+                closeModal();
+            }
+            var backtestModal = document.getElementById('backtest-modal');
+            if (backtestModal && backtestModal.classList.contains('open')) {
+                if (typeof closeBacktestModal === 'function') closeBacktestModal();
+            }
         }
     });
+
+    // Backtest modal overlay click
+    var backtestModalEl = document.getElementById('backtest-modal');
+    if (backtestModalEl) {
+        backtestModalEl.addEventListener('click', function (e) {
+            if (e.target === backtestModalEl) {
+                if (typeof closeBacktestModal === 'function') closeBacktestModal();
+            }
+        });
+    }
 
     // ─── Source Type Radio Handler ────────────────────────────────────────────
 
@@ -106,6 +138,16 @@
 
     // Initialize visibility
     updateSourceTypeVisibility('currency');
+
+    // ─── Trailing Stop Checkbox Toggle ────────────────────────────────────
+
+    if (trailingStopCheckbox) {
+        trailingStopCheckbox.addEventListener('change', function () {
+            if (trailingStopOptions) {
+                trailingStopOptions.style.display = this.checked ? 'block' : 'none';
+            }
+        });
+    }
 
     // ─── Strategy Context Character Counter ──────────────────────────────────
 
@@ -207,6 +249,23 @@
             } else if (sourceType === 'tag' && sourceTagSelect) {
                 sourceTagSelect.value = sourceId;
             }
+
+            // Weak thresholds
+            if (buyThresholdWeakInput) buyThresholdWeakInput.value = card.getAttribute('data-buy-threshold-weak') || '';
+            if (sellThresholdWeakInput) sellThresholdWeakInput.value = card.getAttribute('data-sell-threshold-weak') || '';
+
+            // Trailing stop
+            var tsEnabled = card.getAttribute('data-trailing-stop-enabled') === '1';
+            if (trailingStopCheckbox) trailingStopCheckbox.checked = tsEnabled;
+            if (trailingStopOptions) trailingStopOptions.style.display = tsEnabled ? 'block' : 'none';
+
+            var tsType = card.getAttribute('data-trailing-stop-type') || 'auto';
+            var tsTypeRadios = document.querySelectorAll('input[name="trailing_stop_type"]');
+            tsTypeRadios.forEach(function (radio) {
+                radio.checked = radio.value === tsType;
+            });
+
+            if (trailingStopPctInput) trailingStopPctInput.value = card.getAttribute('data-trailing-stop-pct') || '';
 
             updateStrategyCounter();
             openModal();

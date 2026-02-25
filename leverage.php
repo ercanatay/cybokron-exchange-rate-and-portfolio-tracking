@@ -40,6 +40,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 'reference_price' => (float) ($_POST['reference_price'] ?? 0),
                 'ai_enabled' => isset($_POST['ai_enabled']) ? 1 : 0,
                 'strategy_context' => trim((string) ($_POST['strategy_context'] ?? '')),
+                'trailing_stop_enabled' => (int) ($_POST['trailing_stop_enabled'] ?? 0),
+                'trailing_stop_type' => $_POST['trailing_stop_type'] ?? 'auto',
+                'trailing_stop_pct' => !empty($_POST['trailing_stop_pct']) ? (float) $_POST['trailing_stop_pct'] : null,
+                'buy_threshold_weak' => !empty($_POST['buy_threshold_weak']) ? (float) $_POST['buy_threshold_weak'] : null,
+                'sell_threshold_weak' => !empty($_POST['sell_threshold_weak']) ? (float) $_POST['sell_threshold_weak'] : null,
             ]);
             $message = t('leverage.message.created');
             $messageType = 'success';
@@ -61,6 +66,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 'reference_price' => (float) ($_POST['reference_price'] ?? 0),
                 'ai_enabled' => isset($_POST['ai_enabled']) ? 1 : 0,
                 'strategy_context' => trim((string) ($_POST['strategy_context'] ?? '')),
+                'trailing_stop_enabled' => (int) ($_POST['trailing_stop_enabled'] ?? 0),
+                'trailing_stop_type' => $_POST['trailing_stop_type'] ?? 'auto',
+                'trailing_stop_pct' => !empty($_POST['trailing_stop_pct']) ? (float) $_POST['trailing_stop_pct'] : null,
+                'buy_threshold_weak' => !empty($_POST['buy_threshold_weak']) ? (float) $_POST['buy_threshold_weak'] : null,
+                'sell_threshold_weak' => !empty($_POST['sell_threshold_weak']) ? (float) $_POST['sell_threshold_weak'] : null,
             ]);
             $message = t('leverage.message.updated');
             $messageType = 'success';
@@ -121,6 +131,72 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         }
     }
 
+    if ($messageType === '' && $action === 'run_backtest') {
+        require_once __DIR__ . '/includes/BacktestEngine.php';
+        $ruleId = (int) ($_POST['rule_id'] ?? 0);
+        $source = $_POST['source'] ?? 'rate_history';
+        $dateFrom = $_POST['date_from'] ?? '';
+        $dateTo = $_POST['date_to'] ?? '';
+
+        $engine = new BacktestEngine(Database::getInstance());
+        if (!$engine->isEnabled()) {
+            $message = 'Backtesting is disabled';
+            $messageType = 'error';
+        } else {
+            $backtestResult = $engine->run($ruleId, $source, $dateFrom, $dateTo);
+            if ($backtestResult['success']) {
+                $message = t('leverage.backtest.results');
+                $messageType = 'success';
+                // Store backtest result in session so it survives the PRG redirect
+                $_SESSION['leverage_backtest_result'] = $backtestResult;
+                $_SESSION['leverage_backtest_rule_id'] = $ruleId;
+            } else {
+                $message = $backtestResult['error'];
+                $messageType = 'error';
+            }
+        }
+    }
+
+    if ($messageType === '' && $action === 'create_webhook') {
+        require_once __DIR__ . '/includes/LeverageWebhookDispatcher.php';
+        $result = LeverageWebhookDispatcher::createWebhook([
+            'name' => $_POST['webhook_name'] ?? '',
+            'url' => $_POST['webhook_url'] ?? '',
+            'platform' => $_POST['webhook_platform'] ?? 'generic',
+        ]);
+        if ($result['success']) {
+            $message = t('leverage.webhook.created');
+            $messageType = 'success';
+        } else {
+            $message = $result['error'];
+            $messageType = 'error';
+        }
+    }
+
+    if ($messageType === '' && $action === 'delete_webhook') {
+        require_once __DIR__ . '/includes/LeverageWebhookDispatcher.php';
+        $webhookId = (int) ($_POST['webhook_id'] ?? 0);
+        if (LeverageWebhookDispatcher::deleteWebhook($webhookId)) {
+            $message = t('leverage.webhook.deleted');
+            $messageType = 'success';
+        } else {
+            $message = 'Failed to delete webhook';
+            $messageType = 'error';
+        }
+    }
+
+    if ($messageType === '' && $action === 'toggle_webhook') {
+        require_once __DIR__ . '/includes/LeverageWebhookDispatcher.php';
+        $webhookId = (int) ($_POST['webhook_id'] ?? 0);
+        if (LeverageWebhookDispatcher::toggleWebhook($webhookId)) {
+            $message = t('leverage.webhook.toggled');
+            $messageType = 'success';
+        } else {
+            $message = 'Failed to toggle webhook';
+            $messageType = 'error';
+        }
+    }
+
     // PRG: redirect after POST
     if ($messageType !== '') {
         $_SESSION['leverage_flash'] = ['message' => $message, 'type' => $messageType];
@@ -134,6 +210,15 @@ if (isset($_SESSION['leverage_flash'])) {
     $message = $_SESSION['leverage_flash']['message'] ?? '';
     $messageType = $_SESSION['leverage_flash']['type'] ?? '';
     unset($_SESSION['leverage_flash']);
+}
+
+// Recover backtest result from session (survives PRG redirect)
+$backtestResult = null;
+$backtestRuleId = null;
+if (isset($_SESSION['leverage_backtest_result'])) {
+    $backtestResult = $_SESSION['leverage_backtest_result'];
+    $backtestRuleId = $_SESSION['leverage_backtest_rule_id'] ?? null;
+    unset($_SESSION['leverage_backtest_result'], $_SESSION['leverage_backtest_rule_id']);
 }
 
 // ─── Data Fetch ─────────────────────────────────────────────────────────────
@@ -269,6 +354,10 @@ $newTabText = t('common.opens_new_tab');
         .badge-ai-off {
             background: rgba(139, 143, 163, 0.1);
             color: var(--text-muted);
+        }
+        .badge-trailing-stop {
+            background: rgba(245, 158, 11, 0.15);
+            color: var(--warning);
         }
 
         .rule-prices {
@@ -694,7 +783,12 @@ $newTabText = t('common.opens_new_tab');
                     data-sell-threshold="<?= htmlspecialchars((string) $sellThreshold) ?>"
                     data-reference-price="<?= htmlspecialchars((string) $referencePrice) ?>"
                     data-ai-enabled="<?= $aiEnabled ?>"
-                    data-strategy-context="<?= htmlspecialchars($rule['strategy_context'] ?? '') ?>">
+                    data-strategy-context="<?= htmlspecialchars($rule['strategy_context'] ?? '') ?>"
+                    data-trailing-stop-enabled="<?= $rule['trailing_stop_enabled'] ?? 0 ?>"
+                    data-trailing-stop-type="<?= htmlspecialchars($rule['trailing_stop_type'] ?? 'auto') ?>"
+                    data-trailing-stop-pct="<?= htmlspecialchars($rule['trailing_stop_pct'] ?? '') ?>"
+                    data-buy-threshold-weak="<?= htmlspecialchars($rule['buy_threshold_weak'] ?? '') ?>"
+                    data-sell-threshold-weak="<?= htmlspecialchars($rule['sell_threshold_weak'] ?? '') ?>">
 
                     <div class="rule-card-header">
                         <div class="rule-card-title">
@@ -709,6 +803,9 @@ $newTabText = t('common.opens_new_tab');
                                 <span class="badge badge-paused"><?= t('leverage.rules.status.paused') ?></span>
                             <?php else: ?>
                                 <span class="badge badge-completed"><?= t('leverage.rules.status.completed') ?></span>
+                            <?php endif; ?>
+                            <?php if (!empty($rule['trailing_stop_enabled'])): ?>
+                                <span class="badge badge-trailing-stop"><?= t('leverage.form.trailing_stop') ?></span>
                             <?php endif; ?>
                         </div>
                     </div>
@@ -729,6 +826,12 @@ $newTabText = t('common.opens_new_tab');
                                 <span class="price-value <?= $changePercent >= 0 ? 'change-positive' : 'change-negative' ?>">
                                     <?= ($changePercent >= 0 ? '+' : '') . number_format($changePercent, 2, ',', '.') ?>%
                                 </span>
+                            </div>
+                        <?php endif; ?>
+                        <?php if (!empty($rule['trailing_stop_enabled']) && !empty($rule['peak_price']) && (float) $rule['peak_price'] > 0): ?>
+                            <div>
+                                <span class="price-label">Peak</span><br>
+                                <span class="price-value"><?= number_format((float) $rule['peak_price'], 2, ',', '.') ?> &#8378;</span>
                             </div>
                         <?php endif; ?>
                     </div>
@@ -758,6 +861,7 @@ $newTabText = t('common.opens_new_tab');
 
                     <div class="rule-card-actions">
                         <button type="button" class="btn btn-secondary btn-edit-rule"><?= t('portfolio.form.update') ?></button>
+                        <button type="button" class="btn btn-secondary" onclick="openBacktestModal(<?= $ruleId ?>)"><?= t('leverage.backtest.run') ?></button>
 
                         <?php if ($status === 'active'): ?>
                             <form method="POST" style="display:inline">
@@ -792,6 +896,71 @@ $newTabText = t('common.opens_new_tab');
                 </div>
             <?php endforeach; ?>
         <?php endif; ?>
+
+        <!-- ─── Webhook Endpoints ─────────────────────────────────────────── -->
+        <?php
+        require_once __DIR__ . '/includes/LeverageWebhookDispatcher.php';
+        $webhooks = LeverageWebhookDispatcher::getAllWebhooks();
+        ?>
+        <section class="leverage-history-section">
+            <h2><?= t('leverage.webhook.title') ?></h2>
+
+            <!-- Add webhook form -->
+            <form method="POST" style="display:flex; gap:8px; align-items:flex-end; margin-bottom:1rem; flex-wrap:wrap;">
+                <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
+                <input type="hidden" name="action" value="create_webhook">
+                <input type="text" name="webhook_name" placeholder="<?= htmlspecialchars(t('leverage.webhook.name')) ?>" required style="padding:8px 12px; background:var(--bg); border:1px solid var(--border); border-radius:var(--radius); color:var(--text); font-size:0.9rem;">
+                <input type="url" name="webhook_url" placeholder="https://..." required style="padding:8px 12px; background:var(--bg); border:1px solid var(--border); border-radius:var(--radius); color:var(--text); font-size:0.9rem; flex:1; min-width:200px;">
+                <select name="webhook_platform" style="padding:8px 12px; background:var(--bg); border:1px solid var(--border); border-radius:var(--radius); color:var(--text); font-size:0.9rem;">
+                    <option value="generic">Generic</option>
+                    <option value="discord">Discord</option>
+                    <option value="slack">Slack</option>
+                </select>
+                <button type="submit" class="btn btn-primary btn-sm"><?= t('leverage.webhook.add') ?></button>
+            </form>
+
+            <?php if (empty($webhooks)): ?>
+                <p style="color:var(--text-muted)"><?= t('leverage.webhook.no_webhooks') ?></p>
+            <?php else: ?>
+                <div style="overflow-x:auto">
+                    <table class="leverage-history-table">
+                        <thead>
+                            <tr>
+                                <th><?= t('leverage.webhook.name') ?></th>
+                                <th><?= t('leverage.webhook.url') ?></th>
+                                <th><?= t('leverage.webhook.platform') ?></th>
+                                <th><?= t('leverage.webhook.status') ?></th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($webhooks as $wh): ?>
+                            <tr>
+                                <td><?= htmlspecialchars($wh['name']) ?></td>
+                                <td><code style="font-size:0.8rem"><?= htmlspecialchars(mb_substr($wh['url'], 0, 60)) ?>...</code></td>
+                                <td><?= htmlspecialchars($wh['platform']) ?></td>
+                                <td><?= $wh['is_active'] ? '&#10003;' : '&#10007;' ?></td>
+                                <td>
+                                    <form method="POST" style="display:inline;">
+                                        <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
+                                        <input type="hidden" name="action" value="toggle_webhook">
+                                        <input type="hidden" name="webhook_id" value="<?= (int) $wh['id'] ?>">
+                                        <button type="submit" class="btn btn-secondary btn-sm"><?= $wh['is_active'] ? 'Deaktif' : 'Aktif' ?></button>
+                                    </form>
+                                    <form method="POST" style="display:inline;" onsubmit="return confirm('Emin misiniz?')">
+                                        <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
+                                        <input type="hidden" name="action" value="delete_webhook">
+                                        <input type="hidden" name="webhook_id" value="<?= (int) $wh['id'] ?>">
+                                        <button type="submit" class="btn btn-danger btn-sm">Sil</button>
+                                    </form>
+                                </td>
+                            </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+            <?php endif; ?>
+        </section>
 
         <!-- ─── Signal History Table ──────────────────────────────────────── -->
         <section class="leverage-history-section">
@@ -954,6 +1123,40 @@ $newTabText = t('common.opens_new_tab');
                     </div>
                 </div>
 
+                <!-- Weak Thresholds -->
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="buy_threshold_weak"><?= t('leverage.form.buy_threshold_weak') ?></label>
+                        <input type="number" id="buy_threshold_weak" name="buy_threshold_weak" step="0.01" class="form-control" placeholder="-10">
+                        <small class="form-hint"><?= t('leverage.form.weak_threshold_hint') ?></small>
+                    </div>
+                    <div class="form-group">
+                        <label for="sell_threshold_weak"><?= t('leverage.form.sell_threshold_weak') ?></label>
+                        <input type="number" id="sell_threshold_weak" name="sell_threshold_weak" step="0.01" class="form-control" placeholder="20">
+                    </div>
+                </div>
+
+                <!-- Trailing Stop -->
+                <div class="form-group">
+                    <div class="form-toggle">
+                        <input type="checkbox" id="trailing_stop_enabled" name="trailing_stop_enabled" value="1">
+                        <label for="trailing_stop_enabled"><?= t('leverage.form.trailing_stop_enabled') ?></label>
+                    </div>
+                </div>
+                <div id="trailing-stop-options" style="display: none;">
+                    <div class="form-group">
+                        <label><?= t('leverage.form.trailing_stop_type') ?></label>
+                        <div class="form-radio-group">
+                            <label><input type="radio" name="trailing_stop_type" value="auto" checked> <?= t('leverage.form.trailing_stop_type_auto') ?></label>
+                            <label><input type="radio" name="trailing_stop_type" value="threshold"> <?= t('leverage.form.trailing_stop_type_threshold') ?></label>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="trailing_stop_pct"><?= t('leverage.form.trailing_stop_pct') ?></label>
+                        <input type="number" id="trailing_stop_pct" name="trailing_stop_pct" step="0.01" min="0.01" class="form-control" placeholder="5.00">
+                    </div>
+                </div>
+
                 <div class="form-group">
                     <div class="form-toggle">
                         <input type="checkbox" id="rule-ai-enabled" name="ai_enabled" value="1" checked>
@@ -973,6 +1176,75 @@ $newTabText = t('common.opens_new_tab');
                     <button type="button" class="btn btn-secondary" id="form-cancel-btn"><?= t('leverage.form.cancel') ?></button>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <!-- ─── Backtest Modal ──────────────────────────────────────────────────── -->
+    <div class="modal-overlay" id="backtest-modal">
+        <div class="modal-content">
+            <button type="button" class="modal-close" onclick="closeBacktestModal()">&times;</button>
+            <h2><?= t('leverage.backtest.title') ?></h2>
+
+            <form method="POST">
+                <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
+                <input type="hidden" name="action" value="run_backtest">
+                <input type="hidden" id="backtest_rule_id" name="rule_id" value="">
+
+                <div class="form-group">
+                    <label for="backtest_source"><?= t('leverage.backtest.source') ?></label>
+                    <select id="backtest_source" name="source">
+                        <option value="rate_history"><?= t('admin.leverage.backtesting_source_rate_history') ?></option>
+                        <option value="metals_dev"><?= t('admin.leverage.backtesting_source_metals_dev') ?></option>
+                        <option value="exchangerate_host"><?= t('admin.leverage.backtesting_source_exchangerate_host') ?></option>
+                    </select>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="backtest_date_from"><?= t('leverage.backtest.date_from') ?></label>
+                        <input type="date" id="backtest_date_from" name="date_from" value="<?= date('Y-m-d', strtotime('-30 days')) ?>">
+                    </div>
+                    <div class="form-group">
+                        <label for="backtest_date_to"><?= t('leverage.backtest.date_to') ?></label>
+                        <input type="date" id="backtest_date_to" name="date_to" value="<?= date('Y-m-d') ?>">
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary"><?= t('leverage.backtest.run') ?></button>
+                </div>
+            </form>
+
+            <?php if ($backtestResult !== null && $backtestResult['success']): ?>
+            <div style="margin-top:20px; padding-top:20px; border-top:1px solid var(--border);">
+                <h3 style="font-size:1rem; margin-bottom:12px;"><?= t('leverage.backtest.results') ?></h3>
+                <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(120px, 1fr)); gap:12px;">
+                    <div class="card" style="padding:12px; text-align:center;">
+                        <small style="color:var(--text-muted)"><?= t('leverage.backtest.total_signals') ?></small>
+                        <p style="font-size:1.2rem; font-weight:700; margin:4px 0 0;"><?= (int) $backtestResult['summary']['total_signals'] ?></p>
+                    </div>
+                    <div class="card" style="padding:12px; text-align:center;">
+                        <small style="color:var(--text-muted)"><?= t('leverage.backtest.buy_signals') ?></small>
+                        <p style="font-size:1.2rem; font-weight:700; margin:4px 0 0; color:var(--danger);"><?= (int) $backtestResult['summary']['buy_signals'] ?></p>
+                    </div>
+                    <div class="card" style="padding:12px; text-align:center;">
+                        <small style="color:var(--text-muted)"><?= t('leverage.backtest.sell_signals') ?></small>
+                        <p style="font-size:1.2rem; font-weight:700; margin:4px 0 0; color:var(--success);"><?= (int) $backtestResult['summary']['sell_signals'] ?></p>
+                    </div>
+                    <div class="card" style="padding:12px; text-align:center;">
+                        <small style="color:var(--text-muted)"><?= t('leverage.backtest.total_return') ?></small>
+                        <p style="font-size:1.2rem; font-weight:700; margin:4px 0 0;"><?= htmlspecialchars($backtestResult['summary']['total_return_pct']) ?>%</p>
+                    </div>
+                    <div class="card" style="padding:12px; text-align:center;">
+                        <small style="color:var(--text-muted)"><?= t('leverage.backtest.max_drawdown') ?></small>
+                        <p style="font-size:1.2rem; font-weight:700; margin:4px 0 0;"><?= htmlspecialchars($backtestResult['summary']['max_drawdown_pct']) ?>%</p>
+                    </div>
+                    <div class="card" style="padding:12px; text-align:center;">
+                        <small style="color:var(--text-muted)"><?= t('leverage.backtest.win_rate') ?></small>
+                        <p style="font-size:1.2rem; font-weight:700; margin:4px 0 0;"><?= htmlspecialchars($backtestResult['summary']['win_rate_pct']) ?>%</p>
+                    </div>
+                </div>
+            </div>
+            <?php endif; ?>
         </div>
     </div>
 
@@ -999,6 +1271,26 @@ $newTabText = t('common.opens_new_tab');
         var leverageFormTitleEdit = <?= json_encode(t('leverage.form.edit_title'), JSON_UNESCAPED_UNICODE | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
         var leverageFormSubmitCreate = <?= json_encode(t('leverage.form.submit'), JSON_UNESCAPED_UNICODE | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
         var leverageFormSubmitUpdate = <?= json_encode(t('leverage.form.update'), JSON_UNESCAPED_UNICODE | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+
+        // Backtest modal functions (global scope for onclick handlers)
+        function openBacktestModal(ruleId) {
+            document.getElementById('backtest_rule_id').value = ruleId;
+            var modal = document.getElementById('backtest-modal');
+            if (modal) modal.classList.add('open');
+            document.body.style.overflow = 'hidden';
+        }
+        function closeBacktestModal() {
+            var modal = document.getElementById('backtest-modal');
+            if (modal) modal.classList.remove('open');
+            document.body.style.overflow = '';
+        }
+
+        <?php if ($backtestResult !== null && $backtestResult['success'] && $backtestRuleId): ?>
+        // Auto-open backtest modal with results
+        document.addEventListener('DOMContentLoaded', function() {
+            openBacktestModal(<?= (int) $backtestRuleId ?>);
+        });
+        <?php endif; ?>
     </script>
     <script src="assets/js/leverage.js?v=<?= time() ?>" defer></script>
 </body>
