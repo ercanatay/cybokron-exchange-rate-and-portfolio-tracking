@@ -469,36 +469,57 @@ class BacktestEngine
             );
         }
 
-        $url = 'https://api.metals.dev/v1/timeseries'
-            . '?api_key=' . urlencode($apiKey)
-            . '&start_date=' . urlencode($dateFrom)
-            . '&end_date=' . urlencode($dateTo)
-            . '&base=TRY'
-            . '&metals=' . urlencode($metal);
-
-        $response = $this->httpGet($url);
-        if (!$response['success']) {
-            throw new RuntimeException('metals.dev API request failed: ' . $response['error']);
+        // Timeseries always returns USD/troy oz with limited currencies (TRY not included).
+        // We need to fetch USD/TRY rate from our own rates table to convert.
+        $usdTryRate = $this->getUsdTryRate();
+        if ($usdTryRate <= 0) {
+            throw new RuntimeException('Could not determine USD/TRY rate for metals.dev price conversion');
         }
 
-        $data = json_decode($response['body'], true);
-        if (!is_array($data)) {
-            throw new RuntimeException('metals.dev API returned invalid JSON');
-        }
+        // 1 troy ounce = 31.1035 grams
+        $troyOzToGram = 31.1035;
 
-        // Parse timeseries response
-        // Expected format: { "rates": { "2026-01-01": { "gold": 1234.56 }, ... } }
-        $rates = $data['rates'] ?? [];
-        if (!is_array($rates)) {
-            throw new RuntimeException('metals.dev API response missing rates data');
-        }
+        // metals.dev API limits timeseries to 30 days per request.
+        // Split longer ranges into 30-day chunks.
+        $chunks = $this->splitDateRange($dateFrom, $dateTo, 30);
 
         $result = [];
-        foreach ($rates as $date => $metals) {
-            if (is_array($metals) && isset($metals[$metal])) {
-                $price = (float) $metals[$metal];
-                if ($price > 0) {
-                    $result[] = ['date' => $date, 'price' => $price];
+        foreach ($chunks as [$chunkStart, $chunkEnd]) {
+            $url = 'https://api.metals.dev/v1/timeseries'
+                . '?api_key=' . urlencode($apiKey)
+                . '&start_date=' . urlencode($chunkStart)
+                . '&end_date=' . urlencode($chunkEnd)
+                . '&metals=' . urlencode($metal);
+
+            $response = $this->httpGet($url);
+            if (!$response['success']) {
+                throw new RuntimeException('metals.dev API request failed: ' . $response['error']);
+            }
+
+            $data = json_decode($response['body'], true);
+            if (!is_array($data) || ($data['status'] ?? '') !== 'success') {
+                throw new RuntimeException('metals.dev API returned invalid response');
+            }
+
+            // Actual format: { "rates": { "2026-01-01": { "metals": { "gold": 5108.25 }, "currencies": {...} }, ... } }
+            // Prices are in USD per troy ounce
+            $rates = $data['rates'] ?? [];
+            if (!is_array($rates)) {
+                continue;
+            }
+
+            foreach ($rates as $date => $dayData) {
+                if (!is_array($dayData)) {
+                    continue;
+                }
+                $metals = $dayData['metals'] ?? $dayData;
+                if (is_array($metals) && isset($metals[$metal])) {
+                    $priceUsdPerOz = (float) $metals[$metal];
+                    if ($priceUsdPerOz > 0) {
+                        // Convert: USD/oz -> TRY/gram
+                        $priceTryPerGram = ($priceUsdPerOz * $usdTryRate) / $troyOzToGram;
+                        $result[] = ['date' => $date, 'price' => round($priceTryPerGram, 6)];
+                    }
                 }
             }
         }
@@ -507,6 +528,43 @@ class BacktestEngine
         usort($result, fn($a, $b) => strcmp($a['date'], $b['date']));
 
         return $result;
+    }
+
+    /**
+     * Split a date range into chunks of max $maxDays days each.
+     *
+     * @return array<array{0: string, 1: string}> Array of [start, end] pairs
+     */
+    private function splitDateRange(string $dateFrom, string $dateTo, int $maxDays): array
+    {
+        $start = new DateTimeImmutable($dateFrom);
+        $end = new DateTimeImmutable($dateTo);
+        $chunks = [];
+
+        while ($start <= $end) {
+            $chunkEnd = $start->modify('+' . ($maxDays - 1) . ' days');
+            if ($chunkEnd > $end) {
+                $chunkEnd = $end;
+            }
+            $chunks[] = [$start->format('Y-m-d'), $chunkEnd->format('Y-m-d')];
+            $start = $chunkEnd->modify('+1 day');
+        }
+
+        return $chunks;
+    }
+
+    /**
+     * Get current USD/TRY exchange rate from our rates table.
+     */
+    private function getUsdTryRate(): float
+    {
+        $row = Database::queryOne(
+            "SELECT r.sell_rate FROM rates r
+             JOIN currencies c ON r.currency_id = c.id
+             WHERE c.code = 'USD' AND r.sell_rate > 0
+             ORDER BY r.sell_rate DESC LIMIT 1"
+        );
+        return $row ? (float) $row['sell_rate'] : 0.0;
     }
 
     /**
