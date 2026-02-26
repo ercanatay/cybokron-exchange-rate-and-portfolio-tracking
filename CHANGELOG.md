@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.13.1] - 2026-02-26
+
+### Added
+- **Glossary modal** — clickable "Terimler" button on leverage page opens an accordion-style glossary explaining 15 key terms (leverage, reference price, thresholds, trailing stop, backtest, AI analysis, signals, cooldown, direction lock, webhook, source type) in plain language. Uses native `<details>` elements. Full i18n support across all 5 languages (TR/EN/DE/FR/AR).
+
+### Files Modified
+- `leverage.php` — glossary button, modal HTML, CSS, JS
+- `assets/js/leverage.js` — Escape key handler for glossary modal
+- `locales/tr.php`, `en.php`, `de.php`, `fr.php`, `ar.php` — 32 new glossary keys each
+
 ## [1.13.0] - 2026-02-25
 
 Leverage system major expansion — Telegram notifications, webhook dispatch, backtesting engine, trailing stop, weak thresholds, and weekly reports.
