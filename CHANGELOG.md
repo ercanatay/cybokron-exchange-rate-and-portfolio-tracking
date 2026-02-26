@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.13.2] - 2026-02-26
+
+### Fixed
+- **metals.dev API integration** — fixed timeseries response parsing to handle actual nested format (`rates.date.metals.{metal}`), added USD/troy oz to TRY/gram conversion using local USD/TRY rate (API ignores `base=TRY` parameter), added 30-day chunking for requests exceeding API's date range limit, added `getUsdTryRate()` helper
+
+### Files Modified
+- `includes/BacktestEngine.php` — rewritten `fetchFromMetalsDev()`, added `splitDateRange()` and `getUsdTryRate()`
+
 ## [1.13.1] - 2026-02-26
 
 ### Added
