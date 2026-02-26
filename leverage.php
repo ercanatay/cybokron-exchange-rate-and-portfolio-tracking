@@ -502,6 +502,42 @@ $newTabText = t('common.opens_new_tab');
             color: var(--text);
         }
 
+        .glossary-item {
+            border-bottom: 1px solid var(--border);
+            padding: 0;
+        }
+        .glossary-item:last-child {
+            border-bottom: none;
+        }
+        .glossary-term {
+            padding: 12px 0;
+            font-weight: 600;
+            font-size: 0.9rem;
+            cursor: pointer;
+            color: var(--text);
+            list-style: none;
+        }
+        .glossary-term::-webkit-details-marker {
+            display: none;
+        }
+        .glossary-term::before {
+            content: '+';
+            display: inline-block;
+            width: 20px;
+            font-weight: 700;
+            color: var(--text-muted);
+            transition: transform 0.15s;
+        }
+        details[open] > .glossary-term::before {
+            content: '\2212';
+        }
+        .glossary-desc {
+            margin: 0 0 12px 20px;
+            font-size: 0.85rem;
+            line-height: 1.6;
+            color: var(--text-muted);
+        }
+
         .form-group {
             margin-bottom: 16px;
         }
@@ -738,9 +774,12 @@ $newTabText = t('common.opens_new_tab');
         <!-- ─── Rules Section ─────────────────────────────────────────────── -->
         <div class="leverage-rules-header">
             <h2><?= t('leverage.rules.title') ?></h2>
-            <button type="button" class="btn btn-primary btn-sm" id="btn-new-rule">
-                <?= t('leverage.rules.new') ?>
-            </button>
+            <div style="display:flex; gap:8px;">
+                <button type="button" class="btn btn-sm" style="background:var(--bg-card); border:1px solid var(--border); color:var(--text-muted);" onclick="openGlossaryModal()"><?= t('leverage.glossary.button') ?></button>
+                <button type="button" class="btn btn-primary btn-sm" id="btn-new-rule">
+                    <?= t('leverage.rules.new') ?>
+                </button>
+            </div>
         </div>
 
         <?php if (empty($rules)): ?>
@@ -1248,6 +1287,27 @@ $newTabText = t('common.opens_new_tab');
         </div>
     </div>
 
+    <!-- ─── Glossary Modal ───────────────────────────────────────────────── -->
+    <div class="modal-overlay" id="glossary-modal">
+        <div class="modal-content" style="max-width:620px; max-height:80vh; overflow-y:auto;">
+            <button type="button" class="modal-close" onclick="closeGlossaryModal()">&times;</button>
+            <h2><?= t('leverage.glossary.title') ?></h2>
+            <?php
+            $glossaryTerms = [
+                'leverage', 'reference_price', 'update_reference', 'buy_threshold', 'sell_threshold',
+                'weak_threshold', 'trailing_stop', 'peak_price', 'backtest', 'ai_analysis',
+                'signal', 'cooldown', 'direction_lock', 'webhook', 'source_type',
+            ];
+            foreach ($glossaryTerms as $term):
+            ?>
+            <details class="glossary-item">
+                <summary class="glossary-term"><?= t('leverage.glossary.' . $term) ?></summary>
+                <p class="glossary-desc"><?= t('leverage.glossary.' . $term . '_desc') ?></p>
+            </details>
+            <?php endforeach; ?>
+        </div>
+    </div>
+
     <footer class="footer">
         <div class="container">
             <p class="footer-links">
@@ -1271,6 +1331,21 @@ $newTabText = t('common.opens_new_tab');
         var leverageFormTitleEdit = <?= json_encode(t('leverage.form.edit_title'), JSON_UNESCAPED_UNICODE | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
         var leverageFormSubmitCreate = <?= json_encode(t('leverage.form.submit'), JSON_UNESCAPED_UNICODE | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
         var leverageFormSubmitUpdate = <?= json_encode(t('leverage.form.update'), JSON_UNESCAPED_UNICODE | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+
+        // Glossary modal functions
+        function openGlossaryModal() {
+            var modal = document.getElementById('glossary-modal');
+            if (modal) modal.classList.add('open');
+            document.body.style.overflow = 'hidden';
+        }
+        function closeGlossaryModal() {
+            var modal = document.getElementById('glossary-modal');
+            if (modal) modal.classList.remove('open');
+            document.body.style.overflow = '';
+        }
+        document.getElementById('glossary-modal')?.addEventListener('click', function(e) {
+            if (e.target === this) closeGlossaryModal();
+        });
 
         // Backtest modal functions (global scope for onclick handlers)
         function openBacktestModal(ruleId) {

@@ -105,6 +105,10 @@
             if (backtestModal && backtestModal.classList.contains('open')) {
                 if (typeof closeBacktestModal === 'function') closeBacktestModal();
             }
+            var glossaryModal = document.getElementById('glossary-modal');
+            if (glossaryModal && glossaryModal.classList.contains('open')) {
+                if (typeof closeGlossaryModal === 'function') closeGlossaryModal();
+            }
         }
     });
 
