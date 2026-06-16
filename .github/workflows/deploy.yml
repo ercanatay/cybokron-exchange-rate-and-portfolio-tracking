@@ -63,7 +63,7 @@ jobs:
           define('SCRAPE_USER_AGENT', 'Cybokron/1.0');
           define('SCRAPE_RETRY_COUNT', 3);
           define('SCRAPE_RETRY_DELAY', 5);
-          define('SCRAPE_ALLOWED_HOSTS', ['dunyakatilim.com.tr', 'www.dunyakatilim.com.tr', 'www.tcmb.gov.tr', 'tcmb.gov.tr', 'kur.doviz.com', 'doviz.com']);
+          define('SCRAPE_ALLOWED_HOSTS', ['dunyakatilim.com.tr', 'www.dunyakatilim.com.tr', 'www.tcmb.gov.tr', 'tcmb.gov.tr', 'kur.doviz.com', 'altin.doviz.com', 'doviz.com']);
           define('OPENROUTER_AI_REPAIR_ENABLED', true);
           define('OPENROUTER_API_KEY', '__OPENROUTER_API_KEY__');
           define('OPENROUTER_MODEL', 'z-ai/glm-5');
