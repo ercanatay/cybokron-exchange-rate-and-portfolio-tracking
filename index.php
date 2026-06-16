@@ -299,6 +299,7 @@ foreach ($widgetConfig as $w) {
                     $profitAmountBuy = $totalValueBuy - $totalCost;
                     $isProfit = $profitPercent >= 0;
                     $isProfitBuy = $profitPercentBuy >= 0;
+                    $inflationTarget = (float) ($portfolioSummary['inflation_target'] ?? 0);
                 ?>
                 <div class="widget-card">
                     <div class="widget-card-header">
@@ -326,6 +327,10 @@ foreach ($widgetConfig as $w) {
                             <div class="portfolio-metric <?= $isProfit ? 'metric-profit' : 'metric-loss' ?>">
                                 <span class="portfolio-metric-label"><?= t('portfolio.summary.profit_loss_sell') ?></span>
                                 <span class="portfolio-metric-value"><?= $isProfit ? '+' : '' ?><?= formatTRY($profitAmount) ?></span>
+                            </div>
+                            <div class="portfolio-metric metric-inflation">
+                                <span class="portfolio-metric-label"><?= t('portfolio.summary.inflation_target') ?></span>
+                                <span class="portfolio-metric-value"><?= formatTRY($inflationTarget) ?></span>
                             </div>
                         </div>
                         <div class="portfolio-profit-badge <?= $isProfitBuy ? 'badge-profit' : 'badge-loss' ?>">

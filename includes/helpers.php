@@ -21,6 +21,7 @@ function cybokron_init(): void
     require_once __DIR__ . '/OpenRouterRateRepair.php';
     require_once __DIR__ . '/GitHubIntegration.php';
     require_once __DIR__ . '/ScraperAutoRepair.php';
+    require_once __DIR__ . '/InflationProvider.php';
     require_once __DIR__ . '/Portfolio.php';
 
     date_default_timezone_set(defined('APP_TIMEZONE') ? APP_TIMEZONE : 'Europe/Istanbul');
