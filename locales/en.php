@@ -106,6 +106,8 @@ return [
     'portfolio.table.cost' => 'Cost (TRY)',
     'portfolio.table.value' => 'Value (TRY)',
     'portfolio.table.pl_percent' => 'P/L (%)',
+    'portfolio.table.pl_percent_buy' => 'P/L Bid (%)',
+    'portfolio.table.pl_percent_sell' => 'P/L Ask (%)',
     'portfolio.table.date' => 'Date',
     'portfolio.table.actions' => 'Actions',
     'portfolio.table.delete_confirm' => 'Are you sure you want to delete this record?',

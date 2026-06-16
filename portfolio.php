@@ -1923,14 +1923,15 @@ $annualizedReturn = ($oldestDate && $analyticsCost > 0)
                                 <th scope="col" class="text-right"><?= t('portfolio.table.current_rate') ?></th>
                                 <th scope="col" class="text-right"><?= t('portfolio.table.cost') ?></th>
                                 <th scope="col" class="text-right"><?= t('portfolio.table.value') ?></th>
-                                <th scope="col" class="text-right"><?= t('portfolio.table.pl_percent') ?></th>
+                                <th scope="col" class="text-right"><?= t('portfolio.table.pl_percent_buy') ?></th>
+                                <th scope="col" class="text-right"><?= t('portfolio.table.pl_percent_sell') ?></th>
                                 <th scope="col"><?= t('portfolio.table.date') ?></th>
                                 <th scope="col"><?= t('portfolio.table.actions') ?></th>
                             </tr>
                         </thead>
                         <tbody>
                             <?php foreach ($filteredItems as $item): ?>
-                                <?php $pl = (float) $item['profit_percent']; ?>
+                                <?php $pl = (float) $item['profit_percent']; $plBuy = (float) ($item['profit_percent_buy'] ?? $pl); ?>
                                 <tr data-id="<?= (int) $item['id'] ?>">
                                     <td class="col-checkbox">
                                         <input type="checkbox" class="row-checkbox" value="<?= (int) $item['id'] ?>">
@@ -2012,6 +2013,9 @@ $annualizedReturn = ($oldestDate && $analyticsCost > 0)
                                     </td>
                                     <td class="text-right mono"><?= formatTRY((float) $item['cost_try']) ?></td>
                                     <td class="text-right mono"><?= formatTRY((float) $item['value_try']) ?></td>
+                                    <td class="text-right <?= changeClass($plBuy) ?>">
+                                        <?= changeArrow($plBuy) ?> % <?= formatNumberLocalized(abs($plBuy), 2) ?>
+                                    </td>
                                     <td class="text-right <?= changeClass($pl) ?>">
                                         <?= changeArrow($pl) ?> % <?= formatNumberLocalized(abs($pl), 2) ?>
                                     </td>
