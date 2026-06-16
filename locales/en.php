@@ -80,7 +80,7 @@ return [
     'portfolio.summary.profit_loss_sell' => 'Profit / Loss (Ask)',
     'portfolio.summary.inflation_target' => 'Inflation-Protected Target (1 yr)',
     'portfolio.summary.inflation_required_yield' => 'Required annual return',
-    'portfolio.summary.inflation_note' => 'Inflation: {rate}% ({source}, {date})',
+    'portfolio.summary.inflation_note' => 'Inflation: {{rate}}% ({{source}}, {{date}})',
     'admin.inflation_settings' => 'Inflation Settings',
     'admin.inflation_settings_desc' => 'Annual ENAG inflation rate used for the inflation-protected target.',
     'admin.inflation_settings_saved' => 'Inflation settings saved.',
