@@ -47,7 +47,9 @@ class Portfolio
                 g.icon AS group_icon,
                 (p.amount * p.buy_rate) AS cost_try,
                 (p.amount * COALESCE(r.sell_rate, p.buy_rate)) AS value_try,
-                ((COALESCE(r.sell_rate, p.buy_rate) - p.buy_rate) / p.buy_rate * 100) AS profit_percent
+                (p.amount * COALESCE(r.buy_rate, p.buy_rate)) AS value_try_buy,
+                ((COALESCE(r.sell_rate, p.buy_rate) - p.buy_rate) / p.buy_rate * 100) AS profit_percent,
+                ((COALESCE(r.buy_rate, p.buy_rate) - p.buy_rate) / p.buy_rate * 100) AS profit_percent_buy
             FROM portfolio p
             JOIN currencies c ON c.id = p.currency_id
             LEFT JOIN banks b ON b.id = p.bank_id
@@ -67,22 +69,29 @@ class Portfolio
         $items = self::getAll();
 
         $totalCost = 0.0;
-        $totalValue = 0.0;
+        $totalValue = 0.0;       // satış kuru (sell_rate) bazlı — yeniden alma değeri
+        $totalValueBuy = 0.0;    // alış kuru (buy_rate/bid) bazlı — bozdurma/nakit değeri
 
         foreach ($items as $item) {
             $totalCost += (float) $item['cost_try'];
             $totalValue += (float) $item['value_try'];
+            $totalValueBuy += (float) ($item['value_try_buy'] ?? $item['value_try']);
         }
 
         $profitLoss = $totalValue - $totalCost;
         $profitPercent = $totalCost > 0 ? ($profitLoss / $totalCost * 100) : 0;
+        $profitLossBuy = $totalValueBuy - $totalCost;
+        $profitPercentBuy = $totalCost > 0 ? ($profitLossBuy / $totalCost * 100) : 0;
 
         return [
             'items' => $items,
             'total_cost' => round($totalCost, 2),
             'total_value' => round($totalValue, 2),
+            'total_value_buy' => round($totalValueBuy, 2),
             'profit_loss' => round($profitLoss, 2),
             'profit_percent' => round($profitPercent, 2),
+            'profit_loss_buy' => round($profitLossBuy, 2),
+            'profit_percent_buy' => round($profitPercentBuy, 2),
             'item_count' => count($items),
         ];
     }

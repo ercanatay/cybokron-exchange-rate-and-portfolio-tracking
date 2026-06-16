@@ -74,6 +74,10 @@ return [
     'portfolio.summary.total_cost' => 'Toplam Maliyet',
     'portfolio.summary.current_value' => 'Güncel Değer',
     'portfolio.summary.profit_loss' => 'Kâr / Zarar',
+    'portfolio.summary.current_value_buy' => 'Güncel Değer (Alış)',
+    'portfolio.summary.current_value_sell' => 'Güncel Değer (Satış)',
+    'portfolio.summary.profit_loss_buy' => 'Kâr / Zarar (Alış)',
+    'portfolio.summary.profit_loss_sell' => 'Kâr / Zarar (Satış)',
 
     'portfolio.form.title' => 'Portföye Ekle',
     'portfolio.form.currency' => 'Döviz',
