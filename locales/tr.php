@@ -106,6 +106,8 @@ return [
     'portfolio.table.cost' => 'Maliyet (₺)',
     'portfolio.table.value' => 'Değer (₺)',
     'portfolio.table.pl_percent' => 'K/Z (%)',
+    'portfolio.table.pl_percent_buy' => 'K/Z Alış (%)',
+    'portfolio.table.pl_percent_sell' => 'K/Z Satış (%)',
     'portfolio.table.date' => 'Tarih',
     'portfolio.table.actions' => 'İşlemler',
     'portfolio.table.delete_confirm' => 'Silmek istediğinize emin misiniz?',
