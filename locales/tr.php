@@ -80,7 +80,7 @@ return [
     'portfolio.summary.profit_loss_sell' => 'Kâr / Zarar (Satış)',
     'portfolio.summary.inflation_target' => 'Enflasyon Korumalı Hedef (1 yıl)',
     'portfolio.summary.inflation_required_yield' => 'Gereken yıllık getiri',
-    'portfolio.summary.inflation_note' => 'Enflasyon: %{rate} ({source}, {date})',
+    'portfolio.summary.inflation_note' => 'Enflasyon: %{{rate}} ({{source}}, {{date}})',
     'admin.inflation_settings' => 'Enflasyon Ayarları',
     'admin.inflation_settings_desc' => 'Enflasyon korumalı hedef için yıllık ENAG enflasyon oranı.',
     'admin.inflation_settings_saved' => 'Enflasyon ayarları kaydedildi.',
