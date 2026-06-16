@@ -291,10 +291,14 @@ foreach ($widgetConfig as $w) {
                 <!-- Portfolio Summary Card -->
                 <?php
                     $totalCost = (float) ($portfolioSummary['total_cost'] ?? 0);
-                    $totalValue = (float) ($portfolioSummary['total_value'] ?? 0);
+                    $totalValue = (float) ($portfolioSummary['total_value'] ?? 0);          // satış kuru
+                    $totalValueBuy = (float) ($portfolioSummary['total_value_buy'] ?? $totalValue); // alış kuru (bozdurma)
                     $profitPercent = (float) ($portfolioSummary['profit_percent'] ?? 0);
+                    $profitPercentBuy = (float) ($portfolioSummary['profit_percent_buy'] ?? $profitPercent);
                     $profitAmount = $totalValue - $totalCost;
+                    $profitAmountBuy = $totalValueBuy - $totalCost;
                     $isProfit = $profitPercent >= 0;
+                    $isProfitBuy = $profitPercentBuy >= 0;
                 ?>
                 <div class="widget-card">
                     <div class="widget-card-header">
@@ -308,17 +312,25 @@ foreach ($widgetConfig as $w) {
                                 <span class="portfolio-metric-value"><?= formatTRY($totalCost) ?></span>
                             </div>
                             <div class="portfolio-metric metric-highlight">
-                                <span class="portfolio-metric-label"><?= t('portfolio.summary.current_value') ?></span>
+                                <span class="portfolio-metric-label"><?= t('portfolio.summary.current_value_buy') ?></span>
+                                <span class="portfolio-metric-value"><?= formatTRY($totalValueBuy) ?></span>
+                            </div>
+                            <div class="portfolio-metric">
+                                <span class="portfolio-metric-label"><?= t('portfolio.summary.current_value_sell') ?></span>
                                 <span class="portfolio-metric-value"><?= formatTRY($totalValue) ?></span>
                             </div>
+                            <div class="portfolio-metric <?= $isProfitBuy ? 'metric-profit' : 'metric-loss' ?>">
+                                <span class="portfolio-metric-label"><?= t('portfolio.summary.profit_loss_buy') ?></span>
+                                <span class="portfolio-metric-value"><?= $isProfitBuy ? '+' : '' ?><?= formatTRY($profitAmountBuy) ?></span>
+                            </div>
                             <div class="portfolio-metric <?= $isProfit ? 'metric-profit' : 'metric-loss' ?>">
-                                <span class="portfolio-metric-label"><?= t('portfolio.summary.profit_loss') ?></span>
+                                <span class="portfolio-metric-label"><?= t('portfolio.summary.profit_loss_sell') ?></span>
                                 <span class="portfolio-metric-value"><?= $isProfit ? '+' : '' ?><?= formatTRY($profitAmount) ?></span>
                             </div>
                         </div>
-                        <div class="portfolio-profit-badge <?= $isProfit ? 'badge-profit' : 'badge-loss' ?>">
-                            <span class="badge-arrow"><?= $isProfit ? '▲' : '▼' ?></span>
-                            %<?= formatNumberLocalized(abs($profitPercent), 2) ?>
+                        <div class="portfolio-profit-badge <?= $isProfitBuy ? 'badge-profit' : 'badge-loss' ?>">
+                            <span class="badge-arrow"><?= $isProfitBuy ? '▲' : '▼' ?></span>
+                            %<?= formatNumberLocalized(abs($profitPercentBuy), 2) ?>
                         </div>
                         <a href="portfolio.php" class="btn-portfolio">
                             <?= t('nav.portfolio') ?>

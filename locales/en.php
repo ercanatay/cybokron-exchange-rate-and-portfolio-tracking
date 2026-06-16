@@ -74,6 +74,10 @@ return [
     'portfolio.summary.total_cost' => 'Total Cost',
     'portfolio.summary.current_value' => 'Current Value',
     'portfolio.summary.profit_loss' => 'Profit / Loss',
+    'portfolio.summary.current_value_buy' => 'Current Value (Bid)',
+    'portfolio.summary.current_value_sell' => 'Current Value (Ask)',
+    'portfolio.summary.profit_loss_buy' => 'Profit / Loss (Bid)',
+    'portfolio.summary.profit_loss_sell' => 'Profit / Loss (Ask)',
 
     'portfolio.form.title' => 'Add to Portfolio',
     'portfolio.form.currency' => 'Currency',

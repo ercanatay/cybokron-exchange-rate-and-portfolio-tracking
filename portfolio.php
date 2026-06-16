@@ -763,11 +763,22 @@ $annualizedReturn = ($oldestDate && $analyticsCost > 0)
                 <p class="card-value"><?= formatTRY((float) $summary['total_cost']) ?></p>
             </div>
             <div class="card">
-                <h3><?= t('portfolio.summary.current_value') ?></h3>
+                <h3><?= t('portfolio.summary.current_value_buy') ?></h3>
+                <p class="card-value"><?= formatTRY((float) ($summary['total_value_buy'] ?? $summary['total_value'])) ?></p>
+            </div>
+            <div class="card">
+                <h3><?= t('portfolio.summary.current_value_sell') ?></h3>
                 <p class="card-value"><?= formatTRY((float) $summary['total_value']) ?></p>
             </div>
+            <div class="card <?= ($summary['profit_loss_buy'] ?? $summary['profit_loss']) >= 0 ? 'card-profit' : 'card-loss' ?>">
+                <h3><?= t('portfolio.summary.profit_loss_buy') ?></h3>
+                <p class="card-value">
+                    <?= formatTRY((float) ($summary['profit_loss_buy'] ?? $summary['profit_loss'])) ?>
+                    <small>(% <?= formatNumberLocalized((float) ($summary['profit_percent_buy'] ?? $summary['profit_percent']), 2) ?>)</small>
+                </p>
+            </div>
             <div class="card <?= $summary['profit_loss'] >= 0 ? 'card-profit' : 'card-loss' ?>">
-                <h3><?= t('portfolio.summary.profit_loss') ?></h3>
+                <h3><?= t('portfolio.summary.profit_loss_sell') ?></h3>
                 <p class="card-value">
                     <?= formatTRY((float) $summary['profit_loss']) ?>
                     <small>(% <?= formatNumberLocalized((float) $summary['profit_percent'], 2) ?>)</small>
