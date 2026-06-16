@@ -784,6 +784,21 @@ $annualizedReturn = ($oldestDate && $analyticsCost > 0)
                     <small>(% <?= formatNumberLocalized((float) $summary['profit_percent'], 2) ?>)</small>
                 </p>
             </div>
+            <?php $inflMeta = $summary['inflation_meta'] ?? ['source' => 'manual', 'updated_at' => null]; ?>
+            <div class="card card-inflation">
+                <h3><?= t('portfolio.summary.inflation_target') ?></h3>
+                <p class="card-value">
+                    <?= formatTRY((float) ($summary['inflation_target'] ?? 0)) ?>
+                    <?php if (($summary['inflation_required_yield'] ?? null) !== null): ?>
+                        <small>(<?= t('portfolio.summary.inflation_required_yield') ?>: % <?= formatNumberLocalized((float) $summary['inflation_required_yield'], 2) ?>)</small>
+                    <?php endif; ?>
+                </p>
+                <small class="card-subnote"><?= t('portfolio.summary.inflation_note', [
+                    'rate' => formatNumberLocalized((float) ($summary['inflation_rate'] ?? 0), 2),
+                    'source' => (string) $inflMeta['source'],
+                    'date' => substr((string) ($inflMeta['updated_at'] ?? '-'), 0, 10),
+                ]) ?></small>
+            </div>
         </section>
 
         <!-- Combined Groups & Tags Management Panel -->

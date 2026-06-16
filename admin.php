@@ -210,6 +210,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         $messageType = 'success';
     }
 
+    if ($_POST['action'] === 'save_inflation_settings') {
+        $infRate = (float) str_replace(',', '.', trim((string) ($_POST['inflation_annual_rate'] ?? '')));
+        $infLocked = isset($_POST['inflation_locked']);
+
+        if ($infRate >= 0 && $infRate <= 500) {
+            InflationProvider::setRate($infRate, 'manual');
+            InflationProvider::setLocked($infLocked);
+            $message = t('admin.inflation_settings_saved');
+            $messageType = 'success';
+        } else {
+            $message = t('admin.inflation_settings_error');
+            $messageType = 'error';
+        }
+    }
+
     if ($_POST['action'] === 'save_leverage_settings') {
         $leverageEnabled = isset($_POST['leverage_enabled']) ? '1' : '0';
         $leverageAiEnabled = isset($_POST['leverage_ai_enabled']) ? '1' : '0';
@@ -408,7 +423,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         }
     }
 
-    if (!in_array($_POST['action'], ['update_rates', 'toggle_bank', 'toggle_currency', 'toggle_homepage', 'set_default_bank', 'update_rate_order', 'set_chart_defaults', 'save_widget_config', 'toggle_noindex', 'set_retention_days', 'save_deposit_rate', 'toggle_deposit_comparison', 'save_openrouter_settings', 'toggle_layout_default', 'save_leverage_settings', 'test_leverage_email', 'test_leverage_signal_buy', 'test_leverage_signal_sell', 'test_telegram'], true)) {
+    if (!in_array($_POST['action'], ['update_rates', 'toggle_bank', 'toggle_currency', 'toggle_homepage', 'set_default_bank', 'update_rate_order', 'set_chart_defaults', 'save_widget_config', 'toggle_noindex', 'set_retention_days', 'save_deposit_rate', 'toggle_deposit_comparison', 'save_openrouter_settings', 'save_inflation_settings', 'toggle_layout_default', 'save_leverage_settings', 'test_leverage_email', 'test_leverage_signal_buy', 'test_leverage_signal_sell', 'test_telegram'], true)) {
         header('Location: admin.php');
         exit;
     }
@@ -1193,6 +1208,46 @@ foreach ($allRates as $r) {
                         <div class="or-actions">
                             <button type="submit" class="btn btn-primary"><?= t('admin.save') ?></button>
                             <a href="openrouter.php" class="btn-action"><?= t('admin.openrouter_panel_link') ?> →</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <?php $inflMeta = InflationProvider::getMeta(); ?>
+            <!-- Inflation Settings -->
+            <div class="admin-card">
+                <div class="admin-card-header">
+                    <div class="admin-card-header-left">
+                        <div class="admin-card-icon" style="background: linear-gradient(135deg, #f59e0b20, #fbbf2420);">📈</div>
+                        <div>
+                            <h2><?= t('admin.inflation_settings') ?></h2>
+                            <p><?= t('admin.inflation_settings_desc') ?></p>
+                        </div>
+                    </div>
+                    <span class="badge badge-muted"><?= htmlspecialchars((string) $inflMeta['source']) ?> · <?= htmlspecialchars((string) ($inflMeta['updated_at'] ?? '-')) ?></span>
+                </div>
+                <div class="admin-card-body">
+                    <form method="POST" class="or-settings-form">
+                        <input type="hidden" name="action" value="save_inflation_settings">
+                        <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
+                        <div class="or-field-group">
+                            <div class="or-field">
+                                <label for="inflation_annual_rate"><?= t('admin.inflation_rate_label') ?></label>
+                                <input type="text" id="inflation_annual_rate" name="inflation_annual_rate"
+                                       value="<?= htmlspecialchars((string) $inflMeta['rate']) ?>"
+                                       placeholder="53.13" spellcheck="false" inputmode="decimal">
+                                <small class="or-field-hint"><?= t('admin.inflation_rate_hint') ?></small>
+                            </div>
+                            <div class="or-field">
+                                <label class="or-checkbox-label">
+                                    <input type="checkbox" name="inflation_locked" value="1" <?= $inflMeta['locked'] ? 'checked' : '' ?>>
+                                    <?= t('admin.inflation_locked_label') ?>
+                                </label>
+                                <small class="or-field-hint"><?= t('admin.inflation_locked_hint') ?></small>
+                            </div>
+                        </div>
+                        <div class="or-actions">
+                            <button type="submit" class="btn btn-primary"><?= t('admin.save') ?></button>
                         </div>
                     </form>
                 </div>

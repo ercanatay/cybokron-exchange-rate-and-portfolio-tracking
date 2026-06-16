@@ -83,6 +83,15 @@ class Portfolio
         $profitLossBuy = $totalValueBuy - $totalCost;
         $profitPercentBuy = $totalCost > 0 ? ($profitLossBuy / $totalCost * 100) : 0;
 
+        // Enflasyon korumalı hedef (1 yıl): anaparanın reel değerini korumak için
+        // gereken nominal tutar = maliyet × (1 + yıllık enflasyon).
+        $inflationMeta = InflationProvider::getMeta();
+        $inflationTarget = $totalCost * InflationProvider::getMultiplier();
+        // Hedefe ulaşmak için bugünkü (alış/bozdurma) değerden gereken yıllık nominal getiri %.
+        $inflationRequiredYield = $totalValueBuy > 0
+            ? (($inflationTarget / $totalValueBuy) - 1) * 100
+            : null;
+
         return [
             'items' => $items,
             'total_cost' => round($totalCost, 2),
@@ -92,6 +101,10 @@ class Portfolio
             'profit_percent' => round($profitPercent, 2),
             'profit_loss_buy' => round($profitLossBuy, 2),
             'profit_percent_buy' => round($profitPercentBuy, 2),
+            'inflation_rate' => $inflationMeta['rate'],
+            'inflation_target' => round($inflationTarget, 2),
+            'inflation_required_yield' => $inflationRequiredYield !== null ? round($inflationRequiredYield, 2) : null,
+            'inflation_meta' => $inflationMeta,
             'item_count' => count($items),
         ];
     }
