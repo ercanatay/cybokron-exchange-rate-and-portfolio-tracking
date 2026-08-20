@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.13.3] - 2026-08-20
+
+### Fixed
+- **"Remember me" logged users out after a few hours** — `Auth::loginFromRememberToken()` deleted the token row and immediately issued a replacement. Because requests that carry the same cookie arrive concurrently (a page navigation next to the 5-minute rate poll, several tabs, the PWA precache), only one could win the rotation; every sibling found no row, failed to authenticate and rendered a logged-out page — and on `portfolio.php` was redirected to `login.php`. The outgoing token now stays valid for a 60-second grace window and exactly one request mints the replacement, so concurrent requests all authenticate and the browser is handed a single new cookie. Reproduced at 0/5 concurrent requests authenticating before the fix, 5/5 after.
+- **Token pruning could evict a token still in use** — the "keep newest 4" cleanup ordered by `created_at`, which only has second granularity, so tokens minted in the same second tied and the retained set was arbitrary. Now orders by the monotonic `id` and keeps 5, leaving room for the predecessor sitting in its grace window.
+- **Service worker cached authenticated pages** — the fetch handler stored every `.php` response, including signed-in dashboards, in a shared Cache Storage bucket, and `STATIC_ASSETS` precached `/`, `/index.php` and `/login.php`. That leaked one visit's markup into the next (a four-month-old signed-in `/leverage.php` snapshot was found in a live browser cache) and re-served stale "signed out" pages over valid sessions. The precache also fired several credentialed requests at once during install, which is one of the things that raced the token rotation. HTML/PHP responses are no longer cached; only static assets are, and navigations fall back to a state-free offline page. `CACHE_NAME` bumped to `cybokron-v5` so existing clients evict the old bucket.
+
+### Files Modified
+- `includes/Auth.php` — added `ROTATION_GRACE`, replaced the delete-then-reissue rotation with a guarded atomic `UPDATE` claim, made token pruning deterministic
+- `sw.js` — static assets only, no HTML/PHP caching, offline fallback page, cache version bump
+- `tests/integration/remember_me_race.php` — new manual regression test for concurrent recovery (not run by CI; needs a live server and database)
+
 ## [1.13.2] - 2026-02-26
 
 ### Fixed
