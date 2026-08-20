@@ -10,6 +10,15 @@ class Auth
     private const REMEMBER_COOKIE = 'cybokron_remember';
     private const REMEMBER_LIFETIME = 30 * 24 * 3600; // 30 days
 
+    /**
+     * Grace period (seconds) during which a just-rotated remember token still
+     * authenticates. Requests that share a cookie arrive concurrently — a page
+     * navigation next to the 5-minute rate poll, several tabs, a PWA precache —
+     * and only one of them can win the rotation. Without a grace window the
+     * losers find no token row and get bounced to login.php.
+     */
+    private const ROTATION_GRACE = 60;
+
     public static function init(): void
     {
         ensureWebSessionStarted();
@@ -129,10 +138,14 @@ class Auth
         $hashedValidator = hash('sha256', $validator);
         $expiresAt = date('Y-m-d H:i:s', time() + self::REMEMBER_LIFETIME);
 
-        // Clean up old tokens for this user (max 5 active tokens)
+        // Clean up old tokens for this user (max 6 active tokens).
+        // Ordering by id, not created_at: created_at only has second granularity, so
+        // tokens minted in the same second tie and the "newest" set is arbitrary —
+        // which can evict the predecessor we just moved into its rotation grace
+        // window. id is monotonic, and keeping 5 leaves room for that predecessor.
         Database::execute(
             'DELETE FROM remember_tokens WHERE user_id = ? AND (expires_at < NOW() OR id NOT IN (
-                SELECT id FROM (SELECT id FROM remember_tokens WHERE user_id = ? ORDER BY created_at DESC LIMIT 4) AS keep
+                SELECT id FROM (SELECT id FROM remember_tokens WHERE user_id = ? ORDER BY id DESC LIMIT 5) AS keep
             ))',
             [$userId, $userId]
         );
@@ -207,9 +220,24 @@ class Auth
         $_SESSION['cybokron_role'] = $user['role'];
         session_regenerate_id(true);
 
-        // Rotate token (issue new one, delete old)
-        Database::execute('DELETE FROM remember_tokens WHERE id = ?', [$token['id']]);
-        self::issueRememberToken((int) $user['id']);
+        // Rotate the token, but leave the outgoing one usable for ROTATION_GRACE
+        // seconds so sibling requests sent with the same cookie still authenticate.
+        //
+        // The guarded UPDATE is the atomic claim — MySQL decides the single winner.
+        // Requiring expires_at to still be beyond the grace horizon means a row
+        // already in grace is never shortened again, so sustained concurrency
+        // (the 5-minute rate poll) cannot keep a stale token alive indefinitely.
+        $graceExpiry = date('Y-m-d H:i:s', time() + self::ROTATION_GRACE);
+        $claimed = Database::execute(
+            'UPDATE remember_tokens SET expires_at = ? WHERE id = ? AND expires_at > ?',
+            [$graceExpiry, $token['id'], $graceExpiry]
+        );
+
+        // Only the winner mints the replacement, so the browser is handed exactly
+        // one new cookie instead of N competing ones.
+        if ($claimed > 0) {
+            self::issueRememberToken((int) $user['id']);
+        }
     }
 
     /**
