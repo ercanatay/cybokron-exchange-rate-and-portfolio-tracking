@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.13.5] - 2026-08-20
+
+### Fixed
+- **Cron configuration never reached production** — the "Configure cron jobs" deploy step failed with `ssh: connect to host *** port 22: Connection refused` on every run. It is the sixth SSH connection in about six seconds and the host's brute-force protection refuses it at the TCP level, while all five earlier steps (backup, rsync, post-deploy setup, error log, migrations) succeed on the same key and port. Because the step is `continue-on-error: true` the run still reported success, so the failure had been passing unnoticed since at least v1.13.2. The remote script is now sent from a file and retried up to 3 times with backoff after letting the throttle window pass. A cron hiccup still cannot block a deploy, but it now raises a `::warning::` annotation on the run instead of a buried error.
+
+  Nothing was broken in production as a result: the crontab was installed previously and the failing step could not modify it. The risk was silent drift — changes under `cron/` would not have been applied.
+
+### Files Modified
+- `.github/workflows/deploy.yml` — cron step wrapped in a retry loop; the 59-line remote script is unchanged
+
 ## [1.13.4] - 2026-08-20
 
 ### Fixed
