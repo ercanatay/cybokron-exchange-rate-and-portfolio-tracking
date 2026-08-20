@@ -10,6 +10,11 @@ permissions:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    env:
+      # Share one TCP connection across every ssh/rsync call in this job.
+      # The host refuses the sixth connection within a few seconds and keeps
+      # refusing for minutes, which used to kill the cron step outright.
+      SSH_MUX: -o ControlMaster=auto -o ControlPath=/tmp/cybokron-ssh-%C -o ControlPersist=300
 
     steps:
       - name: Checkout code
@@ -149,7 +154,7 @@ jobs:
       - name: Backup current deployment
         run: |
           TIMESTAMP=$(date +%Y%m%d-%H%M%S)
-          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no $SSH_MUX \
             ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} bash -s << BACKUP_EOF
           set -e
           mkdir -p ~/cybokron-backups
@@ -207,12 +212,12 @@ jobs:
             --exclude='docs/' \
             --exclude='repairs/' \
             --exclude='error_log' \
-            -e "ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no" \
+            -e "ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no $SSH_MUX" \
             ./ ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ secrets.DEPLOY_PATH }}
 
       - name: Post-deploy setup
         run: |
-          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no $SSH_MUX \
             ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} \
             'mkdir -p ~/cybokron-logs ~/cybokron-backups && chmod 600 ~/public_html/config.php && rm -rf /tmp/cybokron_rate_limits && echo "Deploy OK at $(date)"'
 
@@ -220,7 +225,7 @@ jobs:
         if: always()
         run: |
           echo "=== PHP error_log location ==="
-          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no $SSH_MUX \
             ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} \
             "php -r \"echo ini_get('error_log') . PHP_EOL;\" && \
              echo '--- public_html/error_log ---' && \
@@ -245,7 +250,7 @@ jobs:
           fi
 
           # Run all DB operations in a single SSH session
-          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no $SSH_MUX \
             ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} \
             "cd ~/public_html && \
              echo '=== Migrations ===' && \
@@ -345,12 +350,10 @@ jobs:
           fi
           CRON_EOF
 
-          sleep 15
-
           attempt=1
           max=3
           while [ "$attempt" -le "$max" ]; do
-            if ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no -o ConnectTimeout=15 \
+            if ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no $SSH_MUX -o ConnectTimeout=15 \
                  "${SSH_USER}@${SSH_HOST}" bash -s < /tmp/configure_cron.sh; then
               echo "Cron configuration applied on attempt ${attempt}"
               exit 0
