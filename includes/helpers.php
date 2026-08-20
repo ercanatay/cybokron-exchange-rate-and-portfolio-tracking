@@ -42,6 +42,23 @@ function getAppVersion(): string
 }
 
 /**
+ * Cache-busted URL for a static asset, e.g. assetUrl('assets/js/app.js').
+ *
+ * Assets are served with `Cache-Control: max-age=604800` and Cloudflare honours
+ * it, so a plain filename means an edited JS/CSS file can take up to a week to
+ * reach browsers. Appending filemtime gives every revision its own URL. Resolves
+ * against the application root, so it works from any include depth.
+ */
+function assetUrl(string $relativePath): string
+{
+    $relativePath = ltrim($relativePath, '/');
+    $absolute = dirname(__DIR__) . '/' . $relativePath;
+    $version = is_file($absolute) ? (string) filemtime($absolute) : '0';
+
+    return htmlspecialchars($relativePath . '?v=' . $version, ENT_QUOTES);
+}
+
+/**
  * Start session for web requests when needed.
  */
 function ensureWebSessionStarted(): void

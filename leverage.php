@@ -1367,7 +1367,7 @@ $newTabText = t('common.opens_new_tab');
         });
         <?php endif; ?>
     </script>
-    <script src="assets/js/leverage.js?v=<?= time() ?>" defer></script>
+    <script src="<?= assetUrl('assets/js/leverage.js') ?>" defer></script>
 </body>
 
 </html>

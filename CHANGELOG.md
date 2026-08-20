@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.13.4] - 2026-08-20
+
+### Fixed
+- **Static asset changes took up to a week to reach browsers** — JS files were referenced by plain filename while being served with `Cache-Control: max-age=604800`, which Cloudflare honours. A deployed JS change therefore sat behind the CDN cache for days. Found while verifying 1.13.3: `sw.js?v=4` came back `cf-cache-status: HIT`, `age: 159497`, `last-modified: 2026-02-14` — the edge was still serving February's worker, so the 1.13.3 service-worker fix could not reach any client. New `assetUrl()` helper appends `filemtime` so every revision gets its own URL; applied to all 11 local script/stylesheet references. `currency-icons.css` had no cache-buster at all and now has one.
+- **Service worker registration version was stale** — `bootstrap.js` registered `sw.js?v=4`. `updateViaCache: 'none'` only bypasses the *browser's* HTTP cache; the CDN still serves the old file for an unchanged URL, so the query has to change for a new worker to install. Bumped to `?v=5` to match `CACHE_NAME`, with a comment recording that the two must move together.
+- **`leverage.js` was never cacheable** — its cache-buster was `?v=<?= time() ?>`, giving a fresh URL on every page load. Now uses `assetUrl()`, so it caches until the file actually changes.
+
+### Files Modified
+- `includes/helpers.php` — new `assetUrl()` helper
+- `assets/js/bootstrap.js` — service worker registration bumped to `?v=5`
+- `index.php`, `includes/header.php`, `portfolio.php`, `leverage.php`, `observability.php` — asset references routed through `assetUrl()`
+
 ## [1.13.3] - 2026-08-20
 
 ### Fixed
