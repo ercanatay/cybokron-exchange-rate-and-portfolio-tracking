@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.13.7] - 2026-08-20
+
+### Changed
+- **Removed dead code from the cron deploy step** — `MAIN_CRON` and `CLEANUP_CRON` were assigned and never read. They mirrored the crontab entries defined further down in the heredoc, so they read like the source of truth while having no effect; a later edit to one and not the other would have been silently misleading. No behaviour change: the two real crontab lines and the verification loop are untouched.
+
+### Files Modified
+- `.github/workflows/deploy.yml` — dropped 4 dead lines from the cron script (59 → 55 lines)
+
 ## [1.13.6] - 2026-08-20
 
 ### Fixed
