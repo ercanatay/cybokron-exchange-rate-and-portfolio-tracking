@@ -432,7 +432,7 @@ $version = getAppVersion();
         </div>
     </footer>
 
-    <script src="assets/js/repair-progress.js?v=<?= filemtime(__DIR__ . '/assets/js/repair-progress.js') ?>"></script>
+    <script src="<?= assetUrl('assets/js/repair-progress.js') ?>"></script>
 </body>
 
 </html>

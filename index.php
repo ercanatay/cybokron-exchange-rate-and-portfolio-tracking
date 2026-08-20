@@ -149,7 +149,7 @@ foreach ($widgetConfig as $w) {
         <link rel="icon" type="image/svg+xml" href="favicon.svg">
         <link rel="manifest" href="manifest.json">
         <link rel="stylesheet" href="assets/css/style.css?v=<?= filemtime(__DIR__ . '/assets/css/style.css') ?>">
-        <link rel="stylesheet" href="assets/css/currency-icons.css">
+        <link rel="stylesheet" href="<?= assetUrl('assets/css/currency-icons.css') ?>">
 </head>
 <body>
     <a href="#main-content" class="skip-link"><?= t('common.skip_to_content') ?></a>
@@ -473,14 +473,14 @@ foreach ($widgetConfig as $w) {
     </footer>
 
     <script id="cybokron-rates-data" type="application/json"><?= json_encode($converterRates ?? []) ?></script>
-    <script src="assets/js/bootstrap.js" defer></script>
-    <script src="assets/js/lib/chart.umd.min.js" defer></script>
-    <script src="assets/js/app.js" defer></script>
+    <script src="<?= assetUrl('assets/js/bootstrap.js') ?>" defer></script>
+    <script src="<?= assetUrl('assets/js/lib/chart.umd.min.js') ?>" defer></script>
+    <script src="<?= assetUrl('assets/js/app.js') ?>" defer></script>
     <?php if (!empty($converterRates)): ?>
-    <script src="assets/js/converter.js" defer></script>
+    <script src="<?= assetUrl('assets/js/converter.js') ?>" defer></script>
     <?php endif; ?>
     <?php if (!empty($chartCurrencies)): ?>
-    <script src="assets/js/chart.js" defer></script>
+    <script src="<?= assetUrl('assets/js/chart.js') ?>" defer></script>
     <?php endif; ?>
 </body>
 </html>

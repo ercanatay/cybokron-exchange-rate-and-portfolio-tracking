@@ -2480,7 +2480,7 @@ $annualizedReturn = ($oldestDate && $analyticsCost > 0)
     </script>
     <?php if (!empty($distribution)): ?>
         <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" crossorigin="anonymous"></script>
-        <script src="assets/js/portfolio-analytics.js"></script>
+        <script src="<?= assetUrl('assets/js/portfolio-analytics.js') ?>"></script>
     <?php endif; ?>
 </body>
 

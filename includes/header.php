@@ -230,5 +230,5 @@ $_isAdmin = Auth::check() && Auth::isAdmin();
     }
 })();
 </script>
-<script src="assets/js/theme.js" defer></script>
-<script src="assets/js/layout.js" defer></script>
+<script src="<?= assetUrl('assets/js/theme.js') ?>" defer></script>
+<script src="<?= assetUrl('assets/js/layout.js') ?>" defer></script>
