@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.13.6] - 2026-08-20
+
+### Fixed
+- **Cron configuration still never reached production** — the retry added in 1.13.5 did not help: all three attempts were refused across 75 seconds of backoff, so the block lasts minutes, not seconds. The trigger is the connection *count*, not timing — the deploy opens six SSH connections in about six seconds and the host refuses from the sixth onward. Every ssh/rsync call in the job now shares a single TCP connection via OpenSSH multiplexing (`ControlMaster=auto`, `ControlPath=/tmp/cybokron-ssh-%C`, `ControlPersist=300`), taking the deploy from six connections to one. The retry loop stays as a safety net, and the unconditional 15-second wait from 1.13.5 is gone since it no longer buys anything.
+
+  The 1.13.5 warning annotation did its job — it is what made this visible instead of a buried `exit 255`.
+
+### Files Modified
+- `.github/workflows/deploy.yml` — job-level `SSH_MUX`, applied to all six ssh/rsync invocations
+
 ## [1.13.5] - 2026-08-20
 
 ### Fixed
