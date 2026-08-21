@@ -4,9 +4,9 @@
 
 | Version | Supported |
 |---------|-----------|
-| 1.9.x   | Yes       |
-| 1.8.x   | Security fixes only |
-| < 1.8   | No        |
+| 1.13.x  | Yes       |
+| 1.12.x  | Security fixes only |
+| < 1.12  | No        |
 
 ## Reporting a Vulnerability
 
@@ -72,6 +72,12 @@ Cybokron includes the following security measures:
 
 | Version | Date | Summary |
 |---------|------|---------|
+| 1.13.8 | 2026-08-21 | Fix `Secure` cookie flag silently dropping if the reverse proxy's TLS-termination mode ever changes; detect HTTPS from `X-Forwarded-Proto`/`CF-Visitor` as well as the origin hop |
+| 1.10.10 | 2026-02-15 | Replace CSP `unsafe-inline` with a per-request nonce, enforce strict `user_id` ownership on goal sources, defense-in-depth headers |
+| 1.10.9 | 2026-02-15 | Replace session-extension Remember Me with a selector:validator token system (SHA-256 hashed, rotated on use, theft detection) |
+| 1.10.8 | 2026-02-15 | CSRF token rotation after POST, API key AES-256-GCM encryption at rest, cron file locking |
+| 1.10.7 | 2026-02-15 | Fix auth fail-open, add Basic Auth rate limiting, block SSRF via private-IP resolution, goal source ownership validation |
+| 1.10.6 | 2026-02-15 | Bind Basic Auth identity to session, add 5-minute session revalidation, remove ownership-bypass patterns |
 | 1.9.2 | 2026-02-14 | Fix unauthenticated API write access, LFI in loadBankScraper, CAGR overflow, email validation |
 | 1.9.1 | 2026-02-14 | Fix IDOR on tag/group/goal APIs, SSRF via webhooks, XSS, open redirect, schema integrity |
 | 1.5.5 | 2026-02-14 | Fix CSRF bypass on goals, IDOR on goal operations, stored XSS, race condition |

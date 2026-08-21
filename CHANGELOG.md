@@ -69,8 +69,27 @@ All notable changes to this project will be documented in this file.
 ### Fixed
 - **metals.dev API integration** — fixed timeseries response parsing to handle actual nested format (`rates.date.metals.{metal}`), added USD/troy oz to TRY/gram conversion using local USD/TRY rate (API ignores `base=TRY` parameter), added 30-day chunking for requests exceeding API's date range limit, added `getUsdTryRate()` helper
 
+### Added
+*The four items below merged on 2026-06-16 without a version bump — `VERSION` stayed at 1.13.2 until 1.13.3, so they are documented here retroactively rather than under a version number that was never cut.*
+
+- **Physical gold tracking (Harem)** — `HaremAltinScraper` reads `altin.doviz.com/harem`'s socket-bound bid/ask cells instead of misusing XAU (ounce spot) for physical holdings. New `GRAMALTIN` and `BILEZIK22` currencies, "Harem Fiziki Altın" bank source.
+- **Buy/sell split for portfolio value & P/L** — `Portfolio::getSummary()` now also returns bid-based `total_value_buy`, `profit_loss_buy`, `profit_percent_buy` (real liquidation value) alongside the existing ask-based figures. `portfolio.php` shows both as separate cards (buy primary); the `index.php` widget mirrors it.
+- **Buy/sell split for the K/Z% table column** — the portfolio table now shows both `profit_percent_buy` (primary) and the existing `profit_percent` per row.
+- **Inflation-protected target value** — shows the nominal TRY the portfolio must reach in 1 year so the invested principal doesn't lose real value to inflation (`total_cost * (1 + annual_rate)`). New `InflationProvider` (settings-backed), migration for `inflation_annual_rate`/`source`/`locked`, admin manual-rate entry (ENAG) with lock, cards on `portfolio.php` and `index.php`. Rate is manual; auto-scrape from enagrup.org deferred (unreachable/525 at the time).
+
+### Files Added
+- `banks/HaremAltinScraper.php`
+- `includes/InflationProvider.php`
+- `database/migrations/015_add_physical_gold.sql`, `database/migrations/016_add_inflation_settings.sql`
+
 ### Files Modified
 - `includes/BacktestEngine.php` — rewritten `fetchFromMetalsDev()`, added `splitDateRange()` and `getUsdTryRate()`
+- `includes/Portfolio.php` — buy-side summary fields
+- `includes/helpers.php` — inflation helper wiring
+- `index.php`, `portfolio.php` — buy/sell split cards + table column, inflation target cards
+- `admin.php` — inflation rate manual-entry form with lock
+- `config.sample.php`, `.github/workflows/deploy.yml` — allow `altin.doviz.com` in `SCRAPE_ALLOWED_HOSTS`
+- `locales/tr.php`, `locales/en.php` — new labels for both features (`{{...}}` placeholder fix included)
 
 ## [1.13.1] - 2026-02-26
 
