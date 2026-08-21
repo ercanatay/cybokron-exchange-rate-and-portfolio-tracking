@@ -59,6 +59,50 @@ function assetUrl(string $relativePath): string
 }
 
 /**
+ * Whether the visitor's original request was HTTPS.
+ *
+ * $_SERVER['HTTPS'] alone only reflects the CDN-to-origin hop. Production sits
+ * behind Cloudflare in Full/Strict mode today, where that hop is TLS too, so
+ * HTTPS is set. If the zone is ever switched to Flexible, the CDN-to-origin
+ * hop becomes plain HTTP and HTTPS silently goes empty — every cookie in this
+ * app would drop the Secure flag with no error, even though the browser is
+ * still talking HTTPS to Cloudflare. X-Forwarded-Proto and CF-Visitor both
+ * describe the visitor's original scheme regardless of that inner hop, so
+ * checking them closes the gap.
+ *
+ * These headers are attacker-controllable on a direct request that bypasses
+ * the CDN, but that can only push this function toward "true" — the failure
+ * mode is a Secure-flagged cookie the browser then refuses to store over a
+ * genuinely plain-HTTP connection (visible breakage), never a cookie sent
+ * without Secure that didn't need it.
+ */
+function requestIsHttps(): bool
+{
+    if (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') {
+        return true;
+    }
+
+    if ((string) ($_SERVER['SERVER_PORT'] ?? '') === '443') {
+        return true;
+    }
+
+    $forwardedProto = (string) ($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '');
+    if ($forwardedProto !== '') {
+        $first = trim(explode(',', $forwardedProto)[0]);
+        if (strcasecmp($first, 'https') === 0) {
+            return true;
+        }
+    }
+
+    $cfVisitor = (string) ($_SERVER['HTTP_CF_VISITOR'] ?? '');
+    if ($cfVisitor !== '' && stripos($cfVisitor, '"scheme":"https"') !== false) {
+        return true;
+    }
+
+    return false;
+}
+
+/**
  * Start session for web requests when needed.
  */
 function ensureWebSessionStarted(): void
@@ -68,7 +112,7 @@ function ensureWebSessionStarted(): void
     }
 
     if (session_status() === PHP_SESSION_NONE) {
-        $isSecure = !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off';
+        $isSecure = requestIsHttps();
 
         // Security: harden session behavior before creating the session cookie.
         ini_set('session.use_strict_mode', '1');
@@ -119,8 +163,7 @@ function applySecurityHeaders(string $context = 'html'): void
         header('Content-Security-Policy: ' . $cspPolicy);
     }
 
-    $isSecure = !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off';
-    if ($isSecure) {
+    if (requestIsHttps()) {
         $hstsMaxAge = defined('HSTS_MAX_AGE_SECONDS') ? max(0, (int) HSTS_MAX_AGE_SECONDS) : 31536000;
         if ($hstsMaxAge > 0) {
             header('Strict-Transport-Security: max-age=' . $hstsMaxAge . '; includeSubDomains');
@@ -679,7 +722,7 @@ function initializeLocale(): void
         }
 
         if (!headers_sent()) {
-            $isSecure = !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off';
+            $isSecure = requestIsHttps();
             setcookie('cybokron_locale', $locale, [
                 'expires' => time() + 31536000,
                 'path' => '/',

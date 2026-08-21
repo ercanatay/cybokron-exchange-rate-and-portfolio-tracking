@@ -57,7 +57,7 @@ class Auth
         // Clear remember-me token from DB and cookie
         if (isset($_COOKIE[self::REMEMBER_COOKIE])) {
             self::clearRememberToken($_COOKIE[self::REMEMBER_COOKIE]);
-            $isSecure = !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off';
+            $isSecure = requestIsHttps();
             setcookie(self::REMEMBER_COOKIE, '', [
                 'expires'  => time() - 3600,
                 'path'     => '/',
@@ -157,7 +157,7 @@ class Auth
             'expires_at' => $expiresAt,
         ]);
 
-        $isSecure = !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off';
+        $isSecure = requestIsHttps();
         setcookie(self::REMEMBER_COOKIE, $selector . ':' . $validator, [
             'expires'  => time() + self::REMEMBER_LIFETIME,
             'path'     => '/',

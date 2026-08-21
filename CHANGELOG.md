@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.13.8] - 2026-08-21
+
+### Fixed
+- **The `Secure` cookie flag would silently disappear if Cloudflare is ever switched to Flexible SSL.** Every cookie in the app (`PHPSESSID`, `cybokron_remember`, `cybokron_locale`) decided `Secure` from `$_SERVER['HTTPS']` alone, which only reflects the CDN-to-origin hop. Production is on Full/Strict today, so that hop is TLS and `HTTPS` is set — but a future switch to Flexible makes that hop plain HTTP, and `HTTPS` goes empty with no error, even though the browser is still talking HTTPS to Cloudflare. New `requestIsHttps()` helper also checks `X-Forwarded-Proto` and Cloudflare's `CF-Visitor` header, both of which describe the visitor's original scheme regardless of the CDN-to-origin hop. These headers are attacker-controllable on a request that bypasses the CDN entirely, but that can only push the result toward `true` — the failure mode is a `Secure` cookie the browser then refuses to store over a genuinely plain-HTTP connection (visible breakage), never a cookie sent without `Secure` that needed it. Applied to all 5 call sites (session cookie, HSTS header, locale cookie, remember-me issue and clear).
+
+### Files Modified
+- `includes/helpers.php` — new `requestIsHttps()` helper, applied to the session cookie, HSTS header and locale cookie
+- `includes/Auth.php` — remember-me cookie issue and clear now use `requestIsHttps()`
+- `tests/run.php` — 11 new cases; confirmed to actually fail when the `X-Forwarded-Proto` branch is removed
+
 ## [1.13.7] - 2026-08-20
 
 ### Changed

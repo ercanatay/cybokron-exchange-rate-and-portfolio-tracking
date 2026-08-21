@@ -83,4 +83,42 @@ assertSameStrict(normalizeLocale('tr'), 'tr', 'normalizeLocale tr');
 assertSameStrict(normalizeLocale('en'), 'en', 'normalizeLocale en');
 assertSameStrict(normalizeLocale('xx'), 'tr', 'normalizeLocale invalid falls back to default');
 
+// requestIsHttps
+$originalServer = $_SERVER;
+function withServer(array $overrides, callable $fn)
+{
+    global $originalServer;
+    $_SERVER = $originalServer;
+    unset($_SERVER['HTTPS'], $_SERVER['SERVER_PORT'], $_SERVER['HTTP_X_FORWARDED_PROTO'], $_SERVER['HTTP_CF_VISITOR']);
+    foreach ($overrides as $k => $v) {
+        $_SERVER[$k] = $v;
+    }
+    return $fn();
+}
+
+assertTrueStrict(withServer([], fn () => requestIsHttps() === false), 'requestIsHttps: no signal at all should be false');
+assertTrueStrict(withServer(['HTTPS' => 'on'], fn () => requestIsHttps() === true), 'requestIsHttps: HTTPS=on');
+assertTrueStrict(withServer(['HTTPS' => '1'], fn () => requestIsHttps() === true), 'requestIsHttps: HTTPS=1');
+assertTrueStrict(withServer(['HTTPS' => 'off'], fn () => requestIsHttps() === false), 'requestIsHttps: HTTPS=off alone stays false');
+assertTrueStrict(withServer(['SERVER_PORT' => '443'], fn () => requestIsHttps() === true), 'requestIsHttps: port 443 alone');
+assertTrueStrict(withServer(['SERVER_PORT' => '80'], fn () => requestIsHttps() === false), 'requestIsHttps: port 80 alone stays false');
+assertTrueStrict(
+    withServer(['HTTP_X_FORWARDED_PROTO' => 'https'], fn () => requestIsHttps() === true),
+    'requestIsHttps: X-Forwarded-Proto https — the Cloudflare-Flexible case this guards against'
+);
+assertTrueStrict(withServer(['HTTP_X_FORWARDED_PROTO' => 'http'], fn () => requestIsHttps() === false), 'requestIsHttps: X-Forwarded-Proto http alone stays false');
+assertTrueStrict(
+    withServer(['HTTP_X_FORWARDED_PROTO' => 'HTTPS'], fn () => requestIsHttps() === true),
+    'requestIsHttps: X-Forwarded-Proto is case-insensitive'
+);
+assertTrueStrict(
+    withServer(['HTTP_X_FORWARDED_PROTO' => 'https, http'], fn () => requestIsHttps() === true),
+    'requestIsHttps: comma-separated X-Forwarded-Proto takes the first hop'
+);
+assertTrueStrict(
+    withServer(['HTTP_CF_VISITOR' => '{"scheme":"https"}'], fn () => requestIsHttps() === true),
+    'requestIsHttps: CF-Visitor scheme https'
+);
+assertTrueStrict(withServer(['HTTP_CF_VISITOR' => '{"scheme":"http"}'], fn () => requestIsHttps() === false), 'requestIsHttps: CF-Visitor scheme http alone stays false');
+
 fwrite(STDOUT, "All tests passed.\n");
