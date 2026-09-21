@@ -789,8 +789,9 @@ $annualizedReturn = ($oldestDate && $analyticsCost > 0)
                 <h3><?= t('portfolio.summary.inflation_target') ?></h3>
                 <p class="card-value">
                     <?= formatTRY((float) ($summary['inflation_target'] ?? 0)) ?>
-                    <?php if (($summary['inflation_required_yield'] ?? null) !== null): ?>
-                        <small>(<?= t('portfolio.summary.inflation_required_yield') ?>: % <?= formatNumberLocalized((float) $summary['inflation_required_yield'], 2) ?>)</small>
+                    <?php if (($summary['inflation_gap_percent'] ?? null) !== null): ?>
+                        <?php $inflGap = (float) ($summary['inflation_gap'] ?? 0); ?>
+                        <small>(<?= t('portfolio.summary.inflation_gap') ?>: <?= $inflGap >= 0 ? '▲' : '▼' ?> <?= formatTRY(abs($inflGap)) ?> / % <?= formatNumberLocalized(abs((float) $summary['inflation_gap_percent']), 2) ?>)</small>
                     <?php endif; ?>
                 </p>
                 <small class="card-subnote"><?= t('portfolio.summary.inflation_note', [
