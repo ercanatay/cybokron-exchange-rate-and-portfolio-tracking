@@ -121,4 +121,52 @@ assertTrueStrict(
 );
 assertTrueStrict(withServer(['HTTP_CF_VISITOR' => '{"scheme":"http"}'], fn () => requestIsHttps() === false), 'requestIsHttps: CF-Visitor scheme http alone stays false');
 
+// --- Enflasyon korumalı hedef: zaman ağırlıklı hesap ---
+// Eski formül (maliyet × (1 + yıllık enflasyon)) alış tarihine bakmıyordu; bugün
+// eklenen bir kalem, hiç zaman geçmemiş olmasına rağmen hedefi bir tam yıllık
+// enflasyon kadar sıçratıyordu. Aşağıdaki testler bu regresyonu kilitler.
+require_once __DIR__ . '/../includes/Portfolio.php';
+
+$yearsHeld = new ReflectionMethod('Portfolio', 'yearsHeld');
+$yearsHeld->setAccessible(true);
+$inflationExponent = new ReflectionMethod('Portfolio', 'inflationExponent');
+$inflationExponent->setAccessible(true);
+
+$refToday = new DateTimeImmutable('2026-09-21');
+$held = fn (?string $d): float => $yearsHeld->invoke(null, $d, $refToday);
+$factor = fn (float $years, float $mult): float => $mult ** $inflationExponent->invoke(null, $years);
+
+assertSameStrict($held('2026-09-21'), 0.0, 'yearsHeld: bugün alınan kalem 0 yıl');
+assertSameStrict($held('2027-01-01'), 0.0, 'yearsHeld: gelecek tarih 0 yıl — hedefi şişirmemeli');
+assertSameStrict($held(null), 0.0, 'yearsHeld: null tarih 0 yıl');
+assertSameStrict($held('   '), 0.0, 'yearsHeld: boş tarih 0 yıl');
+assertSameStrict($held('not-a-date'), 0.0, 'yearsHeld: ayrıştırılamayan tarih 0 yıl');
+assertTrueStrict(abs($held('2025-09-21') - (365 / 365.25)) < 0.000001, 'yearsHeld: tam bir yıl ≈ 1.0');
+assertTrueStrict(abs($held('2026-03-21') - (184 / 365.25)) < 0.000001, 'yearsHeld: altı ay ≈ 0.5');
+
+$mult = 1.5313; // %53,13 yıllık enflasyon
+
+assertTrueStrict(
+    abs(324348.11 * $factor($held('2026-09-21'), $mult) - 324348.11) < 0.000001,
+    'Bugün alınan kalem enflasyon hedefine yalnızca maliyeti kadar katkı vermeli'
+);
+assertTrueStrict(
+    abs(1000.0 * $factor($held('2025-09-21'), $mult) - 1000.0 * $mult) < 1.0,
+    'Bir yıl tutulan kalem ≈ maliyet × (1 + enflasyon) olmalı'
+);
+assertTrueStrict(
+    1000.0 * $factor($held('2026-03-21'), $mult) < 1000.0 * $mult,
+    'Altı ay tutulan kalem bir yıllık şişmeden az olmalı'
+);
+// Bileşik (1+r)^0.5 ≈ 1.2395, doğrusal 1 + r/2 = 1.2657. Doğrusal yaklaşım kısa
+// vadede hedefi kasıtsızca yukarı çeker; bileşik olanı kullandığımızı kilitle.
+assertTrueStrict(
+    1000.0 * $factor($held('2026-03-21'), $mult) < 1000.0 * (1 + (($mult - 1) / 2)),
+    'Altı aylık şişme bileşik olmalı — doğrusal orantıdan düşük kalmalı'
+);
+assertTrueStrict(
+    abs(1000.0 * $factor($held('2026-03-21'), $mult) - 1000.0 * sqrt($mult)) < 5.0,
+    'Altı aylık şişme karekök çarpanına yakın olmalı'
+);
+
 fwrite(STDOUT, "All tests passed.\n");

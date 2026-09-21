@@ -83,13 +83,16 @@ class Portfolio
         $profitLossBuy = $totalValueBuy - $totalCost;
         $profitPercentBuy = $totalCost > 0 ? ($profitLossBuy / $totalCost * 100) : 0;
 
-        // Enflasyon korumalı hedef (1 yıl): anaparanın reel değerini korumak için
-        // gereken nominal tutar = maliyet × (1 + yıllık enflasyon).
+        // Enflasyon korumalı hedef: her kalem YALNIZCA elde tutulduğu süre kadar
+        // enflasyonla şişirilir. Eski formül (maliyet × (1 + yıllık enflasyon))
+        // alış tarihine bakmadığı için bugün eklenen bir kalem, hiç zaman geçmemiş
+        // olmasına rağmen hedefi bir tam yıllık enflasyon kadar sıçratıyordu.
         $inflationMeta = InflationProvider::getMeta();
-        $inflationTarget = $totalCost * InflationProvider::getMultiplier();
-        // Hedefe ulaşmak için bugünkü (alış/bozdurma) değerden gereken yıllık nominal getiri %.
-        $inflationRequiredYield = $totalValueBuy > 0
-            ? (($inflationTarget / $totalValueBuy) - 1) * 100
+        $inflationTarget = self::inflationAdjustedCost($items);
+        // Portföyün hedefe göre bugünkü reel farkı. Pozitif => enflasyon yenildi.
+        $inflationGap = $totalValueBuy - $inflationTarget;
+        $inflationGapPercent = $inflationTarget > 0
+            ? ($inflationGap / $inflationTarget) * 100
             : null;
 
         return [
@@ -103,10 +106,66 @@ class Portfolio
             'profit_percent_buy' => round($profitPercentBuy, 2),
             'inflation_rate' => $inflationMeta['rate'],
             'inflation_target' => round($inflationTarget, 2),
-            'inflation_required_yield' => $inflationRequiredYield !== null ? round($inflationRequiredYield, 2) : null,
+            'inflation_gap' => round($inflationGap, 2),
+            'inflation_gap_percent' => $inflationGapPercent !== null ? round($inflationGapPercent, 2) : null,
             'inflation_meta' => $inflationMeta,
             'item_count' => count($items),
         ];
+    }
+
+    /**
+     * Enflasyona göre düzeltilmiş maliyet toplamı — "bugün itibarıyla ne etmeliydi".
+     *
+     * Hedef = Σ maliyet_i × (1 + yıllık enflasyon) ^ üs(tutulan yıl_i)
+     *
+     * Bugün alınan bir kalemde üs 0'dır; kaleme maliyeti kadar katkı verir, hedefi
+     * şişirmez. Filtre kapsamına saygılıdır: $items zaten filtrelenmiş listedir.
+     */
+    private static function inflationAdjustedCost(array $items): float
+    {
+        $multiplier = InflationProvider::getMultiplier();
+        $today = new DateTimeImmutable('today');
+        $total = 0.0;
+
+        foreach ($items as $item) {
+            $yearsHeld = self::yearsHeld($item['buy_date'] ?? null, $today);
+            $total += (float) $item['cost_try'] * ($multiplier ** self::inflationExponent($yearsHeld));
+        }
+
+        return $total;
+    }
+
+    /**
+     * Enflasyon çarpanına uygulanacak üs.
+     *
+     * Şu anki politika: sınırsız bileşik — kalem ne kadar uzun tutulduysa o kadar
+     * şişer, 1 yılı aşan kalemler dahil. (1 yılı aşan kalemler için tavan uygulamak
+     * istenirse tek değişiklik noktası burasıdır.)
+     */
+    private static function inflationExponent(float $yearsHeld): float
+    {
+        return $yearsHeld;
+    }
+
+    /**
+     * Alış tarihinden bugüne geçen süre (yıl cinsinden).
+     * Geçersiz ya da gelecek tarihli kayıtlar 0 döner (hedefi şişirmezler).
+     */
+    private static function yearsHeld(?string $buyDate, DateTimeImmutable $today): float
+    {
+        if ($buyDate === null || trim($buyDate) === '') {
+            return 0.0;
+        }
+
+        try {
+            $buy = new DateTimeImmutable($buyDate);
+        } catch (Exception $e) {
+            return 0.0;
+        }
+
+        $days = (int) $buy->diff($today)->format('%r%a');
+
+        return $days > 0 ? $days / 365.25 : 0.0;
     }
 
     /**
