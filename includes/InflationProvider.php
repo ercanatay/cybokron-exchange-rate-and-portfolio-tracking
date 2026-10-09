@@ -180,6 +180,40 @@ class InflationProvider
     }
 
     /**
+     * Alış tarihinden tam 1 yıl sonrası için enflasyon çarpanı.
+     *
+     * Alış → min(bugün, alış+1 yıl) arası gerçekleşen aylık seriyle
+     * (compoundFactor), bugün → alış+1 yıl arası kalan süre ise yıllık oranla
+     * tahmin edilir: annualMultiplier ^ (kalan gün / 365.25). 1 yılı dolmuş
+     * kalemde tahmin kısmı yoktur; yıl tamamen gerçekleşen veriyle hesaplanır.
+     * Seri boşsa gerçekleşen kısım da yıllık oranla hesaplanır.
+     *
+     * @param array<string, float> $series
+     * @return array{factor: float, horizon: DateTimeImmutable}
+     */
+    public static function oneYearFactor(
+        DateTimeImmutable $buy,
+        DateTimeImmutable $today,
+        array $series,
+        float $annualMultiplier
+    ): array {
+        $horizon = $buy->modify('+1 year');
+        $realisedEnd = $horizon < $today ? $horizon : $today;
+
+        if ($series !== []) {
+            $realised = InflationProvider::compoundFactor($buy, $realisedEnd, $series);
+        } else {
+            $realisedDays = $realisedEnd > $buy ? (int) $buy->diff($realisedEnd)->days : 0;
+            $realised = $annualMultiplier ** ($realisedDays / 365.25);
+        }
+
+        $remainingDays = $horizon > $today ? (int) $today->diff($horizon)->days : 0;
+        $projected = $annualMultiplier ** ($remainingDays / 365.25);
+
+        return ['factor' => $realised * $projected, 'horizon' => $horizon];
+    }
+
+    /**
      * Seride olmayan bir ay için kullanılacak oran: kendisinden önceki son
      * açıklanan ay; seri o aydan sonra başlıyorsa serinin ilk ayı.
      *

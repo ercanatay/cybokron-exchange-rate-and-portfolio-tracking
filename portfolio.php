@@ -1957,6 +1957,7 @@ $annualizedReturn = ($oldestDate && $analyticsCost > 0)
                                 <th scope="col" class="text-right"><?= t('portfolio.table.pl_percent_buy') ?></th>
                                 <th scope="col" class="text-right"><?= t('portfolio.table.pl_percent_sell') ?></th>
                                 <th scope="col" class="text-right" title="<?= htmlspecialchars(t('portfolio.table.inflation_target_hint')) ?>"><?= t('portfolio.table.inflation_target') ?></th>
+                                <th scope="col" class="text-right" title="<?= htmlspecialchars(t('portfolio.table.inflation_target_1y_hint')) ?>"><?= t('portfolio.table.inflation_target_1y') ?></th>
                                 <th scope="col"><?= t('portfolio.table.date') ?></th>
                                 <th scope="col"><?= t('portfolio.table.actions') ?></th>
                             </tr>
@@ -2060,6 +2061,22 @@ $annualizedReturn = ($oldestDate && $analyticsCost > 0)
                                             <?php endif; ?>
                                             <?php if (($item['inflation_target_tuik'] ?? null) !== null): ?>
                                                 <small class="cell-subline">TÜİK: <?= formatTRY((float) $item['inflation_target_tuik']) ?></small>
+                                            <?php endif; ?>
+                                        <?php else: ?>
+                                            <?= t('common.not_available') ?>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td class="text-right mono">
+                                        <?php if (isset($item['inflation_target_1y'])): ?>
+                                            <?php $needed = $item['inflation_target_1y_needed_percent'] ?? null; ?>
+                                            <?= formatTRY((float) $item['inflation_target_1y']) ?>
+                                            <small class="cell-subline"><?= formatDate((string) $item['inflation_target_1y_date']) ?></small>
+                                            <?php if ($needed !== null): ?>
+                                                <?php if ((float) $needed > 0): ?>
+                                                    <small class="cell-subline"><?= t('portfolio.table.inflation_target_1y_needed', ['percent' => formatNumberLocalized((float) $needed, 2)]) ?></small>
+                                                <?php else: ?>
+                                                    <small class="cell-subline text-success"><?= t('portfolio.table.inflation_target_1y_reached') ?></small>
+                                                <?php endif; ?>
                                             <?php endif; ?>
                                         <?php else: ?>
                                             <?= t('common.not_available') ?>
