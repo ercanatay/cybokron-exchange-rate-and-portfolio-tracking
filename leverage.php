@@ -775,7 +775,7 @@ $newTabText = t('common.opens_new_tab');
         <div class="leverage-rules-header">
             <h2><?= t('leverage.rules.title') ?></h2>
             <div style="display:flex; gap:8px;">
-                <button type="button" class="btn btn-sm" style="background:var(--bg-card); border:1px solid var(--border); color:var(--text-muted);" onclick="openGlossaryModal()"><?= t('leverage.glossary.button') ?></button>
+                <button type="button" class="btn btn-sm" style="background:var(--bg-card); border:1px solid var(--border); color:var(--text-muted);" data-click="openGlossaryModal"><?= t('leverage.glossary.button') ?></button>
                 <button type="button" class="btn btn-primary btn-sm" id="btn-new-rule">
                     <?= t('leverage.rules.new') ?>
                 </button>
@@ -900,7 +900,7 @@ $newTabText = t('common.opens_new_tab');
 
                     <div class="rule-card-actions">
                         <button type="button" class="btn btn-secondary btn-edit-rule"><?= t('portfolio.form.update') ?></button>
-                        <button type="button" class="btn btn-secondary" onclick="openBacktestModal(<?= $ruleId ?>)"><?= t('leverage.backtest.run') ?></button>
+                        <button type="button" class="btn btn-secondary" data-click="openBacktestModal" data-args='[<?= $ruleId ?>]'><?= t('leverage.backtest.run') ?></button>
 
                         <?php if ($status === 'active'): ?>
                             <form method="POST" style="display:inline">
@@ -986,7 +986,7 @@ $newTabText = t('common.opens_new_tab');
                                         <input type="hidden" name="webhook_id" value="<?= (int) $wh['id'] ?>">
                                         <button type="submit" class="btn btn-secondary btn-sm"><?= $wh['is_active'] ? 'Deaktif' : 'Aktif' ?></button>
                                     </form>
-                                    <form method="POST" style="display:inline;" onsubmit="return confirm('Emin misiniz?')">
+                                    <form method="POST" style="display:inline;" data-confirm="Emin misiniz?">
                                         <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
                                         <input type="hidden" name="action" value="delete_webhook">
                                         <input type="hidden" name="webhook_id" value="<?= (int) $wh['id'] ?>">
@@ -1221,7 +1221,7 @@ $newTabText = t('common.opens_new_tab');
     <!-- ─── Backtest Modal ──────────────────────────────────────────────────── -->
     <div class="modal-overlay" id="backtest-modal">
         <div class="modal-content">
-            <button type="button" class="modal-close" onclick="closeBacktestModal()">&times;</button>
+            <button type="button" class="modal-close" data-click="closeBacktestModal">&times;</button>
             <h2><?= t('leverage.backtest.title') ?></h2>
 
             <form method="POST">
@@ -1290,7 +1290,7 @@ $newTabText = t('common.opens_new_tab');
     <!-- ─── Glossary Modal ───────────────────────────────────────────────── -->
     <div class="modal-overlay" id="glossary-modal">
         <div class="modal-content" style="max-width:620px; max-height:80vh; overflow-y:auto;">
-            <button type="button" class="modal-close" onclick="closeGlossaryModal()">&times;</button>
+            <button type="button" class="modal-close" data-click="closeGlossaryModal">&times;</button>
             <h2><?= t('leverage.glossary.title') ?></h2>
             <?php
             $glossaryTerms = [

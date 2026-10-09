@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.15.1] - 2026-10-09
+
+### Security
+- **CSP without `unsafe-inline`.** Production `script-src` now uses the per-request nonce instead of `'unsafe-inline'`. `CSP_POLICY` may contain a `{nonce}` placeholder; an empty `CSP_POLICY` uses the built-in nonce policy, which now allows Cloudflare Turnstile when it is enabled.
+- **No inline event handlers.** All 41 `on*` attributes are replaced by `data-click` / `data-change` / `data-submit` / `data-confirm` / `data-toggle-hidden` / `data-toggle-password` / `data-autosubmit`, handled by the new `assets/js/actions.js` (loaded from the shared header).
+- **Pinned SSH host keys in CI.** Deploy and rollback read `known_hosts` from the new `SSH_KNOWN_HOSTS` secret and connect with `StrictHostKeyChecking=yes`, replacing `ssh-keyscan` + `StrictHostKeyChecking=no`.
+- **No default admin password.** The `admin` row seeded by `database.sql` (also used by Docker) no longer carries a known hash; set the password with `database/update_admin_password.php` before the first login.
+- **Chart.js served locally** on the portfolio page instead of from the jsDelivr CDN.
+
 ## [1.15.0] - 2026-10-09
 
 ### Added

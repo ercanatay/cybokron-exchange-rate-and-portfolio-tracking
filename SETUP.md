@@ -205,7 +205,7 @@ define('APP_URL', 'https://yourdomain.com/cybokron');  // Full URL, no trailing 
 define('APP_TIMEZONE', 'Europe/Istanbul');              // Your timezone
 define('APP_DEBUG', false);                             // Keep false in production
 define('ENABLE_SECURITY_HEADERS', true);                // Recommended: true
-define('CSP_POLICY', "default-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'; object-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:");
+define('CSP_POLICY', '');   // Empty = built-in nonce policy. A custom policy may use {nonce} for the per-request script nonce.
 ```
 
 Set `APP_URL` to the exact URL visitors will use to access the app.
@@ -1321,6 +1321,13 @@ two options:
 
 The application uses bcrypt-hashed passwords. There are several ways to
 set or change the admin password.
+
+The `admin` user seeded by `database.sql` has no usable password, so you
+must set one (Method 2 or 3) before the first login. With Docker:
+
+```bash
+docker compose exec app sh -c "echo 'YourNewSecurePassword' > .admin_password.tmp && php database/update_admin_password.php && rm -f .admin_password.tmp"
+```
 
 #### Method 1 -- Generate Hash and Update config.php
 

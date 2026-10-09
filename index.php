@@ -170,9 +170,9 @@ foreach ($widgetConfig as $w) {
         <!-- Bank Selector -->
         <section class="bank-section" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 1.5rem; border-radius: 12px; margin-bottom: 2rem;">
             <div style="display: flex; gap: 1rem; align-items: center; flex-wrap: wrap; justify-content: space-between;">
-                <div style="display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;">
+                <form method="get" action="index.php" style="display: flex; gap: 1rem; align-items: center; flex-wrap: wrap; margin: 0;">
                     <label for="bank-select" style="font-weight: 600; font-size: 1.1rem;">🏦 <?= t('converter.bank') ?>:</label>
-                    <select id="bank-select" onchange="window.location.href='index.php?bank='+this.value" style="padding: 0.75rem 1rem; border-radius: 8px; border: none; font-size: 1rem; min-width: 200px; cursor: pointer;">
+                    <select id="bank-select" name="bank" data-autosubmit style="padding: 0.75rem 1rem; border-radius: 8px; border: none; font-size: 1rem; min-width: 200px; cursor: pointer;">
                         <option value="all" <?= $selectedBank === 'all' ? 'selected' : '' ?>>
                             <?= t('admin.all_banks') ?>
                         </option>
@@ -182,7 +182,7 @@ foreach ($widgetConfig as $w) {
                             </option>
                         <?php endforeach; ?>
                     </select>
-                </div>
+                </form>
                 <form method="POST" style="margin: 0;">
                     <input type="hidden" name="action" value="update_rates">
                     <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(getCsrfToken()) ?>">
