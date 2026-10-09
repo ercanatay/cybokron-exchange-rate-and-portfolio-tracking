@@ -423,7 +423,7 @@ INSERT IGNORE INTO `banks` (`name`, `slug`, `url`, `scraper_class`, `is_active`)
 ('TCMB', 'tcmb', 'https://www.tcmb.gov.tr/kurlar/today.xml', 'TCMB', 1),
 ('İş Bankası', 'is-bankasi', 'https://kur.doviz.com/isbankasi', 'DovizComScraper', 1),
 ('Akbank', 'akbank', 'https://kur.doviz.com/akbank', 'DovizComScraper', 0),
-('Albaraka Türk', 'albaraka-turk', 'https://kur.doviz.com/albaraka-turk', 'DovizComScraper', 0),
+('Albaraka Türk', 'albaraka-turk', 'https://www.albaraka.com.tr/tr/doviz-kurlari', 'AlbarakaTurk', 1),
 ('Alternatif Bank', 'alternatif-bank', 'https://kur.doviz.com/alternatif-bank', 'DovizComScraper', 0),
 ('Altınkaynak', 'altinkaynak', 'https://kur.doviz.com/altinkaynak', 'DovizComScraper', 0),
 ('Anadolubank', 'anadolubank', 'https://kur.doviz.com/anadolubank', 'DovizComScraper', 0),

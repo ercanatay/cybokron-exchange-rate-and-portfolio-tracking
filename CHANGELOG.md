@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.13.9] - 2026-10-09
+
+### Added
+- **Albaraka Türk rates now come straight from the bank** (`https://www.albaraka.com.tr/tr/doviz-kurlari`) instead of the `kur.doviz.com` mirror, and the bank is active by default. New `AlbarakaTurk` scraper reads the ISO code from the parentheses in each row label, so no Turkish-name map is needed. The page has buy/sell only, so `change` is always null. 23 rows parse today; `BHD` and `IQD` are dropped by `saveRates` because they are not in `currencies`.
+- The page's first header row is `Son Güncelleme: <timestamp>`. The base table hash includes every `thead th`, which would flag a "table changed" on every cron run and reset the per-hash OpenRouter cooldown. `AlbarakaTurk` overrides `computeTableHashFromXPath()` to skip `colspan` headers, so the hash only covers the column names.
+
+### Files Modified
+- `banks/AlbarakaTurk.php` — new scraper
+- `database/migrations/017_albaraka_direct_scraper.sql` — repoints the existing `albaraka-turk` row (from 005, `DovizComScraper`, inactive) to the new scraper and activates it; clears the stale `table_hash`
+- `database/database.sql` — seed row matches the migration
+- `.github/workflows/deploy.yml`, `config.sample.php`, `config.docker.php` — `albaraka.com.tr` added to `SCRAPE_ALLOWED_HOSTS`
+
 ## [1.13.8] - 2026-08-21
 
 ### Fixed
