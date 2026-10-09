@@ -1,6 +1,6 @@
 -- 017_albaraka_direct_scraper.sql
 -- Albaraka Türk: kur.doviz.com aracısı yerine bankanın kendi sayfasından doğrudan çekim.
--- Satır 005'te DovizComScraper ile pasif olarak eklenmişti; slug UNIQUE olduğundan
+-- Satır 005 migration ile DovizComScraper ile pasif olarak eklenmişti; slug UNIQUE olduğundan
 -- INSERT IGNORE etkisiz kalır, bu yüzden mevcut satır güncellenir ve aktifleştirilir.
 -- table_hash sıfırlanır: eski hash doviz.com tablosuna aitti, ilk çekimde sahte "tablo değişti" uyarısı vermesin.
 
