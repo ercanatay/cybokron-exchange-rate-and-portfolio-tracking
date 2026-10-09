@@ -78,6 +78,127 @@ class InflationProvider
         return $ratePercent >= self::MIN_PLAUSIBLE && $ratePercent <= self::MAX_PLAUSIBLE;
     }
 
+    // ── aylık seri (inflation_monthly) ──────────────────────────────────
+
+    public const SOURCES = ['enag', 'tuik'];
+
+    /**
+     * Bir kaynağın aylık serisi: ['2026-09' => 2.10, ...], dönem sırasına göre.
+     * Tablo henüz yoksa (migration uygulanmamış) boş dizi döner; hesap yıllık
+     * orana düşer.
+     *
+     * @return array<string, float>
+     */
+    public static function getMonthlySeries(string $source): array
+    {
+        if (!in_array($source, self::SOURCES, true)) {
+            return [];
+        }
+
+        try {
+            $rows = Database::query(
+                'SELECT period, rate_percent FROM inflation_monthly WHERE source = ? ORDER BY period',
+                [$source]
+            );
+        } catch (Throwable $e) {
+            return [];
+        }
+
+        $series = [];
+        foreach ($rows as $row) {
+            $series[(string) $row['period']] = (float) $row['rate_percent'];
+        }
+
+        return $series;
+    }
+
+    /**
+     * Aylık değeri ekle ya da düzelt (admin).
+     */
+    public static function setMonthlyRate(string $source, string $period, float $ratePercent): void
+    {
+        if (!in_array($source, self::SOURCES, true) || !self::isValidPeriod($period)) {
+            throw new InvalidArgumentException('Invalid inflation source or period');
+        }
+
+        Database::execute(
+            'INSERT INTO inflation_monthly (source, period, rate_percent) VALUES (?, ?, ?)
+             ON DUPLICATE KEY UPDATE rate_percent = VALUES(rate_percent)',
+            [$source, $period, round($ratePercent, 2)]
+        );
+    }
+
+    public static function isValidPeriod(string $period): bool
+    {
+        return (bool) preg_match('/^(19|20)\d{2}-(0[1-9]|1[0-2])$/', $period);
+    }
+
+    /**
+     * Alış gününden bugüne aylık seriyle bileşik enflasyon çarpanı.
+     *
+     * Her ayın aylık oranı, o ay içinde elde tutulan gün oranı kadar uygulanır:
+     * (1 + r/100) ^ (tutulan gün / ayın gün sayısı). Alış günü sayılır, bugün
+     * sayılmaz; böylece bugün alınan kalemin çarpanı tam 1'dir.
+     *
+     * Seride olmayan aylar kendisinden önceki son açıklanan ayın oranını alır
+     * (içinde bulunulan ay ve henüz açıklanmamış aylar dahil). Serinin ilk
+     * ayından önceki aylar serinin ilk ayının oranını alır.
+     * Seri boşsa 1 döner; çağıran yıllık orana düşmelidir.
+     *
+     * @param array<string, float> $series ['YYYY-MM' => aylık yüzde]
+     */
+    public static function compoundFactor(DateTimeImmutable $buy, DateTimeImmutable $today, array $series): float
+    {
+        if ($series === [] || $buy >= $today) {
+            return 1.0;
+        }
+
+        ksort($series);
+        $periods = array_keys($series);
+        $first = $periods[0];
+
+        $factor = 1.0;
+        $cursor = $buy->modify('first day of this month');
+        $todayPeriod = $today->format('Y-m');
+        $buyPeriod = $buy->format('Y-m');
+
+        while ($cursor->format('Y-m') <= $todayPeriod) {
+            $period = $cursor->format('Y-m');
+            $daysInMonth = (int) $cursor->format('t');
+            $start = $period === $buyPeriod ? ((int) $buy->format('j')) - 1 : 0;
+            $end = $period === $todayPeriod ? ((int) $today->format('j')) - 1 : $daysInMonth;
+
+            if ($end > $start) {
+                $rate = $series[$period] ?? self::nearestEarlierRate($series, $periods, $period, $first);
+                $factor *= (1 + $rate / 100) ** (($end - $start) / $daysInMonth);
+            }
+
+            $cursor = $cursor->modify('first day of next month');
+        }
+
+        return $factor;
+    }
+
+    /**
+     * Seride olmayan bir ay için kullanılacak oran: kendisinden önceki son
+     * açıklanan ay; seri o aydan sonra başlıyorsa serinin ilk ayı.
+     *
+     * @param array<string, float> $series
+     * @param string[] $periods sıralı dönem listesi
+     */
+    private static function nearestEarlierRate(array $series, array $periods, string $period, string $first): float
+    {
+        $match = $first;
+        foreach ($periods as $p) {
+            if ($p > $period) {
+                break;
+            }
+            $match = $p;
+        }
+
+        return $series[$match];
+    }
+
     // ── settings erişimi ────────────────────────────────────────────────
 
     private static function getSettingValue(string $key): ?string

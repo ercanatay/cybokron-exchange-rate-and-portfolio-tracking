@@ -169,4 +169,63 @@ assertTrueStrict(
     'Altı aylık şişme karekök çarpanına yakın olmalı'
 );
 
+// --- Enflasyon korumalı hedef: aylık seri ---
+// Her kalem alış gününden bugüne gerçekleşen aylık enflasyonla, gün bazında
+// bileşik büyütülür. Beklenen değerler bağımsız bir Python hesabından alındı.
+require_once __DIR__ . '/../includes/InflationProvider.php';
+
+$enag = [
+    '2025-12' => 2.11, '2026-01' => 6.32, '2026-02' => 4.01, '2026-03' => 4.10, '2026-04' => 5.07,
+    '2026-05' => 2.16, '2026-06' => 1.94, '2026-07' => 3.07, '2026-08' => 2.24, '2026-09' => 2.10,
+];
+$tuik = [
+    '2025-12' => 0.89, '2026-01' => 4.84, '2026-02' => 2.96, '2026-03' => 1.94, '2026-04' => 4.18,
+    '2026-05' => 1.71, '2026-06' => 0.99, '2026-07' => 1.78, '2026-08' => 1.84, '2026-09' => 1.84,
+];
+$cf = fn (string $buy, string $today, array $series): float =>
+    InflationProvider::compoundFactor(new DateTimeImmutable($buy), new DateTimeImmutable($today), $series);
+
+assertSameStrict($cf('2026-10-09', '2026-10-09', $enag), 1.0, 'compoundFactor: bugün alınan kalem 1.0');
+assertSameStrict($cf('2026-11-01', '2026-10-09', $enag), 1.0, 'compoundFactor: gelecek tarih 1.0');
+assertSameStrict($cf('2025-12-11', '2026-10-09', []), 1.0, 'compoundFactor: boş seri 1.0 (yıllık orana düşülür)');
+assertTrueStrict(
+    abs($cf('2026-09-01', '2026-10-01', $enag) - 1.021) < 1e-12,
+    'compoundFactor: tam bir ay = 1 + aylık oran'
+);
+assertTrueStrict(
+    abs($cf('2026-01-01', '2026-03-01', $enag) - (1.0632 * 1.0401)) < 1e-12,
+    'compoundFactor: ardışık tam aylar çarpılır'
+);
+assertTrueStrict(
+    abs($cf('2025-12-11', '2026-10-09', $enag) - 1.38196214879137) < 1e-9,
+    'compoundFactor: ENAG 11.12.2025 → 09.10.2026 Python hesabıyla aynı'
+);
+assertTrueStrict(
+    abs($cf('2025-12-11', '2026-10-09', $tuik) - 1.2563655832111453) < 1e-9,
+    'compoundFactor: TÜİK 11.12.2025 → 09.10.2026 Python hesabıyla aynı'
+);
+assertTrueStrict(
+    abs($cf('2026-02-25', '2026-10-09', $enag) - 1.239088588923819) < 1e-9,
+    'compoundFactor: ENAG 25.02.2026 → 09.10.2026 Python hesabıyla aynı'
+);
+// Henüz açıklanmamış ay (Ekim) son açıklanan ayın (Eylül) oranını taşır.
+assertTrueStrict(
+    abs($cf('2026-10-01', '2026-10-16', $enag) - (1.021 ** (15 / 31))) < 1e-12,
+    'compoundFactor: açıklanmamış ay son açıklanan ayın oranıyla'
+);
+// Seri ortasındaki boşluk bir önceki ayın oranını alır, serinin ilk ayını değil.
+$gapped = ['2026-01' => 5.0, '2026-02' => 1.0, '2026-04' => 3.0];
+assertTrueStrict(
+    abs($cf('2026-03-01', '2026-04-01', $gapped) - 1.01) < 1e-12,
+    'compoundFactor: eksik ay bir önceki açıklanan ayın oranıyla'
+);
+// Serinin başlangıcından önceki aylar serinin ilk ayının oranını alır.
+assertTrueStrict(
+    abs($cf('2025-12-01', '2026-01-01', $gapped) - 1.05) < 1e-12,
+    'compoundFactor: seriden önceki ay serinin ilk oranıyla'
+);
+assertTrueStrict(InflationProvider::isValidPeriod('2026-09'), 'isValidPeriod: geçerli dönem');
+assertTrueStrict(!InflationProvider::isValidPeriod('2026-13'), 'isValidPeriod: 13. ay geçersiz');
+assertTrueStrict(!InflationProvider::isValidPeriod('2026-9'), 'isValidPeriod: tek haneli ay geçersiz');
+
 fwrite(STDOUT, "All tests passed.\n");
