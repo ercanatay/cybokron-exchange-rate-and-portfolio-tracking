@@ -87,13 +87,27 @@ class Portfolio
         // enflasyonla şişirilir. Eski formül (maliyet × (1 + yıllık enflasyon))
         // alış tarihine bakmadığı için bugün eklenen bir kalem, hiç zaman geçmemiş
         // olmasına rağmen hedefi bir tam yıllık enflasyon kadar sıçratıyordu.
+        //
+        // Aylık seri varsa her kalem alış gününden bugüne gerçekleşen aylık
+        // enflasyonla büyütülür (ENAG ana hedef, TÜİK karşılaştırma). Seri yoksa
+        // yıllık oran ayarına düşülür.
         $inflationMeta = InflationProvider::getMeta();
-        $inflationTarget = self::inflationAdjustedCost($items);
+        $enagSeries = InflationProvider::getMonthlySeries('enag');
+        $tuikSeries = InflationProvider::getMonthlySeries('tuik');
+        $inflationMethod = $enagSeries !== [] ? 'monthly' : 'annual';
+
+        $inflationTarget = $inflationMethod === 'monthly'
+            ? self::inflationAdjustedCostMonthly($items, $enagSeries)
+            : self::inflationAdjustedCost($items);
         // Portföyün hedefe göre bugünkü reel farkı. Pozitif => enflasyon yenildi.
         $inflationGap = $totalValueBuy - $inflationTarget;
         $inflationGapPercent = $inflationTarget > 0
             ? ($inflationGap / $inflationTarget) * 100
             : null;
+
+        $tuikTarget = $tuikSeries !== [] ? self::inflationAdjustedCostMonthly($items, $tuikSeries) : null;
+        $tuikGap = $tuikTarget !== null ? $totalValueBuy - $tuikTarget : null;
+        $tuikGapPercent = ($tuikTarget !== null && $tuikTarget > 0) ? ($tuikGap / $tuikTarget) * 100 : null;
 
         return [
             'items' => $items,
@@ -109,6 +123,12 @@ class Portfolio
             'inflation_gap' => round($inflationGap, 2),
             'inflation_gap_percent' => $inflationGapPercent !== null ? round($inflationGapPercent, 2) : null,
             'inflation_meta' => $inflationMeta,
+            'inflation_method' => $inflationMethod,
+            'inflation_enag_last' => $enagSeries !== [] ? array_key_last($enagSeries) : null,
+            'inflation_target_tuik' => $tuikTarget !== null ? round($tuikTarget, 2) : null,
+            'inflation_gap_tuik' => $tuikGap !== null ? round($tuikGap, 2) : null,
+            'inflation_gap_percent_tuik' => $tuikGapPercent !== null ? round($tuikGapPercent, 2) : null,
+            'inflation_tuik_last' => $tuikSeries !== [] ? array_key_last($tuikSeries) : null,
             'item_count' => count($items),
         ];
     }
@@ -133,6 +153,40 @@ class Portfolio
         }
 
         return $total;
+    }
+
+    /**
+     * Aylık seriyle enflasyona göre düzeltilmiş maliyet toplamı.
+     *
+     * Hedef = Σ maliyet_i × Π (1 + aylık oran) ^ (o ayda tutulan gün / ayın günü)
+     *
+     * @param array<string, float> $series ['YYYY-MM' => aylık yüzde]
+     */
+    private static function inflationAdjustedCostMonthly(array $items, array $series): float
+    {
+        $today = new DateTimeImmutable('today');
+        $total = 0.0;
+
+        foreach ($items as $item) {
+            $buy = self::parseBuyDate($item['buy_date'] ?? null);
+            $factor = $buy !== null ? InflationProvider::compoundFactor($buy, $today, $series) : 1.0;
+            $total += (float) $item['cost_try'] * $factor;
+        }
+
+        return $total;
+    }
+
+    private static function parseBuyDate(?string $buyDate): ?DateTimeImmutable
+    {
+        if ($buyDate === null || trim($buyDate) === '') {
+            return null;
+        }
+
+        try {
+            return new DateTimeImmutable(substr(trim($buyDate), 0, 10));
+        } catch (Exception $e) {
+            return null;
+        }
     }
 
     /**

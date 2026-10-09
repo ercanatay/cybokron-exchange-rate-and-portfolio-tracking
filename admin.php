@@ -225,6 +225,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         }
     }
 
+    if ($_POST['action'] === 'save_inflation_monthly') {
+        $imSource = (string) ($_POST['inflation_source'] ?? '');
+        $imPeriod = trim((string) ($_POST['inflation_period'] ?? ''));
+        $imRateRaw = str_replace(',', '.', trim((string) ($_POST['inflation_monthly_rate'] ?? '')));
+
+        if (
+            in_array($imSource, InflationProvider::SOURCES, true)
+            && InflationProvider::isValidPeriod($imPeriod)
+            && is_numeric($imRateRaw)
+            && (float) $imRateRaw > -50
+            && (float) $imRateRaw < 100
+        ) {
+            InflationProvider::setMonthlyRate($imSource, $imPeriod, (float) $imRateRaw);
+            $message = t('admin.inflation_monthly_saved', ['source' => strtoupper($imSource), 'period' => $imPeriod]);
+            $messageType = 'success';
+        } else {
+            $message = t('admin.inflation_monthly_error');
+            $messageType = 'error';
+        }
+    }
+
     if ($_POST['action'] === 'save_leverage_settings') {
         $leverageEnabled = isset($_POST['leverage_enabled']) ? '1' : '0';
         $leverageAiEnabled = isset($_POST['leverage_ai_enabled']) ? '1' : '0';
@@ -423,7 +444,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         }
     }
 
-    if (!in_array($_POST['action'], ['update_rates', 'toggle_bank', 'toggle_currency', 'toggle_homepage', 'set_default_bank', 'update_rate_order', 'set_chart_defaults', 'save_widget_config', 'toggle_noindex', 'set_retention_days', 'save_deposit_rate', 'toggle_deposit_comparison', 'save_openrouter_settings', 'save_inflation_settings', 'toggle_layout_default', 'save_leverage_settings', 'test_leverage_email', 'test_leverage_signal_buy', 'test_leverage_signal_sell', 'test_telegram'], true)) {
+    if (!in_array($_POST['action'], ['update_rates', 'toggle_bank', 'toggle_currency', 'toggle_homepage', 'set_default_bank', 'update_rate_order', 'set_chart_defaults', 'save_widget_config', 'toggle_noindex', 'set_retention_days', 'save_deposit_rate', 'toggle_deposit_comparison', 'save_openrouter_settings', 'save_inflation_settings', 'save_inflation_monthly', 'toggle_layout_default', 'save_leverage_settings', 'test_leverage_email', 'test_leverage_signal_buy', 'test_leverage_signal_sell', 'test_telegram'], true)) {
         header('Location: admin.php');
         exit;
     }
@@ -1250,10 +1271,69 @@ foreach ($allRates as $r) {
                             <button type="submit" class="btn btn-primary"><?= t('admin.save') ?></button>
                         </div>
                     </form>
+
+                    <?php
+                    $imEnag = InflationProvider::getMonthlySeries('enag');
+                    $imTuik = InflationProvider::getMonthlySeries('tuik');
+                    $imPeriods = array_unique(array_merge(array_keys($imEnag), array_keys($imTuik)));
+                    rsort($imPeriods);
+                    $imPeriods = array_slice($imPeriods, 0, 18);
+                    ?>
+                    <h3 style="margin-top: 1.5rem;"><?= t('admin.inflation_monthly_title') ?></h3>
+                    <p class="or-field-hint"><?= t('admin.inflation_monthly_desc') ?></p>
+                    <form method="POST" class="or-settings-form">
+                        <input type="hidden" name="action" value="save_inflation_monthly">
+                        <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
+                        <div class="or-field-group">
+                            <div class="or-field">
+                                <label for="inflation_source"><?= t('admin.inflation_monthly_source') ?></label>
+                                <select id="inflation_source" name="inflation_source">
+                                    <option value="enag">ENAG</option>
+                                    <option value="tuik">TÜİK</option>
+                                </select>
+                            </div>
+                            <div class="or-field">
+                                <label for="inflation_period"><?= t('admin.inflation_monthly_period') ?></label>
+                                <input type="month" id="inflation_period" name="inflation_period"
+                                       value="<?= htmlspecialchars((new DateTimeImmutable('first day of last month'))->format('Y-m')) ?>">
+                            </div>
+                            <div class="or-field">
+                                <label for="inflation_monthly_rate"><?= t('admin.inflation_monthly_rate') ?></label>
+                                <input type="text" id="inflation_monthly_rate" name="inflation_monthly_rate"
+                                       placeholder="2.10" spellcheck="false" inputmode="decimal">
+                            </div>
+                        </div>
+                        <div class="or-actions">
+                            <button type="submit" class="btn btn-primary"><?= t('admin.save') ?></button>
+                        </div>
+                    </form>
+                    <?php if ($imPeriods !== []): ?>
+                        <div class="table-responsive">
+                            <table class="admin-table">
+                                <thead>
+                                    <tr>
+                                        <th><?= t('admin.inflation_monthly_period') ?></th>
+                                        <th>ENAG %</th>
+                                        <th>TÜİK %</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php foreach ($imPeriods as $imPeriod): ?>
+                                        <tr>
+                                            <td><?= htmlspecialchars($imPeriod) ?></td>
+                                            <td><?= isset($imEnag[$imPeriod]) ? formatNumberLocalized($imEnag[$imPeriod], 2) : '—' ?></td>
+                                            <td><?= isset($imTuik[$imPeriod]) ? formatNumberLocalized($imTuik[$imPeriod], 2) : '—' ?></td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                </tbody>
+                            </table>
+                        </div>
+                    <?php endif; ?>
                 </div>
             </div>
 
             <!-- Leverage Settings -->
+
             <div class="admin-card">
                 <div class="admin-card-header">
                     <div class="admin-card-header-left">

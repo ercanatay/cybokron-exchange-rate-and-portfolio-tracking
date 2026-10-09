@@ -1262,6 +1262,12 @@ body.menu-open {
     font-weight: 500;
 }
 
+.card-subnote {
+    display: block;
+    margin-top: 0.25rem;
+    color: var(--text-muted);
+}
+
 .card-profit .card-value {
     color: var(--success);
 }

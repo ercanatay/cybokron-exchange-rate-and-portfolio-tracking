@@ -2,6 +2,28 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.14.0] - 2026-10-09
+
+### Changed
+- **The inflation-protected target now uses realised monthly inflation instead of one annual rate.** Each purchase is grown from its own buy date by the monthly rate of every month it was held, compounded by days held in that month: `(1 + r/100) ^ (days held / days in month)`. The old formula applied the latest 12-month rate to every day held. That overstates the target whenever inflation has been falling: on the production portfolio the single-rate target was 2,098,752.62 ₺ against 2,055,745.59 ₺ from the realised ENAG series, because most of the money went in before the high-inflation months had passed.
+- ENAG and TÜİK are kept as separate series. ENAG stays the main target (and still drives the dashboard widget). The portfolio card now also shows the TÜİK target and its real gap, plus the latest month each series covers.
+- Months not yet published (including the current month) reuse the latest published rate for that source. Gaps inside the series take the nearest earlier month. Months before the series starts take its first month.
+- The annual rate setting is kept as a fallback, used only when the ENAG series is empty.
+
+### Added
+- `inflation_monthly` table (migration `018`), seeded with ENAG and TÜİK monthly figures for 2025-12 to 2026-09.
+- Admin → Inflation Settings: form to add or correct a month for either source, and a table of the last 18 months.
+- `InflationProvider::compoundFactor()` as a pure function, with tests pinned to an independent Python calculation.
+
+### Files Modified
+- `database/migrations/018_inflation_monthly_series.sql` — new table and seed
+- `includes/InflationProvider.php` — series read/write, `compoundFactor()`
+- `includes/Portfolio.php` — monthly target for ENAG and TÜİK, annual fallback
+- `portfolio.php`, `assets/css/style.css` — TÜİK line and series note on the inflation card
+- `admin.php` — monthly series form and table
+- `locales/tr.php`, `locales/en.php` — new strings
+- `tests/run.php` — 14 new cases
+
 ## [1.13.9] - 2026-10-09
 
 ### Added

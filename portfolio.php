@@ -794,11 +794,26 @@ $annualizedReturn = ($oldestDate && $analyticsCost > 0)
                         <small>(<?= t('portfolio.summary.inflation_gap') ?>: <?= $inflGap >= 0 ? '▲' : '▼' ?> <?= formatTRY(abs($inflGap)) ?> / % <?= formatNumberLocalized(abs((float) $summary['inflation_gap_percent']), 2) ?>)</small>
                     <?php endif; ?>
                 </p>
-                <small class="card-subnote"><?= t('portfolio.summary.inflation_note', [
-                    'rate' => formatNumberLocalized((float) ($summary['inflation_rate'] ?? 0), 2),
-                    'source' => (string) $inflMeta['source'],
-                    'date' => substr((string) ($inflMeta['updated_at'] ?? '-'), 0, 10),
-                ]) ?></small>
+                <?php if (($summary['inflation_method'] ?? 'annual') === 'monthly'): ?>
+                    <?php if (($summary['inflation_target_tuik'] ?? null) !== null): ?>
+                        <?php $tuikGap = (float) ($summary['inflation_gap_tuik'] ?? 0); ?>
+                        <small class="card-subnote"><?= t('portfolio.summary.inflation_tuik', [
+                            'target' => formatTRY((float) $summary['inflation_target_tuik']),
+                            'gap' => ($tuikGap >= 0 ? '▲ ' : '▼ ') . formatTRY(abs($tuikGap)),
+                            'percent' => formatNumberLocalized(abs((float) ($summary['inflation_gap_percent_tuik'] ?? 0)), 2),
+                        ]) ?></small>
+                    <?php endif; ?>
+                    <small class="card-subnote"><?= t('portfolio.summary.inflation_note_monthly', [
+                        'enag' => (string) ($summary['inflation_enag_last'] ?? '-'),
+                        'tuik' => (string) ($summary['inflation_tuik_last'] ?? '-'),
+                    ]) ?></small>
+                <?php else: ?>
+                    <small class="card-subnote"><?= t('portfolio.summary.inflation_note', [
+                        'rate' => formatNumberLocalized((float) ($summary['inflation_rate'] ?? 0), 2),
+                        'source' => (string) $inflMeta['source'],
+                        'date' => substr((string) ($inflMeta['updated_at'] ?? '-'), 0, 10),
+                    ]) ?></small>
+                <?php endif; ?>
             </div>
         </section>
 
