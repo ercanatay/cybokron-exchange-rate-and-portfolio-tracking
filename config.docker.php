@@ -34,7 +34,7 @@ define('SCRAPE_TIMEOUT', 30);
 define('SCRAPE_USER_AGENT', 'Cybokron/1.0');
 define('SCRAPE_RETRY_COUNT', 3);
 define('SCRAPE_RETRY_DELAY', 5);
-define('SCRAPE_ALLOWED_HOSTS', ['dunyakatilim.com.tr', 'www.dunyakatilim.com.tr', 'www.tcmb.gov.tr', 'tcmb.gov.tr']);
+define('SCRAPE_ALLOWED_HOSTS', ['dunyakatilim.com.tr', 'www.dunyakatilim.com.tr', 'www.tcmb.gov.tr', 'tcmb.gov.tr', 'albaraka.com.tr']);
 define('OPENROUTER_AI_REPAIR_ENABLED', false);
 define('OPENROUTER_API_KEY', '');
 define('OPENROUTER_MODEL', 'z-ai/glm-5');
