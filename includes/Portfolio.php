@@ -98,7 +98,13 @@ class Portfolio
 
         // Her satıra kendi hedefi yazılır (tabloda ayrı sütun); toplam hedef bu
         // satır hedeflerinin toplamıdır, böylece kart ile tablo hep tutarlıdır.
-        $items = self::withInflationTargets($items, $inflationMethod, $enagSeries, $tuikSeries);
+        $items = self::withInflationTargets(
+            $items,
+            $inflationMethod,
+            $enagSeries,
+            $tuikSeries,
+            InflationProvider::getMultiplier()
+        );
         $inflationTarget = 0.0;
         $tuikTarget = $tuikSeries !== [] ? 0.0 : null;
         foreach ($items as $item) {
@@ -149,13 +155,23 @@ class Portfolio
      * varsa aynı hesap, yoksa null. inflation_gap_percent: alış (bozdurma)
      * değerinin ENAG hedefine göre farkı; pozitif => enflasyon yenildi.
      *
+     * inflation_target_1y: kalemin kendi alış tarihinden tam 1 yıl sonraki ENAG
+     * hedefi (InflationProvider::oneYearFactor). Henüz yaşanmamış kısım yıllık
+     * oranla ($annualMultiplier) tahmin edilir. inflation_target_1y_needed_percent:
+     * bugünkü alış değerinden bu hedefe ulaşmak için gereken artış.
+     *
      * @param array<string, float> $enagSeries
      * @param array<string, float> $tuikSeries
      */
-    private static function withInflationTargets(array $items, string $method, array $enagSeries, array $tuikSeries): array
-    {
+    private static function withInflationTargets(
+        array $items,
+        string $method,
+        array $enagSeries,
+        array $tuikSeries,
+        float $annualMultiplier
+    ): array {
         $today = new DateTimeImmutable('today');
-        $multiplier = $method === 'monthly' ? 1.0 : InflationProvider::getMultiplier();
+        $multiplier = $annualMultiplier;
 
         foreach ($items as &$item) {
             $cost = (float) $item['cost_try'];
@@ -174,6 +190,17 @@ class Portfolio
             $item['inflation_target_tuik'] = ($tuikSeries !== [] && $buy !== null)
                 ? $cost * InflationProvider::compoundFactor($buy, $today, $tuikSeries)
                 : ($tuikSeries !== [] ? $cost : null);
+
+            $oneYear = InflationProvider::oneYearFactor(
+                $buy ?? $today,
+                $today,
+                $method === 'monthly' ? $enagSeries : [],
+                $annualMultiplier
+            );
+            $target1y = $cost * $oneYear['factor'];
+            $item['inflation_target_1y'] = $target1y;
+            $item['inflation_target_1y_date'] = $oneYear['horizon']->format('Y-m-d');
+            $item['inflation_target_1y_needed_percent'] = $valueBuy > 0 ? (($target1y - $valueBuy) / $valueBuy) * 100 : null;
         }
         unset($item);
 

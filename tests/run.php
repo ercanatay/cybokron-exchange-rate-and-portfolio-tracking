@@ -236,7 +236,7 @@ $todayStr = (new DateTimeImmutable('today'))->format('Y-m-d');
 $rowItems = $withTargets->invoke(null, [
     ['cost_try' => 1000.0, 'value_try' => 1100.0, 'value_try_buy' => 1050.0, 'buy_date' => $todayStr],
     ['cost_try' => 2000.0, 'value_try' => 2000.0, 'value_try_buy' => 1900.0, 'buy_date' => '2026-01-01'],
-], 'monthly', $enag, $tuik);
+], 'monthly', $enag, $tuik, 1.4661);
 assertSameStrict($rowItems[0]['inflation_target'], 1000.0, 'Satır hedefi: bugün alınan kalemde hedef = maliyet');
 assertSameStrict($rowItems[0]['inflation_target_tuik'], 1000.0, 'Satır TÜİK hedefi: bugün alınan kalemde = maliyet');
 assertTrueStrict(abs($rowItems[0]['inflation_gap_percent'] - 5.0) < 1e-9, 'Satır reel farkı alış değerine göre: 1050 / 1000 = +%5');
@@ -244,7 +244,40 @@ $expectEnag = 2000.0 * InflationProvider::compoundFactor(new DateTimeImmutable('
 assertTrueStrict(abs($rowItems[1]['inflation_target'] - $expectEnag) < 1e-6, 'Satır hedefi compoundFactor ile aynı');
 assertTrueStrict($rowItems[1]['inflation_target_tuik'] < $rowItems[1]['inflation_target'], 'TÜİK satır hedefi ENAG hedefinin altında');
 assertTrueStrict($rowItems[1]['inflation_gap_percent'] < 0, 'Hedefin altındaki kalemde reel fark negatif');
-$noTuik = $withTargets->invoke(null, [['cost_try' => 1000.0, 'value_try' => 1000.0, 'buy_date' => '2026-01-01']], 'monthly', $enag, []);
+$noTuik = $withTargets->invoke(null, [['cost_try' => 1000.0, 'value_try' => 1000.0, 'buy_date' => '2026-01-01']], 'monthly', $enag, [], 1.4661);
 assertSameStrict($noTuik[0]['inflation_target_tuik'], null, 'TÜİK serisi yoksa satır TÜİK hedefi null');
+
+// --- 1 yıllık hedef: gerçekleşen + tahmin ---
+// Alış → bugün gerçekleşen aylık seriyle, bugün → alış+1 yıl yıllık oranla.
+$oy = fn (string $buy, string $today, array $series, float $mult): array =>
+    InflationProvider::oneYearFactor(new DateTimeImmutable($buy), new DateTimeImmutable($today), $series, $mult);
+
+$r = $oy('2026-10-09', '2026-10-09', $enag, 1.4661);
+assertTrueStrict(abs($r['factor'] - 1.4661 ** (365 / 365.25)) < 1e-12, '1 yıl: bugün alınan kalem tamamen yıllık oranla tahmin edilir');
+assertSameStrict($r['horizon']->format('Y-m-d'), '2027-10-09', '1 yıl: hedef tarihi alış + 1 yıl');
+
+$r = $oy('2026-02-25', '2026-10-09', $enag, 1.4661);
+$expect = $cf('2026-02-25', '2026-10-09', $enag) * 1.4661 ** (139 / 365.25);
+assertTrueStrict(abs($r['factor'] - $expect) < 1e-12, '1 yıl: gerçekleşen kısım × kalan 139 günün tahmini');
+
+$r = $oy('2025-12-11', '2027-03-01', $enag, 1.4661);
+assertTrueStrict(abs($r['factor'] - $cf('2025-12-11', '2026-12-11', $enag)) < 1e-12, '1 yıl: yılı dolmuş kalemde tahmin yok, tamamen gerçekleşen');
+
+$r = $oy('2026-02-25', '2026-10-09', [], 1.4661);
+assertTrueStrict(abs($r['factor'] - 1.4661 ** (365 / 365.25)) < 1e-12, '1 yıl: seri yoksa tüm yıl yıllık oranla');
+
+$r = $oy('2028-02-29', '2028-02-29', $enag, 1.0);
+assertSameStrict($r['horizon']->format('Y-m-d'), '2029-03-01', '1 yıl: 29 Şubat alımı PHP +1 year ile 1 Mart');
+assertSameStrict($r['factor'], 1.0, '1 yıl: yıllık oran 0 iken tahmin çarpanı 1');
+
+$todayDt = new DateTimeImmutable('today');
+$yearDays = (int) $todayDt->diff($todayDt->modify('+1 year'))->days; // 365 ya da artık yılda 366
+$rowOneYear = 1000.0 * 1.4661 ** ($yearDays / 365.25);
+assertTrueStrict(abs($rowItems[0]['inflation_target_1y'] - $rowOneYear) < 1e-6, 'Satır 1 yıllık hedefi: bugün alınan kalem');
+assertTrueStrict($rowItems[1]['inflation_target_1y'] > $rowItems[1]['inflation_target'], 'Satır 1 yıllık hedefi bugünkü hedeften büyük');
+assertTrueStrict(
+    abs($rowItems[0]['inflation_target_1y_needed_percent'] - ($rowOneYear / 1050.0 - 1) * 100) < 1e-9,
+    'Satır gereken artış: alış değerinden 1 yıllık hedefe'
+);
 
 fwrite(STDOUT, "All tests passed.\n");

@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.15.0] - 2026-10-09
+
+### Added
+- **1-year target per portfolio row.** A new "1-Year Target" column shows, for each purchase, its ENAG inflation target exactly one year after its own buy date. Under the amount it shows that date and the growth still needed from today's buy-side value, or "Target beaten ✓" if the value is already above it.
+  - **Realised part:** buy date → today uses the monthly ENAG series, the same as today's target.
+  - **Projected part:** today → buy date + 1 year uses the latest annual ENAG rate (the admin annual rate setting), `multiplier ^ (remaining days / 365.25)`.
+  - **Lots older than a year:** the year is fully realised, nothing is projected.
+- The existing column is renamed "Inflation Target (today)" so the two are clearly distinguished.
+- The admin annual rate hint now says the rate also drives the projection and should be updated monthly.
+
+### Files Modified
+- `includes/InflationProvider.php` — `oneYearFactor()`
+- `includes/Portfolio.php` — `inflation_target_1y`, `inflation_target_1y_date`, `inflation_target_1y_needed_percent` per row; projection multiplier passed in so the row builder stays DB-free
+- `portfolio.php` — new column
+- `locales/tr.php`, `locales/en.php` — column, tooltip, admin hint
+- `tests/run.php` — 9 new cases (leap-day buy, fully realised year, no series, zero rate)
+
 ## [1.14.1] - 2026-10-09
 
 ### Added
