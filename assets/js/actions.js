@@ -16,7 +16,7 @@
  *                                  button's click goes through
  *   data-toggle-hidden="id"        toggle the "hidden" class on #id
  *   data-toggle-password="id"      switch #id between password and text
- *   data-navigate="url?param="     on change, go to url + encoded value
+ *   data-autosubmit                on change, submit the element's form
  */
 (function () {
     'use strict';
@@ -92,11 +92,11 @@
         if (!(el instanceof Element)) {
             return;
         }
-        if (el.hasAttribute('data-navigate')) {
-            // Same-origin http(s) targets only; never a javascript: or foreign URL.
-            var url = new URL(el.getAttribute('data-navigate') + encodeURIComponent(el.value), window.location.href);
-            if (url.origin === window.location.origin && /^https?:$/.test(url.protocol)) {
-                window.location.assign(url.pathname + url.search + url.hash);
+        if (el.hasAttribute('data-autosubmit') && el.form) {
+            if (typeof el.form.requestSubmit === 'function') {
+                el.form.requestSubmit();
+            } else {
+                el.form.submit();
             }
             return;
         }
