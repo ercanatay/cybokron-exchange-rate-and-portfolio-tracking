@@ -172,7 +172,7 @@ foreach ($widgetConfig as $w) {
             <div style="display: flex; gap: 1rem; align-items: center; flex-wrap: wrap; justify-content: space-between;">
                 <div style="display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;">
                     <label for="bank-select" style="font-weight: 600; font-size: 1.1rem;">🏦 <?= t('converter.bank') ?>:</label>
-                    <select id="bank-select" onchange="window.location.href='index.php?bank='+this.value" style="padding: 0.75rem 1rem; border-radius: 8px; border: none; font-size: 1rem; min-width: 200px; cursor: pointer;">
+                    <select id="bank-select" data-navigate="index.php?bank=" style="padding: 0.75rem 1rem; border-radius: 8px; border: none; font-size: 1rem; min-width: 200px; cursor: pointer;">
                         <option value="all" <?= $selectedBank === 'all' ? 'selected' : '' ?>>
                             <?= t('admin.all_banks') ?>
                         </option>

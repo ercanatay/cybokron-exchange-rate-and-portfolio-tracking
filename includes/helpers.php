@@ -155,10 +155,13 @@ function applySecurityHeaders(string $context = 'html'): void
         ? trim((string) CSP_POLICY)
         : '';
     if ($cspPolicy === '') {
-        // Generate nonce for inline scripts/styles (avoids unsafe-inline)
-        $nonce = getCspNonce();
-        $cspPolicy = "default-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'; object-src 'none'; script-src 'self' 'nonce-{$nonce}' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://cdn.jsdelivr.net";
+        // Nonce for inline scripts (avoids unsafe-inline); Turnstile needs its script and frame host.
+        $turnstile = defined('TURNSTILE_ENABLED') && TURNSTILE_ENABLED ? ' https://challenges.cloudflare.com' : '';
+        $cspPolicy = "default-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'; object-src 'none'; script-src 'self' 'nonce-{nonce}' https://cdn.jsdelivr.net{$turnstile}; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://cdn.jsdelivr.net"
+            . ($turnstile !== '' ? "; frame-src{$turnstile}" : '');
     }
+    // A configured policy may carry a {nonce} placeholder for the per-request script nonce.
+    $cspPolicy = str_replace('{nonce}', getCspNonce(), $cspPolicy);
     if ($cspPolicy !== '') {
         header('Content-Security-Policy: ' . $cspPolicy);
     }

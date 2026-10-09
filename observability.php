@@ -258,7 +258,7 @@ $version = getAppVersion();
                                                     <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
                                                     <input type="hidden" name="action" value="deactivate_repair">
                                                     <input type="hidden" name="bank_id" value="<?= (int) $rc['bank_id'] ?>">
-                                                    <button type="submit" class="btn btn-sm" onclick="return confirm('<?= t('selfhealing.deactivate_confirm') ?>')"><?= t('admin.deactivate') ?></button>
+                                                    <button type="submit" class="btn btn-sm" data-confirm="<?= htmlspecialchars(t('selfhealing.deactivate_confirm')) ?>"><?= t('admin.deactivate') ?></button>
                                                 </form>
                                             </td>
                                         </tr>

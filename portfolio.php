@@ -562,7 +562,6 @@ $version = getAppVersion();
 $currentLocale = getAppLocale();
 $availableLocales = getAvailableLocales();
 $newTabText = t('common.opens_new_tab');
-$deleteConfirmText = json_encode(t('portfolio.table.delete_confirm'), JSON_UNESCAPED_UNICODE | JSON_HEX_APOS | JSON_HEX_QUOT);
 $csrfToken = getCsrfToken();
 
 // Build delete confirm messages with item counts
@@ -819,21 +818,21 @@ $annualizedReturn = ($oldestDate && $analyticsCost > 0)
 
         <!-- Combined Groups & Tags Management Panel -->
         <section class="manage-panel" id="manage-panel">
-            <div class="manage-panel-header" onclick="toggleManagePanel()">
+            <div class="manage-panel-header" data-click="toggleManagePanel">
                 <h2>📦 <?= t('portfolio.manage.title') ?> <span class="manage-toggle-icon">▼</span></h2>
             </div>
             <div class="manage-panel-body">
                 <div class="manage-tabs">
                     <button type="button" class="manage-tab active" data-tab="groups-tab"
-                        onclick="switchManageTab('groups-tab')">
+                        data-click="switchManageTab" data-args='["groups-tab"]'>
                         📦 <?= t('portfolio.manage.tab_groups') ?>
                         <span class="manage-tab-badge"><?= count($groups) ?></span>
                     </button>
-                    <button type="button" class="manage-tab" data-tab="tags-tab" onclick="switchManageTab('tags-tab')">
+                    <button type="button" class="manage-tab" data-tab="tags-tab" data-click="switchManageTab" data-args='["tags-tab"]'>
                         🏷️ <?= t('portfolio.manage.tab_tags') ?>
                         <span class="manage-tab-badge"><?= count($tags) ?></span>
                     </button>
-                    <button type="button" class="manage-tab" data-tab="goals-tab" onclick="switchManageTab('goals-tab')">
+                    <button type="button" class="manage-tab" data-tab="goals-tab" data-click="switchManageTab" data-args='["goals-tab"]'>
                         🎯 <?= t('portfolio.manage.tab_goals') ?>
                         <span class="manage-tab-badge"><?= count($goals) ?></span>
                     </button>
@@ -844,7 +843,7 @@ $annualizedReturn = ($oldestDate && $analyticsCost > 0)
                     <div class="manage-tab-actions">
                         <span></span>
                         <button type="button" class="btn btn-sm btn-secondary"
-                            onclick="document.getElementById('group-form-panel').classList.toggle('hidden')">
+                            data-toggle-hidden="group-form-panel">
                             <?= t('portfolio.groups.add') ?>
                         </button>
                     </div>
@@ -883,11 +882,11 @@ $annualizedReturn = ($oldestDate && $analyticsCost > 0)
                                         </div>
                                         <div class="group-card-actions">
                                             <button type="button" class="btn btn-xs btn-secondary"
-                                                onclick="toggleEditGroup(<?= (int) $group['id'] ?>)">✏️</button>
+                                                data-click="toggleEditGroup" data-args='[<?= (int) $group['id'] ?>]'>✏️</button>
                                             <form method="POST" style="display:inline" data-confirm-type="group"
                                                 data-item-count="<?= (int) $group['item_count'] ?>"
                                                 data-item-name="<?= htmlspecialchars($group['name']) ?>"
-                                                onsubmit="return confirmDeleteWithCount(this, 'group')">
+                                                data-submit="confirmDeleteWithCount" data-args='["$el", "group"]'>
                                                 <input type="hidden" name="action" value="delete_group">
                                                 <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
                                                 <input type="hidden" name="group_id" value="<?= (int) $group['id'] ?>">
@@ -927,7 +926,7 @@ $annualizedReturn = ($oldestDate && $analyticsCost > 0)
                     <div class="manage-tab-actions">
                         <span></span>
                         <button type="button" class="btn btn-sm btn-secondary"
-                            onclick="document.getElementById('tag-form-panel').classList.toggle('hidden')">
+                            data-toggle-hidden="tag-form-panel">
                             <?= t('portfolio.tags.add') ?>
                         </button>
                     </div>
@@ -957,11 +956,11 @@ $annualizedReturn = ($oldestDate && $analyticsCost > 0)
                                         class="tag-count-link"><?= t('portfolio.tags.items', ['count' => (int) $tag['item_count']]) ?></a>
                                     <div class="tag-card-actions" role="group">
                                         <button type="button" class="btn btn-xs btn-secondary"
-                                            onclick="toggleEditTag(<?= (int) $tag['id'] ?>)">✏️</button>
+                                            data-click="toggleEditTag" data-args='[<?= (int) $tag['id'] ?>]'>✏️</button>
                                         <form method="POST" style="display:inline" data-confirm-type="tag"
                                             data-item-count="<?= (int) $tag['item_count'] ?>"
                                             data-item-name="<?= htmlspecialchars($tag['name']) ?>"
-                                            onsubmit="return confirmDeleteWithCount(this, 'tag')">
+                                            data-submit="confirmDeleteWithCount" data-args='["$el", "tag"]'>
                                             <input type="hidden" name="action" value="delete_tag">
                                             <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
                                             <input type="hidden" name="tag_id" value="<?= (int) $tag['id'] ?>">
@@ -996,7 +995,7 @@ $annualizedReturn = ($oldestDate && $analyticsCost > 0)
                     <div class="manage-tab-actions">
                         <span></span>
                         <button type="button" class="btn btn-sm btn-secondary"
-                            onclick="document.getElementById('goal-form-panel').classList.toggle('hidden')">
+                            data-toggle-hidden="goal-form-panel">
                             <?= t('portfolio.goals.add') ?>
                         </button>
                     </div>
@@ -1011,7 +1010,7 @@ $annualizedReturn = ($oldestDate && $analyticsCost > 0)
                                 </div>
                                 <div class="goal-form-field">
                                     <label><?= t('portfolio.goals.target_type') ?></label>
-                                    <select name="goal_target_type" onchange="goalTypeChanged(this, 'add')">
+                                    <select name="goal_target_type" data-change="goalTypeChanged" data-args='["$el", "add"]'>
                                         <option value="value"><?= t('portfolio.goals.type_value') ?></option>
                                         <option value="cost"><?= t('portfolio.goals.type_cost') ?></option>
                                         <option value="amount"><?= t('portfolio.goals.type_amount') ?></option>
@@ -1032,7 +1031,7 @@ $annualizedReturn = ($oldestDate && $analyticsCost > 0)
                                 </div>
                                 <div class="goal-form-field goal-percent-fields" id="goal-percent-add" style="display:none">
                                     <label><?= t('portfolio.goals.percent_date_mode') ?></label>
-                                    <select name="goal_percent_date_mode" onchange="percentModeChanged(this, 'add')">
+                                    <select name="goal_percent_date_mode" data-change="percentModeChanged" data-args='["$el", "add"]'>
                                         <option value="all"><?= t('portfolio.goals.percent_mode_all') ?></option>
                                         <option value="range"><?= t('portfolio.goals.percent_mode_range') ?></option>
                                         <option value="since_first"><?= t('portfolio.goals.percent_mode_since_first') ?></option>
@@ -1070,7 +1069,7 @@ $annualizedReturn = ($oldestDate && $analyticsCost > 0)
                                 </div>
                                 <div class="goal-form-field goal-deadline-field" id="goal-deadline-add" style="display:none">
                                     <label><?= t('portfolio.goals.deadline') ?></label>
-                                    <select name="goal_deadline_preset" onchange="deadlinePresetChanged(this, 'add')">
+                                    <select name="goal_deadline_preset" data-change="deadlinePresetChanged" data-args='["$el", "add"]'>
                                         <option value=""><?= t('portfolio.goals.deadline_none') ?></option>
                                         <option value="1m"><?= t('portfolio.goals.deadline_1m') ?></option>
                                         <option value="3m"><?= t('portfolio.goals.deadline_3m') ?></option>
@@ -1104,7 +1103,7 @@ $annualizedReturn = ($oldestDate && $analyticsCost > 0)
                                             </option>
                                         <?php endforeach; ?>
                                     </select>
-                                    <button type="button" class="btn btn-sm btn-primary" onclick="addGoalSource()">
+                                    <button type="button" class="btn btn-sm btn-primary" data-click="addGoalSource">
                                         ➕ <?= t('common.add') ?>
                                     </button>
                                 </div>
@@ -1125,22 +1124,22 @@ $annualizedReturn = ($oldestDate && $analyticsCost > 0)
                         ksort($goalCurrenciesUsed);
                     ?>
                         <div class="goal-filter-bar">
-                            <button type="button" class="goal-filter-btn" data-filter="favorites" onclick="toggleGoalFilter('favorites')">
+                            <button type="button" class="goal-filter-btn" data-filter="favorites" data-click="toggleGoalFilter" data-args='["favorites"]'>
                                 ⭐ <?= t('portfolio.goals.favorites') ?>
                             </button>
-                            <button type="button" class="goal-filter-btn" data-filter="group" onclick="toggleGoalFilter('group')">
+                            <button type="button" class="goal-filter-btn" data-filter="group" data-click="toggleGoalFilter" data-args='["group"]'>
                                 📦 <?= t('portfolio.goals.filter_group') ?>
                             </button>
-                            <button type="button" class="goal-filter-btn" data-filter="tag" onclick="toggleGoalFilter('tag')">
+                            <button type="button" class="goal-filter-btn" data-filter="tag" data-click="toggleGoalFilter" data-args='["tag"]'>
                                 🏷️ <?= t('portfolio.goals.filter_tag') ?>
                             </button>
-                            <select class="goal-filter-select" onchange="filterGoalsByCurrency(this.value)">
+                            <select class="goal-filter-select" data-change="filterGoalsByCurrency" data-args='["$value"]'>
                                 <option value=""><?= t('portfolio.goals.filter_all_currencies') ?></option>
                                 <?php foreach ($goalCurrenciesUsed as $cur => $_): ?>
                                     <option value="<?= htmlspecialchars($cur) ?>"><?= htmlspecialchars($cur) ?></option>
                                 <?php endforeach; ?>
                             </select>
-                            <button type="button" class="goal-filter-btn goal-filter-clear hidden" onclick="clearGoalFilters()">
+                            <button type="button" class="goal-filter-btn goal-filter-clear hidden" data-click="clearGoalFilters">
                                 ✕ <?= t('portfolio.goals.filter_clear') ?>
                             </button>
                         </div>
@@ -1206,9 +1205,9 @@ $annualizedReturn = ($oldestDate && $analyticsCost > 0)
                                             </div>
                                             <div class="goal-card-actions">
                                                 <button type="button" class="btn btn-xs btn-secondary"
-                                                    onclick="toggleEditGoal(<?= (int)$goal['id'] ?>)">✏️</button>
+                                                    data-click="toggleEditGoal" data-args='[<?= (int)$goal['id'] ?>]'>✏️</button>
                                                 <form method="POST" style="display:inline"
-                                                    onsubmit="return confirm('<?= htmlspecialchars(t('portfolio.goals.delete_confirm'), ENT_QUOTES) ?>')">
+                                                    data-confirm="<?= htmlspecialchars(t('portfolio.goals.delete_confirm'), ENT_QUOTES) ?>">
                                                     <input type="hidden" name="action" value="delete_goal">
                                                     <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
                                                     <input type="hidden" name="goal_id" value="<?= (int)$goal['id'] ?>">
@@ -1226,7 +1225,7 @@ $annualizedReturn = ($oldestDate && $analyticsCost > 0)
                                             <?php if ($showPeriodDropdown || $goalDeadline): ?>
                                                 <div class="goal-card-extras">
                                                     <?php if ($showPeriodDropdown): ?>
-                                                        <select class="goal-period-select" data-goal-id="<?= (int)$goal['id'] ?>" onchange="goalPeriodChanged(this)">
+                                                        <select class="goal-period-select" data-goal-id="<?= (int)$goal['id'] ?>" data-change="goalPeriodChanged" data-args='["$el"]'>
                                                             <option value=""><?= t('portfolio.goals.period_all') ?></option>
                                                             <option value="7d"><?= t('portfolio.goals.period_7d') ?></option>
                                                             <option value="14d"><?= t('portfolio.goals.period_14d') ?></option>
@@ -1385,7 +1384,7 @@ $annualizedReturn = ($oldestDate && $analyticsCost > 0)
                                             </div>
                                             <div class="goal-form-field">
                                                 <label><?= t('portfolio.goals.target_type') ?></label>
-                                                <select name="goal_target_type" onchange="goalTypeChanged(this, 'edit-<?= (int)$goal['id'] ?>')">
+                                                <select name="goal_target_type" data-change="goalTypeChanged" data-args='["$el", "edit-<?= (int)$goal['id'] ?>"]'>
                                                     <option value="value" <?= ($goal['target_type'] ?? 'value') === 'value' ? 'selected' : '' ?>><?= t('portfolio.goals.type_value') ?></option>
                                                     <option value="cost" <?= ($goal['target_type'] ?? 'value') === 'cost' ? 'selected' : '' ?>><?= t('portfolio.goals.type_cost') ?></option>
                                                     <option value="amount" <?= ($goal['target_type'] ?? 'value') === 'amount' ? 'selected' : '' ?>><?= t('portfolio.goals.type_amount') ?></option>
@@ -1429,7 +1428,7 @@ $annualizedReturn = ($oldestDate && $analyticsCost > 0)
                                             ?>
                                             <div class="goal-form-field goal-percent-fields" id="goal-percent-edit-<?= (int)$goal['id'] ?>" style="<?= $isPercentGoal ? '' : 'display:none' ?>">
                                                 <label><?= t('portfolio.goals.percent_date_mode') ?></label>
-                                                <select name="goal_percent_date_mode" onchange="percentModeChanged(this, 'edit-<?= (int)$goal['id'] ?>')">
+                                                <select name="goal_percent_date_mode" data-change="percentModeChanged" data-args='["$el", "edit-<?= (int)$goal['id'] ?>"]'>
                                                     <option value="all" <?= $editPercentMode === 'all' ? 'selected' : '' ?>><?= t('portfolio.goals.percent_mode_all') ?></option>
                                                     <option value="range" <?= $editPercentMode === 'range' ? 'selected' : '' ?>><?= t('portfolio.goals.percent_mode_range') ?></option>
                                                     <option value="since_first" <?= $editPercentMode === 'since_first' ? 'selected' : '' ?>><?= t('portfolio.goals.percent_mode_since_first') ?></option>
@@ -1451,7 +1450,7 @@ $annualizedReturn = ($oldestDate && $analyticsCost > 0)
                                             <?php $editGoalDeadline = $goal['goal_deadline'] ?? ''; ?>
                                             <div class="goal-form-field goal-deadline-field" id="goal-deadline-edit-<?= (int)$goal['id'] ?>" style="<?= $isPercentGoal ? 'display:none' : '' ?>">
                                                 <label><?= t('portfolio.goals.deadline') ?></label>
-                                                <select name="goal_deadline_preset" onchange="deadlinePresetChanged(this, 'edit-<?= (int)$goal['id'] ?>')">
+                                                <select name="goal_deadline_preset" data-change="deadlinePresetChanged" data-args='["$el", "edit-<?= (int)$goal['id'] ?>"]'>
                                                     <option value="" <?= $editGoalDeadline === '' ? 'selected' : '' ?>><?= t('portfolio.goals.deadline_none') ?></option>
                                                     <option value="custom" <?= $editGoalDeadline !== '' ? 'selected' : '' ?>><?= t('portfolio.goals.deadline_custom') ?></option>
                                                 </select>
@@ -1496,7 +1495,7 @@ $annualizedReturn = ($oldestDate && $analyticsCost > 0)
                                                         <input type="hidden" name="goal_source_type[]" value="<?= htmlspecialchars($src['source_type']) ?>">
                                                         <input type="hidden" name="goal_source_id[]" value="<?= (int)$src['source_id'] ?>">
                                                         <span class="goal-source-pill goal-source-<?= htmlspecialchars($src['source_type']) ?>"><?= $srcIcon ?> <?= htmlspecialchars($srcLabel) ?></span>
-                                                        <button type="button" class="btn btn-xs btn-danger" aria-label="<?= t('common.remove') ?> <?= htmlspecialchars($srcLabel) ?>" onclick="removeGoalSourceRow(this)">×</button>
+                                                        <button type="button" class="btn btn-xs btn-danger" aria-label="<?= t('common.remove') ?> <?= htmlspecialchars($srcLabel) ?>" data-click="removeGoalSourceRow" data-args='["$el"]'>×</button>
                                                     </div>
                                                 <?php endforeach; ?>
                                             </div>
@@ -1519,12 +1518,12 @@ $annualizedReturn = ($oldestDate && $analyticsCost > 0)
                                                         </option>
                                                     <?php endforeach; ?>
                                                 </select>
-                                                <button type="button" class="btn btn-sm btn-primary" onclick="addGoalSourceEdit(<?= (int)$goal['id'] ?>)">➕</button>
+                                                <button type="button" class="btn btn-sm btn-primary" data-click="addGoalSourceEdit" data-args='[<?= (int)$goal['id'] ?>]'>➕</button>
                                             </div>
                                         </div>
                                         <div class="goal-edit-actions">
                                             <button type="submit" class="btn btn-primary btn-xs">💾 <?= t('portfolio.form.update') ?></button>
-                                            <button type="button" class="btn btn-secondary btn-xs" onclick="toggleEditGoal(<?= (int)$goal['id'] ?>)" aria-label="<?= t('common.cancel') ?>">❌</button>
+                                            <button type="button" class="btn btn-secondary btn-xs" data-click="toggleEditGoal" data-args='[<?= (int)$goal['id'] ?>]' aria-label="<?= t('common.cancel') ?>">❌</button>
                                         </div>
                                     </form>
                                 </div>
@@ -2007,7 +2006,7 @@ $annualizedReturn = ($oldestDate && $analyticsCost > 0)
                                             endif; ?>
                                             <?php if (!empty($tags)): ?>
                                                 <button type="button" class="inline-tag-add"
-                                                    onclick="toggleInlineTagDropdown(this)"><?= t('portfolio.tags.inline_add') ?></button>
+                                                    data-click="toggleInlineTagDropdown" data-args='["$el"]'><?= t('portfolio.tags.inline_add') ?></button>
                                                 <div class="inline-tag-dropdown">
                                                     <?php foreach ($tags as $availTag): ?>
                                                         <?php
@@ -2089,7 +2088,7 @@ $annualizedReturn = ($oldestDate && $analyticsCost > 0)
                                             aria-label="<?= htmlspecialchars(t('portfolio.table.edit_action', ['currency' => (string) $item['currency_code']])) ?>"
                                             title="<?= htmlspecialchars(t('portfolio.table.edit_action', ['currency' => (string) $item['currency_code']])) ?>">✏️</a>
                                         <form method="POST" style="display:inline"
-                                            onsubmit="return confirm(<?= $deleteConfirmText ?>)">
+                                            data-confirm="<?= htmlspecialchars(t('portfolio.table.delete_confirm'), ENT_QUOTES) ?>">
                                             <input type="hidden" name="action" value="delete">
                                             <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
                                             <input type="hidden" name="id" value="<?= (int) $item['id'] ?>">
@@ -2527,7 +2526,7 @@ $annualizedReturn = ($oldestDate && $analyticsCost > 0)
         })();
     </script>
     <?php if (!empty($distribution)): ?>
-        <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" crossorigin="anonymous"></script>
+        <script src="<?= assetUrl('assets/js/lib/chart.umd.min.js') ?>"></script>
         <script src="<?= assetUrl('assets/js/portfolio-analytics.js') ?>"></script>
     <?php endif; ?>
 </body>

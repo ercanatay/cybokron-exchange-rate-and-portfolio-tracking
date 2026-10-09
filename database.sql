@@ -190,9 +190,10 @@ INSERT INTO `currencies` (`code`, `name_tr`, `name_en`, `symbol`, `type`, `decim
 ('KZT', 'Kazakistan Tengesi', 'Kazakhstan Tenge', '₸', 'fiat', 4),
 ('XDR', 'Özel Çekme Hakkı (SDR)', 'Special Drawing Right', 'XDR', 'fiat', 4);
 
--- Insert default admin user (password: admin123 - change in production)
+-- Insert default admin user with no usable password ('!' never matches password_verify).
+-- Set the password before the first login: php database/update_admin_password.php (see SETUP.md).
 INSERT INTO `users` (`username`, `password_hash`, `role`) VALUES
-('admin', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'admin');
+('admin', '!', 'admin');
 
 -- Insert default settings
 INSERT INTO `settings` (`key`, `value`) VALUES
