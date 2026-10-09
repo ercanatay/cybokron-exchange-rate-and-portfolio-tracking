@@ -1956,6 +1956,7 @@ $annualizedReturn = ($oldestDate && $analyticsCost > 0)
                                 <th scope="col" class="text-right"><?= t('portfolio.table.value') ?></th>
                                 <th scope="col" class="text-right"><?= t('portfolio.table.pl_percent_buy') ?></th>
                                 <th scope="col" class="text-right"><?= t('portfolio.table.pl_percent_sell') ?></th>
+                                <th scope="col" class="text-right" title="<?= htmlspecialchars(t('portfolio.table.inflation_target_hint')) ?>"><?= t('portfolio.table.inflation_target') ?></th>
                                 <th scope="col"><?= t('portfolio.table.date') ?></th>
                                 <th scope="col"><?= t('portfolio.table.actions') ?></th>
                             </tr>
@@ -2049,6 +2050,20 @@ $annualizedReturn = ($oldestDate && $analyticsCost > 0)
                                     </td>
                                     <td class="text-right <?= changeClass($pl) ?>">
                                         <?= changeArrow($pl) ?> % <?= formatNumberLocalized(abs($pl), 2) ?>
+                                    </td>
+                                    <td class="text-right mono">
+                                        <?php if (isset($item['inflation_target'])): ?>
+                                            <?php $rowGap = $item['inflation_gap_percent'] ?? null; ?>
+                                            <?= formatTRY((float) $item['inflation_target']) ?>
+                                            <?php if ($rowGap !== null): ?>
+                                                <small class="cell-subline <?= changeClass((float) $rowGap) ?>"><?= t('portfolio.summary.inflation_gap') ?>: <?= changeArrow((float) $rowGap) ?> % <?= formatNumberLocalized(abs((float) $rowGap), 2) ?></small>
+                                            <?php endif; ?>
+                                            <?php if (($item['inflation_target_tuik'] ?? null) !== null): ?>
+                                                <small class="cell-subline">TÜİK: <?= formatTRY((float) $item['inflation_target_tuik']) ?></small>
+                                            <?php endif; ?>
+                                        <?php else: ?>
+                                            <?= t('common.not_available') ?>
+                                        <?php endif; ?>
                                     </td>
                                     <td><?= formatDate((string) $item['buy_date']) ?></td>
                                     <td>

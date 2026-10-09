@@ -89,6 +89,8 @@ return [
     'admin.inflation_rate_hint' => 'ENAG yıllık reel enflasyon oranı (örn. 53.13). Yalnızca aşağıdaki aylık ENAG serisi boşsa kullanılır.',
     'admin.inflation_locked_label' => 'Manuel kilit (otomatik güncelleme ezmesin)',
     'admin.inflation_locked_hint' => 'İşaretliyse otomatik (scrape) güncelleme bu değeri değiştirmez.',
+    'portfolio.table.inflation_target' => 'Enflasyon Hedefi',
+    'portfolio.table.inflation_target_hint' => 'Bu alımın maliyetinin alış tarihinden bugüne ENAG aylık enflasyonuyla büyütülmüş hali. Reel fark: alış (bozdurma) değerinin bu hedefe göre farkı. Alttaki satır TÜİK karşılığı.',
     'portfolio.summary.inflation_tuik' => 'TÜİK hedefi: {{target}} (Reel fark: {{gap}} / % {{percent}})',
     'portfolio.summary.inflation_note_monthly' => 'Her alım kendi tarihinden aylık gerçekleşen enflasyonla. Son veri: ENAG {{enag}}, TÜİK {{tuik}}',
     'admin.inflation_monthly_title' => 'Aylık Enflasyon Serisi',

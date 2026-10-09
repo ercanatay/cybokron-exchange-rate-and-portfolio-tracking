@@ -89,6 +89,8 @@ return [
     'admin.inflation_rate_hint' => 'ENAG annual real inflation rate (e.g. 53.13). Only used when the monthly ENAG series below is empty.',
     'admin.inflation_locked_label' => 'Manual lock (prevent auto-update override)',
     'admin.inflation_locked_hint' => 'If checked, automatic (scrape) updates will not change this value.',
+    'portfolio.table.inflation_target' => 'Inflation Target',
+    'portfolio.table.inflation_target_hint' => 'This purchase\'s cost grown by monthly ENAG inflation from its buy date to today. Real gap: buy-side (sell-back) value against this target. The last line is the TÜİK equivalent.',
     'portfolio.summary.inflation_tuik' => 'TÜİK target: {{target}} (Real gap: {{gap}} / {{percent}}%)',
     'portfolio.summary.inflation_note_monthly' => 'Each purchase grown by realised monthly inflation since its own date. Latest data: ENAG {{enag}}, TÜİK {{tuik}}',
     'admin.inflation_monthly_title' => 'Monthly Inflation Series',

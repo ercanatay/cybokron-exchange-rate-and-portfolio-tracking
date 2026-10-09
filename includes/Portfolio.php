@@ -96,16 +96,23 @@ class Portfolio
         $tuikSeries = InflationProvider::getMonthlySeries('tuik');
         $inflationMethod = $enagSeries !== [] ? 'monthly' : 'annual';
 
-        $inflationTarget = $inflationMethod === 'monthly'
-            ? self::inflationAdjustedCostMonthly($items, $enagSeries)
-            : self::inflationAdjustedCost($items);
+        // Her satıra kendi hedefi yazılır (tabloda ayrı sütun); toplam hedef bu
+        // satır hedeflerinin toplamıdır, böylece kart ile tablo hep tutarlıdır.
+        $items = self::withInflationTargets($items, $inflationMethod, $enagSeries, $tuikSeries);
+        $inflationTarget = 0.0;
+        $tuikTarget = $tuikSeries !== [] ? 0.0 : null;
+        foreach ($items as $item) {
+            $inflationTarget += $item['inflation_target'];
+            if ($tuikTarget !== null) {
+                $tuikTarget += (float) $item['inflation_target_tuik'];
+            }
+        }
         // Portföyün hedefe göre bugünkü reel farkı. Pozitif => enflasyon yenildi.
         $inflationGap = $totalValueBuy - $inflationTarget;
         $inflationGapPercent = $inflationTarget > 0
             ? ($inflationGap / $inflationTarget) * 100
             : null;
 
-        $tuikTarget = $tuikSeries !== [] ? self::inflationAdjustedCostMonthly($items, $tuikSeries) : null;
         $tuikGap = $tuikTarget !== null ? $totalValueBuy - $tuikTarget : null;
         $tuikGapPercent = ($tuikTarget !== null && $tuikTarget > 0) ? ($tuikGap / $tuikTarget) * 100 : null;
 
@@ -134,46 +141,43 @@ class Portfolio
     }
 
     /**
-     * Enflasyona göre düzeltilmiş maliyet toplamı — "bugün itibarıyla ne etmeliydi".
+     * Her kaleme enflasyon hedefini ve reel farkını ekler.
      *
-     * Hedef = Σ maliyet_i × (1 + yıllık enflasyon) ^ üs(tutulan yıl_i)
+     * inflation_target: aylık ENAG serisi varsa maliyet × Π (1 + aylık oran) ^ (o ayda
+     * tutulan gün / ayın günü); yoksa maliyet × (1 + yıllık oran) ^ tutulan yıl.
+     * Bugün alınan kalemde hedef = maliyet. inflation_target_tuik: TÜİK serisi
+     * varsa aynı hesap, yoksa null. inflation_gap_percent: alış (bozdurma)
+     * değerinin ENAG hedefine göre farkı; pozitif => enflasyon yenildi.
      *
-     * Bugün alınan bir kalemde üs 0'dır; kaleme maliyeti kadar katkı verir, hedefi
-     * şişirmez. Filtre kapsamına saygılıdır: $items zaten filtrelenmiş listedir.
+     * @param array<string, float> $enagSeries
+     * @param array<string, float> $tuikSeries
      */
-    private static function inflationAdjustedCost(array $items): float
-    {
-        $multiplier = InflationProvider::getMultiplier();
-        $today = new DateTimeImmutable('today');
-        $total = 0.0;
-
-        foreach ($items as $item) {
-            $yearsHeld = self::yearsHeld($item['buy_date'] ?? null, $today);
-            $total += (float) $item['cost_try'] * ($multiplier ** self::inflationExponent($yearsHeld));
-        }
-
-        return $total;
-    }
-
-    /**
-     * Aylık seriyle enflasyona göre düzeltilmiş maliyet toplamı.
-     *
-     * Hedef = Σ maliyet_i × Π (1 + aylık oran) ^ (o ayda tutulan gün / ayın günü)
-     *
-     * @param array<string, float> $series ['YYYY-MM' => aylık yüzde]
-     */
-    private static function inflationAdjustedCostMonthly(array $items, array $series): float
+    private static function withInflationTargets(array $items, string $method, array $enagSeries, array $tuikSeries): array
     {
         $today = new DateTimeImmutable('today');
-        $total = 0.0;
+        $multiplier = $method === 'monthly' ? 1.0 : InflationProvider::getMultiplier();
 
-        foreach ($items as $item) {
+        foreach ($items as &$item) {
+            $cost = (float) $item['cost_try'];
             $buy = self::parseBuyDate($item['buy_date'] ?? null);
-            $factor = $buy !== null ? InflationProvider::compoundFactor($buy, $today, $series) : 1.0;
-            $total += (float) $item['cost_try'] * $factor;
-        }
 
-        return $total;
+            if ($method === 'monthly') {
+                $enagFactor = $buy !== null ? InflationProvider::compoundFactor($buy, $today, $enagSeries) : 1.0;
+            } else {
+                $enagFactor = $multiplier ** self::inflationExponent(self::yearsHeld($item['buy_date'] ?? null, $today));
+            }
+            $target = $cost * $enagFactor;
+            $valueBuy = (float) ($item['value_try_buy'] ?? $item['value_try']);
+
+            $item['inflation_target'] = $target;
+            $item['inflation_gap_percent'] = $target > 0 ? (($valueBuy - $target) / $target) * 100 : null;
+            $item['inflation_target_tuik'] = ($tuikSeries !== [] && $buy !== null)
+                ? $cost * InflationProvider::compoundFactor($buy, $today, $tuikSeries)
+                : ($tuikSeries !== [] ? $cost : null);
+        }
+        unset($item);
+
+        return $items;
     }
 
     private static function parseBuyDate(?string $buyDate): ?DateTimeImmutable

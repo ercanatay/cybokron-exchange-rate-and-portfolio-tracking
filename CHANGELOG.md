@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.14.1] - 2026-10-09
+
+### Added
+- **Inflation target per row in the portfolio table.** A new "Inflation Target" column shows, for each purchase, its cost grown by monthly ENAG inflation from its own buy date to today. Under it are the row's real gap (buy-side value against that target, green when inflation is beaten) and the TÜİK equivalent. The header tooltip explains the figures.
+- Row targets are now computed once in `Portfolio::getSummary()` and the card total is their sum, so the card and the table cannot drift apart.
+
+### Files Modified
+- `includes/Portfolio.php` — `withInflationTargets()` adds `inflation_target`, `inflation_target_tuik` and `inflation_gap_percent` to each item; totals sum the rows
+- `portfolio.php`, `assets/css/style.css` — new column and its sub-lines
+- `locales/tr.php`, `locales/en.php` — column title and tooltip
+- `tests/run.php` — 7 new cases
+
 ## [1.14.0] - 2026-10-09
 
 ### Changed
