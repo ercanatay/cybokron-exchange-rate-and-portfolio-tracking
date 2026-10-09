@@ -93,7 +93,11 @@
             return;
         }
         if (el.hasAttribute('data-navigate')) {
-            window.location.href = el.getAttribute('data-navigate') + encodeURIComponent(el.value);
+            // Same-origin http(s) targets only; never a javascript: or foreign URL.
+            var url = new URL(el.getAttribute('data-navigate') + encodeURIComponent(el.value), window.location.href);
+            if (url.origin === window.location.origin && /^https?:$/.test(url.protocol)) {
+                window.location.assign(url.pathname + url.search + url.hash);
+            }
             return;
         }
         if (el.hasAttribute('data-change')) {
