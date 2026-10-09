@@ -1268,6 +1268,16 @@ body.menu-open {
     color: var(--text-muted);
 }
 
+.cell-subline {
+    display: block;
+    font-size: 0.75rem;
+    white-space: nowrap;
+}
+
+.cell-subline:not(.text-success):not(.text-danger) {
+    color: var(--text-muted);
+}
+
 .card-profit .card-value {
     color: var(--success);
 }

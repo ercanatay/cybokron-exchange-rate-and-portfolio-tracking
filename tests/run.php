@@ -228,4 +228,23 @@ assertTrueStrict(InflationProvider::isValidPeriod('2026-09'), 'isValidPeriod: ge
 assertTrueStrict(!InflationProvider::isValidPeriod('2026-13'), 'isValidPeriod: 13. ay geçersiz');
 assertTrueStrict(!InflationProvider::isValidPeriod('2026-9'), 'isValidPeriod: tek haneli ay geçersiz');
 
+// --- Satır bazında enflasyon hedefi ---
+// Her kalem kendi hedefini taşır; kart toplamı bu satırların toplamıdır.
+$withTargets = new ReflectionMethod('Portfolio', 'withInflationTargets');
+$withTargets->setAccessible(true);
+$todayStr = (new DateTimeImmutable('today'))->format('Y-m-d');
+$rowItems = $withTargets->invoke(null, [
+    ['cost_try' => 1000.0, 'value_try' => 1100.0, 'value_try_buy' => 1050.0, 'buy_date' => $todayStr],
+    ['cost_try' => 2000.0, 'value_try' => 2000.0, 'value_try_buy' => 1900.0, 'buy_date' => '2026-01-01'],
+], 'monthly', $enag, $tuik);
+assertSameStrict($rowItems[0]['inflation_target'], 1000.0, 'Satır hedefi: bugün alınan kalemde hedef = maliyet');
+assertSameStrict($rowItems[0]['inflation_target_tuik'], 1000.0, 'Satır TÜİK hedefi: bugün alınan kalemde = maliyet');
+assertTrueStrict(abs($rowItems[0]['inflation_gap_percent'] - 5.0) < 1e-9, 'Satır reel farkı alış değerine göre: 1050 / 1000 = +%5');
+$expectEnag = 2000.0 * InflationProvider::compoundFactor(new DateTimeImmutable('2026-01-01'), new DateTimeImmutable('today'), $enag);
+assertTrueStrict(abs($rowItems[1]['inflation_target'] - $expectEnag) < 1e-6, 'Satır hedefi compoundFactor ile aynı');
+assertTrueStrict($rowItems[1]['inflation_target_tuik'] < $rowItems[1]['inflation_target'], 'TÜİK satır hedefi ENAG hedefinin altında');
+assertTrueStrict($rowItems[1]['inflation_gap_percent'] < 0, 'Hedefin altındaki kalemde reel fark negatif');
+$noTuik = $withTargets->invoke(null, [['cost_try' => 1000.0, 'value_try' => 1000.0, 'buy_date' => '2026-01-01']], 'monthly', $enag, []);
+assertSameStrict($noTuik[0]['inflation_target_tuik'], null, 'TÜİK serisi yoksa satır TÜİK hedefi null');
+
 fwrite(STDOUT, "All tests passed.\n");
