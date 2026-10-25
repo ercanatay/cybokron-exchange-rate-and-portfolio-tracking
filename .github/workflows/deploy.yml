@@ -49,7 +49,7 @@ jobs:
           define('APP_TIMEZONE', 'Europe/Istanbul');
           define('APP_DEBUG', false);
           define('ENABLE_SECURITY_HEADERS', true);
-          define('CSP_POLICY', "default-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'; object-src 'none'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://cdn.jsdelivr.net; frame-src https://challenges.cloudflare.com");
+          define('CSP_POLICY', "default-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'; object-src 'none'; script-src 'self' 'nonce-{nonce}' https://cdn.jsdelivr.net https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://cdn.jsdelivr.net; frame-src https://challenges.cloudflare.com");
           define('HSTS_MAX_AGE_SECONDS', 31536000);
           define('DEFAULT_LOCALE', 'tr');
           define('FALLBACK_LOCALE', 'en');
@@ -145,16 +145,24 @@ jobs:
           sed -i "s|__SENDGRID_API_KEY__|${SENDGRID_API_KEY}|g" config.php
 
       - name: Setup SSH key
+        env:
+          # Pinned host keys (known_hosts format). A scanned key would trust whoever answers.
+          SSH_KNOWN_HOSTS: ${{ secrets.SSH_KNOWN_HOSTS }}
         run: |
           mkdir -p ~/.ssh
           echo "${{ secrets.SSH_PRIVATE_KEY_B64 }}" | base64 -d > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
-          ssh-keyscan -H ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts 2>/dev/null
+          if [ -z "$SSH_KNOWN_HOSTS" ]; then
+            echo "::error::SSH_KNOWN_HOSTS secret is not set"
+            exit 1
+          fi
+          printf "%s\n" "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 644 ~/.ssh/known_hosts
 
       - name: Backup current deployment
         run: |
           TIMESTAMP=$(date +%Y%m%d-%H%M%S)
-          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no $SSH_MUX \
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes $SSH_MUX \
             ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} bash -s << BACKUP_EOF
           set -e
           mkdir -p ~/cybokron-backups
@@ -212,12 +220,12 @@ jobs:
             --exclude='docs/' \
             --exclude='repairs/' \
             --exclude='error_log' \
-            -e "ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no $SSH_MUX" \
+            -e "ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes $SSH_MUX" \
             ./ ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ secrets.DEPLOY_PATH }}
 
       - name: Post-deploy setup
         run: |
-          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no $SSH_MUX \
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes $SSH_MUX \
             ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} \
             'mkdir -p ~/cybokron-logs ~/cybokron-backups && chmod 600 ~/public_html/config.php && rm -rf /tmp/cybokron_rate_limits && echo "Deploy OK at $(date)"'
 
@@ -225,7 +233,7 @@ jobs:
         if: always()
         run: |
           echo "=== PHP error_log location ==="
-          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no $SSH_MUX \
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes $SSH_MUX \
             ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} \
             "php -r \"echo ini_get('error_log') . PHP_EOL;\" && \
              echo '--- public_html/error_log ---' && \
@@ -243,14 +251,14 @@ jobs:
           # Transfer admin password via file — hashing done server-side to avoid bcrypt shell issues
           if [ -n "${ADMIN_PASSWORD}" ]; then
             printf '%s' "${ADMIN_PASSWORD}" > /tmp/admin_password.txt
-            scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \
+            scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes \
               /tmp/admin_password.txt \
               ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:~/public_html/.admin_password.tmp
             rm -f /tmp/admin_password.txt
           fi
 
           # Run all DB operations in a single SSH session
-          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no $SSH_MUX \
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes $SSH_MUX \
             ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} \
             "cd ~/public_html && \
              echo '=== Migrations ===' && \
@@ -349,7 +357,7 @@ jobs:
           attempt=1
           max=3
           while [ "$attempt" -le "$max" ]; do
-            if ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no $SSH_MUX -o ConnectTimeout=15 \
+            if ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes $SSH_MUX -o ConnectTimeout=15 \
                  "${SSH_USER}@${SSH_HOST}" bash -s < /tmp/configure_cron.sh; then
               echo "Cron configuration applied on attempt ${attempt}"
               exit 0

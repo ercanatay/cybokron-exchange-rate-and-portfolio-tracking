@@ -20,7 +20,7 @@ define('APP_URL', 'https://localhost/cybokron');
 define('APP_TIMEZONE', 'Europe/Istanbul');
 define('APP_DEBUG', false);
 define('ENABLE_SECURITY_HEADERS', true);
-define('CSP_POLICY', "default-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'; object-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:");
+define('CSP_POLICY', '');                     // Empty = built-in nonce policy; custom policies may use {nonce}
 define('HSTS_MAX_AGE_SECONDS', 31536000);       // Applied only on HTTPS
 define('DEFAULT_LOCALE', 'tr');                  // Default language at installation time
 define('FALLBACK_LOCALE', 'en');                 // Fallback if translation key is missing

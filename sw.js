@@ -7,7 +7,7 @@
  * makes a stale "logged out" page reappear while the session is still valid.
  */
 
-const CACHE_NAME = 'cybokron-v5';
+const CACHE_NAME = 'cybokron-v6';
 
 // Static, session-independent assets only. Precaching HTML entry points used to
 // fire several credentialed requests at once during install, which raced the
@@ -17,6 +17,7 @@ const STATIC_ASSETS = [
   '/assets/css/currency-icons.css',
   '/assets/js/bootstrap.js',
   '/assets/js/theme.js',
+  '/assets/js/actions.js',
   '/assets/js/app.js',
   '/assets/js/converter.js',
   '/assets/js/chart.js',

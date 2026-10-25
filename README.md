@@ -207,7 +207,7 @@ Optional (if self-update is configured with signed packages):
 
 `http://your-domain.com/cybokron/`
 
-Default admin login: `admin` / `admin123` — change in production.
+The seeded `admin` user has no password. Set one with `php database/update_admin_password.php` before the first login (see SETUP.md).
 
 For detailed platform-specific instructions, see **[SETUP.md](SETUP.md)**.
 

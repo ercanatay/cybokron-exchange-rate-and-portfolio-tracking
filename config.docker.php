@@ -16,7 +16,7 @@ define('APP_URL', $env('APP_URL', 'http://localhost:8080'));
 define('APP_TIMEZONE', 'Europe/Istanbul');
 define('APP_DEBUG', false);
 define('ENABLE_SECURITY_HEADERS', true);
-define('CSP_POLICY', "default-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'; object-src 'none'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self'; img-src 'self' data:");
+define('CSP_POLICY', '');                     // Empty = built-in nonce policy; custom policies may use {nonce}
 define('DEFAULT_LOCALE', 'tr');
 define('FALLBACK_LOCALE', 'en');
 define('AVAILABLE_LOCALES', ['tr', 'en', 'ar', 'de', 'fr']);

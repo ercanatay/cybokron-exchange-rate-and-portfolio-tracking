@@ -666,7 +666,7 @@ foreach ($allRates as $r) {
                         </div>
                         <div style="display:flex;gap:8px;align-items:center">
                             <button type="button" id="clear-cache-btn" class="btn btn-sm" style="white-space:nowrap"
-                                onclick="clearServiceWorkerCache(this)">🧹 <?= t('admin.clear_cache') ?></button>
+                                data-click="clearServiceWorkerCache" data-args='["$el"]'>🧹 <?= t('admin.clear_cache') ?></button>
                             <form method="POST" style="margin:0">
                                 <input type="hidden" name="action" value="update_rates">
                                 <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
@@ -1204,7 +1204,7 @@ foreach ($allRates as $r) {
                                     <input type="password" id="openrouter_api_key" name="openrouter_api_key"
                                            placeholder="<?= $maskedKey !== '' ? $maskedKey : 'sk-or-v1-...' ?>"
                                            autocomplete="off" spellcheck="false">
-                                    <button type="button" class="or-toggle-vis" onclick="var i=document.getElementById('openrouter_api_key');i.type=i.type==='password'?'text':'password';this.textContent=i.type==='password'?'👁️':'🙈'" title="<?= t('admin.openrouter_toggle_key') ?>">👁️</button>
+                                    <button type="button" class="or-toggle-vis" data-toggle-password="openrouter_api_key" title="<?= t('admin.openrouter_toggle_key') ?>">👁️</button>
                                 </div>
                                 <small class="or-field-hint">
                                     <?php if ($keySource === 'DB'): ?>
@@ -1428,7 +1428,7 @@ foreach ($allRates as $r) {
                                         <input type="password" id="sendgrid_api_key" name="sendgrid_api_key"
                                                placeholder="<?= $sendgridApiKeyExists ? $sendgridApiKeyMasked : 'SG.xxx...' ?>"
                                                autocomplete="off" spellcheck="false">
-                                        <button type="button" class="or-toggle-vis" onclick="var i=document.getElementById('sendgrid_api_key');i.type=i.type==='password'?'text':'password';this.textContent=i.type==='password'?'&#x1F441;':'&#x1F648;'" title="<?= t('admin.openrouter_toggle_key') ?>">&#x1F441;</button>
+                                        <button type="button" class="or-toggle-vis" data-toggle-password="sendgrid_api_key" title="<?= t('admin.openrouter_toggle_key') ?>">&#x1F441;</button>
                                     </div>
                                 </div>
                             </div>
