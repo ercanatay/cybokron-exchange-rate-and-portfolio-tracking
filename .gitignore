@@ -25,12 +25,16 @@ cache/
 
 # Backups
 backups/
+Backup/
 *.bak
 
 # Playwright
+# NOT: burada bir zamanlar `tests/` vardi. Projenin kendi PHP test paketi de
+# tests/ altinda yasiyor (CI `php tests/run.php` calistirir), dolayisiyla o kural
+# yeni her test dosyasini sessizce yutuyordu. Playwright ciktilari zaten asagidaki
+# spesifik kurallarla kapsaniyor.
 test-results/
 playwright-report/
 package.json
 package-lock.json
-tests/
 playwright*
