@@ -3,7 +3,9 @@
  * DunyaKatilim.php — Dunya Katilim Bank Scraper
  * Cybokron Exchange Rate & Portfolio Tracking
  *
- * Scrapes exchange rates from: https://dunyakatilim.com.tr/gunluk-kurlar
+ * Scrapes exchange rates from the rate widget that https://dunyakatilim.com.tr/gunluk-kurlar
+ * loads client-side: https://dunyakatilim.com.tr/RemoteWidget/currencies-subpage?pageId=2921&parentPageId=2921
+ * (the page itself stopped carrying the table around 2026-10-21).
  *
  * Table structure (as of 2025):
  * | Currency | Bank Buy | Bank Sell | Change |
@@ -14,7 +16,7 @@ class DunyaKatilim extends Scraper
 {
     protected string $bankName = 'Dünya Katılım';
     protected string $bankSlug = 'dunya-katilim';
-    protected string $url = 'https://dunyakatilim.com.tr/gunluk-kurlar';
+    protected string $url = 'https://dunyakatilim.com.tr/RemoteWidget/currencies-subpage?pageId=2921&parentPageId=2921';
     /** @var array<string, string>|null */
     private ?array $normalizedCurrencyMap = null;
     /** @var array<string, true>|null */
