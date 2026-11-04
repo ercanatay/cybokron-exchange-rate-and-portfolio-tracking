@@ -5,15 +5,18 @@
  *
  * Dual-sourced physical gold rates for products bought from a marketplace store:
  *   sell_rate (SATIŞ) = the store's current product price ÷ grams in the product
- *   buy_rate  (ALIŞ)  = Harem's current bid for the same code (harem-fiziki rates row)
+ *   buy_rate  (ALIŞ)  = what the item fetches when cashed out, from one of:
+ *     harem    — Harem's current bid for the same code (harem-fiziki rates row)
+ *     albaraka — Albaraka's gram gold bid (albaraka-turk XAU) × the gram-for-gram
+ *                conversion Albaraka applies at its physical gold collection days
  *
  * The store price is what it costs to buy the same item again today, so it is the
- * sell side; nobody buys a bracelet back at a marketplace price, so the buy side
- * stays on Harem. The price is read from the page's schema.org Product JSON-LD
- * (offers.price), which idefix serves as a number and n11 as a string.
+ * sell side; nobody buys a bracelet back at a marketplace price. The price is read
+ * from the page's schema.org Product JSON-LD (offers.price), which idefix serves
+ * as a number and n11 as a string.
  *
- * One class serves every marketplace source; the product list is picked by the
- * bank slug injected via setBankData(), like DovizComScraper.
+ * One class serves every marketplace source; the store and buy side are picked by
+ * the bank slug injected via setBankData(), like DovizComScraper.
  *
  * Like HaremAltinScraper, a product that cannot be read is skipped and logged —
  * we never fall back to another store's price or an unrelated number. A price far
@@ -27,28 +30,54 @@ class MarketplaceGoldScraper extends Scraper
     protected bool $supportsAutoRepair = false;
 
     private const HAREM_SLUG = 'harem-fiziki';
+    private const ALBARAKA_SLUG = 'albaraka-turk';
 
     // Accepted per-gram store price relative to Harem's ask. Store prices include
     // labour (bracelet ≈ +6%, gram bar ≈ +8% at launch), so the band is asymmetric.
     private const MIN_RATIO_TO_HAREM = 0.8;
     private const MAX_RATIO_TO_HAREM = 1.5;
 
-    // Harem runs in the same 15-minute cron tick, so a fresh row is at most one tick
-    // old. Anything older means Harem stopped updating; republishing its bid under a
-    // fresh scraped_at would make a stale ALIŞ look current.
-    private const MAX_HAREM_AGE_SECONDS = 3600;
+    // Harem and Albaraka run in the same 15-minute cron tick, so a fresh row is at most
+    // one tick old. Anything older means that source stopped updating; republishing its
+    // bid under a fresh scraped_at would make a stale ALIŞ look current.
+    private const MAX_SOURCE_AGE_SECONDS = 3600;
 
     /**
-     * Bank slug → tracked products.
+     * Albaraka does not buy jewellery for TL: it credits the 24K 995/1000 grams the
+     * piece converts to, which are then sold at its gram gold bid. Observed on the
+     * 2026-07-27 collection day: 5 × 22K bracelets 50.02 g → 45.49 g, a 1 g 24K bar
+     * → 0.99 g. The bracelet factor sits ~1.2% under the theoretical 0.916 / 0.995,
+     * which is solder, measured fineness and loss. Update from the next receipt.
+     *
+     * @var array<string, float>
+     */
+    private const ALBARAKA_GRAMS_PER_GRAM = [
+        'BILEZIK22' => 45.49 / 50.02,
+        'GRAMALTIN' => 0.99,
+    ];
+
+    /**
+     * Bank slug → store whose products set SATIŞ, and the ALIŞ side.
+     *
+     * @var array<string, array{store: string, buy: string}>
+     */
+    private const SOURCES = [
+        'idefix-ahlatci'          => ['store' => 'idefix', 'buy' => 'harem'],
+        'idefix-ahlatci-albaraka' => ['store' => 'idefix', 'buy' => 'albaraka'],
+        'n11-ahlatci'             => ['store' => 'n11',    'buy' => 'harem'],
+    ];
+
+    /**
+     * Store → tracked products.
      *
      * @var array<string, array<int, array{code: string, grams: float, url: string}>>
      */
     private const PRODUCTS = [
-        'idefix-ahlatci' => [
+        'idefix' => [
             ['code' => 'BILEZIK22', 'grams' => 10.0, 'url' => 'https://www.idefix.com/10-gr-22-ayar-3-mm-kibrit-copu-p-6555382?vendorId=5397'],
             ['code' => 'GRAMALTIN', 'grams' => 1.0,  'url' => 'https://www.idefix.com/24-ayar-1-gram-altin-p-6555489'],
         ],
-        'n11-ahlatci' => [
+        'n11' => [
             ['code' => 'BILEZIK22', 'grams' => 10.0, 'url' => 'https://www.n11.com/urun/ahlatci-10-gr-22-ayar-3-mm-kibrit-copu-bilezik-19291978?magaza=ahlatcikuyumculuk'],
             ['code' => 'GRAMALTIN', 'grams' => 1.0,  'url' => 'https://www.n11.com/urun/ahlatci-kuyumculuk-24-ayar-kulce-altin-1-g-2178110?magaza=ahlatcikuyumculuk'],
         ],
@@ -56,7 +85,8 @@ class MarketplaceGoldScraper extends Scraper
 
     public function scrape(string $html, DOMXPath $xpath, string $tableHash): array
     {
-        $products = self::PRODUCTS[$this->bankSlug] ?? [];
+        $source = self::SOURCES[$this->bankSlug] ?? null;
+        $products = $source !== null ? (self::PRODUCTS[$source['store']] ?? []) : [];
         if ($products === []) {
             cybokron_log("Marketplace scraper: no products configured for {$this->bankSlug}", 'WARNING');
             return [];
@@ -80,9 +110,26 @@ class MarketplaceGoldScraper extends Scraper
                 continue;
             }
 
-            $harem = $this->loadHaremRate($code);
+            // Harem's ask anchors the sanity band for every source, whatever the buy side.
+            $harem = $this->loadFreshRate(self::HAREM_SLUG, $code);
             if ($harem === null) {
                 cybokron_log("Marketplace scraper {$this->bankSlug}: no fresh Harem rate for {$code}, skipped", 'WARNING');
+                continue;
+            }
+
+            $buy = $source['buy'] === 'albaraka' ? $this->albarakaBuyRate($code) : $harem['buy'];
+            if ($buy === null) {
+                cybokron_log("Marketplace scraper {$this->bankSlug}: no fresh Albaraka rate for {$code}, skipped", 'WARNING');
+                continue;
+            }
+            // Bids from different houses stay within a few percent; a wider gap means a
+            // unit or product mix-up (e.g. XAU quoted per ounce), not a real price.
+            $buyRatio = $buy / $harem['buy'];
+            if ($buyRatio < self::MIN_RATIO_TO_HAREM || $buyRatio > self::MAX_RATIO_TO_HAREM) {
+                cybokron_log(
+                    sprintf('Marketplace scraper %s: %s ALIŞ %.2f is %.2fx Harem bid, rejected', $this->bankSlug, $code, $buy, $buyRatio),
+                    'WARNING'
+                );
                 continue;
             }
 
@@ -105,7 +152,7 @@ class MarketplaceGoldScraper extends Scraper
 
             $rates[] = [
                 'code'   => $code,
-                'buy'    => $harem['buy'],
+                'buy'    => $buy,
                 'sell'   => $sell,
                 'change' => null,
             ];
@@ -159,12 +206,24 @@ class MarketplaceGoldScraper extends Scraper
     }
 
     /**
-     * Harem's current bid/ask for a code, or null when missing or older than
-     * MAX_HAREM_AGE_SECONDS.
+     * Albaraka's cash-out value per gram of the item: gram gold bid × the grams of
+     * 24K it converts to. Null when the code has no factor or the rate is stale.
+     */
+    private function albarakaBuyRate(string $code): ?float
+    {
+        $factor = self::ALBARAKA_GRAMS_PER_GRAM[$code] ?? null;
+        $albaraka = $factor !== null ? $this->loadFreshRate(self::ALBARAKA_SLUG, 'XAU') : null;
+
+        return $albaraka !== null ? round($albaraka['buy'] * $factor, 4) : null;
+    }
+
+    /**
+     * A source's current bid/ask for a code, or null when missing or older than
+     * MAX_SOURCE_AGE_SECONDS.
      *
      * @return array{buy: float, sell: float}|null
      */
-    private function loadHaremRate(string $code): ?array
+    private function loadFreshRate(string $bankSlug, string $code): ?array
     {
         $row = Database::queryOne(
             'SELECT r.buy_rate, r.sell_rate, r.scraped_at
@@ -172,7 +231,7 @@ class MarketplaceGoldScraper extends Scraper
              JOIN banks b ON b.id = r.bank_id
              JOIN currencies c ON c.id = r.currency_id
              WHERE b.slug = ? AND c.code = ?',
-            [self::HAREM_SLUG, $code]
+            [$bankSlug, $code]
         );
 
         if (!$row || (float) $row['buy_rate'] <= 0 || (float) $row['sell_rate'] <= 0) {
@@ -181,7 +240,7 @@ class MarketplaceGoldScraper extends Scraper
 
         // scraped_at is written with date() in the app timezone, so strtotime() matches it.
         $scrapedAt = strtotime((string) $row['scraped_at']);
-        if ($scrapedAt === false || time() - $scrapedAt > self::MAX_HAREM_AGE_SECONDS) {
+        if ($scrapedAt === false || time() - $scrapedAt > self::MAX_SOURCE_AGE_SECONDS) {
             return null;
         }
 
