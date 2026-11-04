@@ -3,7 +3,7 @@
 -- Çift kaynaklı: SATIŞ = mağaza ürün fiyatı ÷ gram, ALIŞ = Harem alış fiyatı (MarketplaceGoldScraper).
 -- Portföy satırı mağazayı banka alanıyla seçer; sonradan düzenleme formundan değiştirilebilir.
 --
--- n11 pasif eklenir: n11 sunucunun IP'sine Cloudflare 403 döndürüyor, bu yüzden aktif olsa da
+-- n11 pasif eklenir: n11 sunucu IP adresine Cloudflare 403 döndürüyor, bu yüzden aktif olsa da
 -- hiç kur yazamaz. Erişim açılırsa is_active = 1 yapmak yeterli.
 -- url = ilk ürün sayfası (bilezik); scraper diğer ürünü kendisi çeker.
 -- INSERT IGNORE: slug UNIQUE, tekrar çalışmada atlar.
