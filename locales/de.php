@@ -89,6 +89,7 @@ return [
     'portfolio.form.submit' => 'Hinzufügen',
     'portfolio.form.error.currency_code' => 'Bitte wählen Sie eine gültige Währung.',
     'portfolio.form.error.bank_slug' => 'Bitte wählen Sie eine gültige Bank.',
+    'portfolio.form.error.bank_currency_mismatch' => 'Die gewählte Bank/Quelle veröffentlicht keinen Kurs für diese Währung, der Wert würde nie aktualisiert. Wählen Sie eine Quelle, die diese Währung veröffentlicht.',
     'portfolio.form.error.amount' => 'Geben Sie einen gültigen Betrag größer als 0 ein.',
     'portfolio.form.error.buy_rate' => 'Geben Sie einen gültigen Kaufkurs größer als 0 ein.',
     'portfolio.form.error.buy_date' => 'Geben Sie ein gültiges Datum im Format JJJJ-MM-TT ein.',

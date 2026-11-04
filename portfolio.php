@@ -59,6 +59,10 @@ function portfolioFieldFromExceptionMessage(string $message): ?string
 {
     $text = strtolower($message);
 
+    // Checked first: this message also mentions "currency" but belongs to the bank field.
+    if (str_contains($text, 'bank_currency_mismatch')) {
+        return 'bank_slug';
+    }
     if (str_contains($text, 'currency_code') || str_contains($text, 'currency')) {
         return 'currency_code';
     }
@@ -79,6 +83,15 @@ function portfolioFieldFromExceptionMessage(string $message): ?string
     }
 
     return null;
+}
+
+function portfolioFieldErrorText(string $field, string $message): string
+{
+    if (str_contains(strtolower($message), 'bank_currency_mismatch')) {
+        return t('portfolio.form.error.bank_currency_mismatch');
+    }
+
+    return t('portfolio.form.error.' . $field);
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -159,8 +172,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($isClientError) {
                 $field = portfolioFieldFromExceptionMessage($e->getMessage());
                 if ($field !== null) {
-                    $fieldErrors[$field] = t('portfolio.form.error.' . $field);
-                    $message = t('portfolio.form.error.' . $field);
+                    $fieldErrors[$field] = portfolioFieldErrorText($field, $e->getMessage());
+                    $message = $fieldErrors[$field];
                 } else {
                     $message = t('common.invalid_request');
                 }
@@ -209,7 +222,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($e instanceof InvalidArgumentException) {
                 $field = portfolioFieldFromExceptionMessage($e->getMessage());
                 if ($field !== null) {
-                    $fieldErrors[$field] = t('portfolio.form.error.' . $field);
+                    $fieldErrors[$field] = portfolioFieldErrorText($field, $e->getMessage());
+                    $message = $fieldErrors[$field];
                 }
             }
         }

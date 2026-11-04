@@ -118,6 +118,7 @@ return [
     'portfolio.form.submit' => 'Add',
     'portfolio.form.error.currency_code' => 'Please select a valid currency.',
     'portfolio.form.error.bank_slug' => 'Please select a valid bank.',
+    'portfolio.form.error.bank_currency_mismatch' => 'The selected bank/source does not publish a price for this currency, so its value would never update. Choose a source that publishes it (e.g. Harem Fiziki Altın for gram gold and bracelets).',
     'portfolio.form.error.amount' => 'Enter a valid amount greater than 0.',
     'portfolio.form.error.buy_rate' => 'Enter a valid buy rate greater than 0.',
     'portfolio.form.error.buy_date' => 'Enter a valid date in YYYY-MM-DD format.',

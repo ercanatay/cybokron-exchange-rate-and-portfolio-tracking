@@ -298,6 +298,7 @@ class Portfolio
             }
 
             $bankId = (int) $bank['id'];
+            self::assertBankPublishesCurrency($bankId, (int) $currency['id'], $bankSlug);
         }
 
         $userId = null;
@@ -335,6 +336,26 @@ class Portfolio
             'buy_date' => $buyDate,
             'notes' => $notes,
         ]);
+    }
+
+    /**
+     * Reject a bank that has never published a rate for the currency.
+     *
+     * Portfolio values come from rates joined on (currency_id, bank_id); with no
+     * matching row the value silently falls back to the buy rate and never moves,
+     * e.g. an XAU entry tied to "Harem Fiziki Altın", which only publishes
+     * GRAMALTIN and BILEZIK22.
+     */
+    private static function assertBankPublishesCurrency(int $bankId, int $currencyId, string $bankSlug): void
+    {
+        $rate = Database::queryOne(
+            'SELECT 1 FROM rates WHERE bank_id = ? AND currency_id = ? LIMIT 1',
+            [$bankId, $currencyId]
+        );
+
+        if (!$rate) {
+            throw new InvalidArgumentException("bank_currency_mismatch: {$bankSlug} has no rate for this currency");
+        }
     }
 
     /**
@@ -377,6 +398,10 @@ class Portfolio
                 $bank = Database::queryOne('SELECT id FROM banks WHERE slug = ? AND is_active = 1', [$slug]);
                 if (!$bank) {
                     throw new InvalidArgumentException('Invalid bank_slug');
+                }
+                $row = Database::queryOne('SELECT currency_id FROM portfolio WHERE id = ?', [$id]);
+                if ($row) {
+                    self::assertBankPublishesCurrency((int) $bank['id'], (int) $row['currency_id'], $slug);
                 }
                 $update['bank_id'] = (int) $bank['id'];
             } else {
