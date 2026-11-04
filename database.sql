@@ -157,7 +157,7 @@ CREATE TABLE IF NOT EXISTS `settings` (
 
 -- Insert banks
 INSERT INTO `banks` (`name`, `slug`, `url`, `scraper_class`) VALUES
-('Dünya Katılım', 'dunya-katilim', 'https://dunyakatilim.com.tr/gunluk-kurlar', 'DunyaKatilim'),
+('Dünya Katılım', 'dunya-katilim', 'https://dunyakatilim.com.tr/RemoteWidget/currencies-subpage?pageId=2921&parentPageId=2921', 'DunyaKatilim'),
 ('TCMB', 'tcmb', 'https://www.tcmb.gov.tr/kurlar/today.xml', 'TCMB'),
 ('İş Bankası', 'is-bankasi', 'https://kur.doviz.com/isbankasi', 'IsBank');
 

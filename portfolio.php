@@ -613,9 +613,10 @@ if ($filterDateFrom !== '') {
 if ($filterDateTo !== '') {
     $filteredItems = array_filter($filteredItems, fn($item) => $item['buy_date'] <= $filterDateTo);
 }
-// Currency type filter (precious_metal = gold/silver, fiat = currencies only)
+// Currency type filter (precious_metal = gold/silver incl. physical gold, fiat = currencies only)
+$metalCurrencyTypes = ['precious_metal', 'physical_gold'];
 if ($filterCurrencyType === 'precious_metal') {
-    $filteredItems = array_filter($filteredItems, fn($item) => ($item['currency_type'] ?? '') === 'precious_metal');
+    $filteredItems = array_filter($filteredItems, fn($item) => in_array($item['currency_type'] ?? '', $metalCurrencyTypes, true));
 } elseif ($filterCurrencyType === 'fiat') {
     $filteredItems = array_filter($filteredItems, fn($item) => ($item['currency_type'] ?? '') === 'fiat');
 }
@@ -721,9 +722,9 @@ if ($hasFilters && !empty($filteredItems)) {
         }
         $filteredCurrencyTotals[$code]['total_amount'] += (float) $fi['amount'];
     }
-    // Sort: precious_metal first, then by code
+    // Sort: precious metals (physical gold next to them) first, then by code
     uasort($filteredCurrencyTotals, function ($a, $b) {
-        $typeOrder = ['precious_metal' => 0, 'crypto' => 1, 'fiat' => 2];
+        $typeOrder = ['precious_metal' => 0, 'physical_gold' => 0, 'crypto' => 1, 'fiat' => 2];
         $aOrder = $typeOrder[$a['type']] ?? 9;
         $bOrder = $typeOrder[$b['type']] ?? 9;
         if ($aOrder !== $bOrder) return $aOrder - $bOrder;
@@ -1874,7 +1875,7 @@ $annualizedReturn = ($oldestDate && $analyticsCost > 0)
                         </div>
                         <div class="currency-totals-items">
                             <?php foreach ($filteredCurrencyTotals as $ct): ?>
-                                <div class="currency-total-chip <?= $ct['type'] === 'precious_metal' ? 'chip-metal' : ($ct['type'] === 'crypto' ? 'chip-crypto' : 'chip-fiat') ?>">
+                                <div class="currency-total-chip <?= in_array($ct['type'], $metalCurrencyTypes, true) ? 'chip-metal' : ($ct['type'] === 'crypto' ? 'chip-crypto' : 'chip-fiat') ?>">
                                     <span class="currency-total-code"><?= htmlspecialchars($ct['code']) ?></span>
                                     <span class="currency-total-amount"><?= formatNumberLocalized($ct['total_amount'], 4) ?></span>
                                     <span class="currency-total-name"><?= htmlspecialchars($ct['name']) ?></span>

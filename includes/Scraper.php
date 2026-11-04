@@ -537,6 +537,13 @@ abstract class Scraper
 
             $savedCount = $this->saveRates($rates, $scrapedAt);
 
+            // A page that loads but yields nothing is a failure, not a quiet success:
+            // logging it as success and bumping last_scraped_at hid Dünya Katılım's
+            // moved rate table for two weeks while every rate stayed frozen.
+            if ($savedCount === 0) {
+                throw new RuntimeException('No rates parsed from ' . $this->url);
+            }
+
             Database::update('banks', ['last_scraped_at' => $scrapedAt], 'id = ?', [$this->bankId]);
 
             $durationMs = (int) ((microtime(true) - $startTime) * 1000);

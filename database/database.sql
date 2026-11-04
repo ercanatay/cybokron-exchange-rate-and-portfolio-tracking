@@ -419,7 +419,7 @@ SET FOREIGN_KEY_CHECKS = 1;
 
 -- Banks (Dünya Katılım, TCMB, İş Bankası active; all others inactive by default)
 INSERT IGNORE INTO `banks` (`name`, `slug`, `url`, `scraper_class`, `is_active`) VALUES
-('Dünya Katılım', 'dunya-katilim', 'https://dunyakatilim.com.tr/gunluk-kurlar', 'DunyaKatilim', 1),
+('Dünya Katılım', 'dunya-katilim', 'https://dunyakatilim.com.tr/RemoteWidget/currencies-subpage?pageId=2921&parentPageId=2921', 'DunyaKatilim', 1),
 ('TCMB', 'tcmb', 'https://www.tcmb.gov.tr/kurlar/today.xml', 'TCMB', 1),
 ('İş Bankası', 'is-bankasi', 'https://kur.doviz.com/isbankasi', 'DovizComScraper', 1),
 ('Akbank', 'akbank', 'https://kur.doviz.com/akbank', 'DovizComScraper', 0),
