@@ -367,6 +367,18 @@ class Portfolio
             throw new InvalidArgumentException('Invalid portfolio id');
         }
 
+        // Ownership scope, applied to every read of the row: a bank/currency check
+        // on someone else's row must not answer differently from a missing row.
+        $where = 'id = ?';
+        $params = [$id];
+        if (class_exists('Auth') && Auth::check() && !Auth::isAdmin()) {
+            $userId = Auth::id();
+            if ($userId !== null) {
+                $where .= ' AND user_id = ?';
+                $params[] = $userId;
+            }
+        }
+
         $update = [];
 
         if (isset($data['amount'])) {
@@ -399,10 +411,11 @@ class Portfolio
                 if (!$bank) {
                     throw new InvalidArgumentException('Invalid bank_slug');
                 }
-                $row = Database::queryOne('SELECT currency_id FROM portfolio WHERE id = ?', [$id]);
-                if ($row) {
-                    self::assertBankPublishesCurrency((int) $bank['id'], (int) $row['currency_id'], $slug);
+                $row = Database::queryOne("SELECT currency_id FROM portfolio WHERE {$where}", $params);
+                if (!$row) {
+                    return false;
                 }
+                self::assertBankPublishesCurrency((int) $bank['id'], (int) $row['currency_id'], $slug);
                 $update['bank_id'] = (int) $bank['id'];
             } else {
                 $update['bank_id'] = null;
@@ -434,16 +447,6 @@ class Portfolio
 
         if (empty($update)) {
             return false;
-        }
-
-        $where = 'id = ?';
-        $params = [$id];
-        if (class_exists('Auth') && Auth::check() && !Auth::isAdmin()) {
-            $userId = Auth::id();
-            if ($userId !== null) {
-                $where .= ' AND user_id = ?';
-                $params[] = $userId;
-            }
         }
 
         // Verify the row exists and is accessible before updating
