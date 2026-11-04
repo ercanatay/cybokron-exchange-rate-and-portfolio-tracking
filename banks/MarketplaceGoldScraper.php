@@ -33,6 +33,11 @@ class MarketplaceGoldScraper extends Scraper
     private const MIN_RATIO_TO_HAREM = 0.8;
     private const MAX_RATIO_TO_HAREM = 1.5;
 
+    // Harem runs in the same 15-minute cron tick, so a fresh row is at most one tick
+    // old. Anything older means Harem stopped updating; republishing its bid under a
+    // fresh scraped_at would make a stale ALIŞ look current.
+    private const MAX_HAREM_AGE_SECONDS = 3600;
+
     /**
      * Bank slug → tracked products.
      *
@@ -77,7 +82,7 @@ class MarketplaceGoldScraper extends Scraper
 
             $harem = $this->loadHaremRate($code);
             if ($harem === null) {
-                cybokron_log("Marketplace scraper {$this->bankSlug}: no Harem rate for {$code}, skipped", 'WARNING');
+                cybokron_log("Marketplace scraper {$this->bankSlug}: no fresh Harem rate for {$code}, skipped", 'WARNING');
                 continue;
             }
 
@@ -154,14 +159,15 @@ class MarketplaceGoldScraper extends Scraper
     }
 
     /**
-     * Harem's current bid/ask for a code.
+     * Harem's current bid/ask for a code, or null when missing or older than
+     * MAX_HAREM_AGE_SECONDS.
      *
      * @return array{buy: float, sell: float}|null
      */
     private function loadHaremRate(string $code): ?array
     {
         $row = Database::queryOne(
-            'SELECT r.buy_rate, r.sell_rate
+            'SELECT r.buy_rate, r.sell_rate, r.scraped_at
              FROM rates r
              JOIN banks b ON b.id = r.bank_id
              JOIN currencies c ON c.id = r.currency_id
@@ -170,6 +176,12 @@ class MarketplaceGoldScraper extends Scraper
         );
 
         if (!$row || (float) $row['buy_rate'] <= 0 || (float) $row['sell_rate'] <= 0) {
+            return null;
+        }
+
+        // scraped_at is written with date() in the app timezone, so strtotime() matches it.
+        $scrapedAt = strtotime((string) $row['scraped_at']);
+        if ($scrapedAt === false || time() - $scrapedAt > self::MAX_HAREM_AGE_SECONDS) {
             return null;
         }
 
