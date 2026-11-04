@@ -280,4 +280,30 @@ assertTrueStrict(
     'Satır gereken artış: alış değerinden 1 yıllık hedefe'
 );
 
+// Pazaryeri fiziki altın: schema.org Product JSON-LD offers.price
+require_once __DIR__ . '/../includes/Scraper.php';
+require_once __DIR__ . '/../banks/MarketplaceGoldScraper.php';
+$ld = static fn(string $json): string => '<script type="application/ld+json">' . $json . '</script>';
+
+// idefix: sayısal fiyat, Product öncesinde başka bir JSON-LD bloğu
+$idefixHtml = $ld('{"@type":"Organization","name":"idefix"}')
+    . $ld('{"@context":"https://schema.org/","@type":"Product","name":"10 gr 22 Ayar","offers":{"@type":"Offer","priceCurrency":"TRY","price":64177.46}}');
+assertSameStrict(MarketplaceGoldScraper::extractProductPrice($idefixHtml), 64177.46, 'idefix sayısal Product fiyatı');
+
+// n11: string fiyat; liste fiyatı (priceSpecification) değil indirimli offers.price alınır
+$n11Html = $ld('{"@type":"Product","offers":{"@type":"Offer","price":"7082.25","priceSpecification":{"price":"7212.07"}}}');
+assertSameStrict(MarketplaceGoldScraper::extractProductPrice($n11Html), 7082.25, 'n11 string fiyat ondalık noktayla okunmalı');
+
+// offers listesi ve @graph
+assertSameStrict(
+    MarketplaceGoldScraper::extractProductPrice($ld('{"@graph":[{"@type":"WebPage"},{"@type":"Product","offers":[{"price":"6400.5"},{"price":"9999"}]}]}')),
+    6400.5,
+    '@graph içindeki Product ve offers listesinin ilk teklifi'
+);
+
+// Product yok, fiyat yok, bozuk JSON → null
+assertSameStrict(MarketplaceGoldScraper::extractProductPrice('<html>Attention Required! | Cloudflare</html>'), null, 'JSON-LD olmayan sayfa null');
+assertSameStrict(MarketplaceGoldScraper::extractProductPrice($ld('{"@type":"Product","offers":{"price":"0"}}')), null, 'Sıfır fiyat null');
+assertSameStrict(MarketplaceGoldScraper::extractProductPrice($ld('{"@type":"Product",')), null, 'Bozuk JSON null');
+
 fwrite(STDOUT, "All tests passed.\n");
