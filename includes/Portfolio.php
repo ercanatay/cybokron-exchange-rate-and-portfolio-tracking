@@ -298,6 +298,7 @@ class Portfolio
             }
 
             $bankId = (int) $bank['id'];
+            self::assertBankPublishesCurrency($bankId, (int) $currency['id'], $bankSlug);
         }
 
         $userId = null;
@@ -338,12 +339,44 @@ class Portfolio
     }
 
     /**
+     * Reject a bank that has never published a rate for the currency.
+     *
+     * Portfolio values come from rates joined on (currency_id, bank_id); with no
+     * matching row the value silently falls back to the buy rate and never moves,
+     * e.g. an XAU entry tied to "Harem Fiziki Altın", which only publishes
+     * GRAMALTIN and BILEZIK22.
+     */
+    private static function assertBankPublishesCurrency(int $bankId, int $currencyId, string $bankSlug): void
+    {
+        $rate = Database::queryOne(
+            'SELECT 1 FROM rates WHERE bank_id = ? AND currency_id = ? LIMIT 1',
+            [$bankId, $currencyId]
+        );
+
+        if (!$rate) {
+            throw new InvalidArgumentException("bank_currency_mismatch: {$bankSlug} has no rate for this currency");
+        }
+    }
+
+    /**
      * Update a portfolio entry.
      */
     public static function update(int $id, array $data): bool
     {
         if ($id <= 0) {
             throw new InvalidArgumentException('Invalid portfolio id');
+        }
+
+        // Ownership scope, applied to every read of the row: a bank/currency check
+        // on someone else's row must not answer differently from a missing row.
+        $where = 'id = ?';
+        $params = [$id];
+        if (class_exists('Auth') && Auth::check() && !Auth::isAdmin()) {
+            $userId = Auth::id();
+            if ($userId !== null) {
+                $where .= ' AND user_id = ?';
+                $params[] = $userId;
+            }
         }
 
         $update = [];
@@ -378,6 +411,11 @@ class Portfolio
                 if (!$bank) {
                     throw new InvalidArgumentException('Invalid bank_slug');
                 }
+                $row = Database::queryOne("SELECT currency_id FROM portfolio WHERE {$where}", $params);
+                if (!$row) {
+                    return false;
+                }
+                self::assertBankPublishesCurrency((int) $bank['id'], (int) $row['currency_id'], $slug);
                 $update['bank_id'] = (int) $bank['id'];
             } else {
                 $update['bank_id'] = null;
@@ -409,16 +447,6 @@ class Portfolio
 
         if (empty($update)) {
             return false;
-        }
-
-        $where = 'id = ?';
-        $params = [$id];
-        if (class_exists('Auth') && Auth::check() && !Auth::isAdmin()) {
-            $userId = Auth::id();
-            if ($userId !== null) {
-                $where .= ' AND user_id = ?';
-                $params[] = $userId;
-            }
         }
 
         // Verify the row exists and is accessible before updating

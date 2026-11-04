@@ -118,6 +118,7 @@ return [
     'portfolio.form.submit' => 'Ekle',
     'portfolio.form.error.currency_code' => 'Lütfen geçerli bir döviz seçin.',
     'portfolio.form.error.bank_slug' => 'Lütfen geçerli bir banka seçin.',
+    'portfolio.form.error.bank_currency_mismatch' => 'Seçilen banka/kaynak bu para birimi için fiyat yayınlamıyor; değer hiç güncellenmez. Bu para birimini yayınlayan bir kaynak seçin (ör. gram altın ve bilezik için Harem Fiziki Altın).',
     'portfolio.form.error.amount' => '0\'dan büyük geçerli bir miktar girin.',
     'portfolio.form.error.buy_rate' => '0\'dan büyük geçerli bir alış kuru girin.',
     'portfolio.form.error.buy_date' => 'YYYY-MM-DD formatında geçerli bir tarih girin (örn: 2026-02-12).',

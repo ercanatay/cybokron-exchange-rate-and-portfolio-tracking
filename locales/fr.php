@@ -89,6 +89,7 @@ return [
     'portfolio.form.submit' => 'Ajouter',
     'portfolio.form.error.currency_code' => 'Veuillez sélectionner une devise valide.',
     'portfolio.form.error.bank_slug' => 'Veuillez sélectionner une banque valide.',
+    'portfolio.form.error.bank_currency_mismatch' => 'La banque/source choisie ne publie pas de cours pour cette devise, sa valeur ne serait jamais mise à jour. Choisissez une source qui publie cette devise.',
     'portfolio.form.error.amount' => 'Entrez un montant valide supérieur à 0.',
     'portfolio.form.error.buy_rate' => 'Entrez un taux d\'achat valide supérieur à 0.',
     'portfolio.form.error.buy_date' => 'Entrez une date valide au format AAAA-MM-JJ.',

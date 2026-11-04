@@ -89,6 +89,7 @@ return [
     'portfolio.form.submit' => 'إضافة',
     'portfolio.form.error.currency_code' => 'يرجى اختيار عملة صالحة.',
     'portfolio.form.error.bank_slug' => 'يرجى اختيار بنك صالح.',
+    'portfolio.form.error.bank_currency_mismatch' => 'البنك/المصدر المحدد لا ينشر سعرًا لهذه العملة، لذلك لن تُحدَّث قيمتها أبدًا. اختر مصدرًا ينشر هذه العملة.',
     'portfolio.form.error.amount' => 'أدخل مبلغًا صالحًا أكبر من 0.',
     'portfolio.form.error.buy_rate' => 'أدخل سعر شراء صالحًا أكبر من 0.',
     'portfolio.form.error.buy_date' => 'أدخل تاريخًا صالحًا بتنسيق YYYY-MM-DD.',
