@@ -1278,6 +1278,12 @@ body.menu-open {
     color: var(--text-muted);
 }
 
+/* Taksit takvimi: ödenmiş taksitler soluk ve üstü çizili */
+.cell-subline.installment-paid {
+    opacity: 0.6;
+    text-decoration: line-through;
+}
+
 .card-profit .card-value {
     color: var(--success);
 }

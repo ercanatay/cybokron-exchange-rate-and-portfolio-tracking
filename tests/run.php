@@ -306,4 +306,34 @@ assertSameStrict(MarketplaceGoldScraper::extractProductPrice('<html>Attention Re
 assertSameStrict(MarketplaceGoldScraper::extractProductPrice($ld('{"@type":"Product","offers":{"price":"0"}}')), null, 'Sıfır fiyat null');
 assertSameStrict(MarketplaceGoldScraper::extractProductPrice($ld('{"@type":"Product",')), null, 'Bozuk JSON null');
 
+// Kredi kartı taksit takvimi
+require_once __DIR__ . '/../includes/InstallmentSchedule.php';
+$day = static fn(string $d): DateTimeImmutable => new DateTimeImmutable($d);
+
+// 12.11.2026 alım, kesim 30, son ödeme +10: 30 Kas → 10 Ara, 30 Ara → 9 Oca (Cmt) → 11 Oca, 30 Oca → 9 Şub
+$s = InstallmentSchedule::build('2026-11-12', 63097.59, 3, 30, 10, $day('2026-11-12'));
+assertSameStrict(array_column($s['installments'], 'statement_date'), ['2026-11-30', '2026-12-30', '2027-01-30'], 'Taksit ekstre tarihleri');
+assertSameStrict(array_column($s['installments'], 'due_date'), ['2026-12-10', '2027-01-11', '2027-02-09'], 'Son ödeme hafta sonundan pazartesiye kayar');
+assertSameStrict(array_column($s['installments'], 'amount'), [21032.53, 21032.53, 21032.53], 'Eşit taksit tutarı');
+assertSameStrict([$s['paid_count'], $s['remaining'], $s['next_due_date'], $s['active']], [0, 63097.59, '2026-12-10', true], 'Hiç ödenmemiş taksit');
+
+// Kesim günü yapılan alım o günün ekstresine girer; kuruş farkı son taksitte
+$s = InstallmentSchedule::build('2026-10-30', 61776.47, 3, 30, 10, $day('2026-11-12'));
+assertSameStrict($s['installments'][0]['statement_date'], '2026-10-30', 'Kesim günü alımı aynı ekstreye girer');
+assertSameStrict(array_column($s['installments'], 'amount'), [20592.15, 20592.15, 20592.17], 'Kuruş farkı son taksite eklenir');
+assertSameStrict([$s['paid_count'], $s['paid_total'], $s['remaining']], [1, 20592.15, 41184.32], 'Son ödeme tarihi geçen taksit ödendi sayılır');
+assertSameStrict($s['next_due_date'], '2026-12-10', 'Sıradaki son ödeme');
+
+// Son ödeme gününün kendisinde taksit henüz ödenmemiş sayılır; hepsi geçince taksit biter
+$s = InstallmentSchedule::build('2026-10-30', 61776.47, 3, 30, 10, $day('2026-11-09'));
+assertSameStrict($s['paid_count'], 0, 'Son ödeme günü taksit hâlâ açık');
+$s = InstallmentSchedule::build('2026-10-30', 61776.47, 3, 30, 10, $day('2027-02-01'));
+assertSameStrict([$s['paid_count'], $s['remaining'], $s['next_due_date'], $s['active']], [3, 0.0, null, false], 'Tüm taksitler ödendi');
+
+// Kesim günü kısa ayda son güne çekilir; resmi tatil (29 Ekim) sonraki iş gününe kayar
+$s = InstallmentSchedule::build('2027-01-31', 300.0, 2, 30, 10, $day('2027-01-31'));
+assertSameStrict($s['installments'][0]['statement_date'], '2027-02-28', 'Şubatta kesim ayın son günü');
+$s = InstallmentSchedule::build('2026-10-01', 100.0, 1, 19, 10, $day('2026-10-01'));
+assertSameStrict($s['installments'][0]['due_date'], '2026-10-30', '29 Ekim tatili sonraki iş gününe kayar');
+
 fwrite(STDOUT, "All tests passed.\n");
