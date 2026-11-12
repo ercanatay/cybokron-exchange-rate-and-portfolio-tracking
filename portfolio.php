@@ -25,6 +25,10 @@ $formValues = [
     'buy_date' => $defaultBuyDate,
     'notes' => '',
     'group_id' => '',
+    'installment_count' => '',
+    'installment_card' => Portfolio::INSTALLMENT_DEFAULT_CARD,
+    'installment_statement_day' => (string) Portfolio::INSTALLMENT_DEFAULT_STATEMENT_DAY,
+    'installment_due_days' => (string) Portfolio::INSTALLMENT_DEFAULT_DUE_DAYS,
 ];
 $editId = null;
 $editItem = null;
@@ -43,6 +47,10 @@ if (isset($_GET['edit']) && is_numeric($_GET['edit'])) {
                 'buy_date' => (string) $item['buy_date'],
                 'notes' => (string) ($item['notes'] ?? ''),
                 'group_id' => (string) ($item['group_id'] ?? ''),
+                'installment_count' => (string) ($item['installment_count'] ?? ''),
+                'installment_card' => (string) ($item['installment_card'] ?? Portfolio::INSTALLMENT_DEFAULT_CARD),
+                'installment_statement_day' => (string) ($item['installment_statement_day'] ?? Portfolio::INSTALLMENT_DEFAULT_STATEMENT_DAY),
+                'installment_due_days' => (string) ($item['installment_due_days'] ?? Portfolio::INSTALLMENT_DEFAULT_DUE_DAYS),
             ];
             break;
         }
@@ -59,6 +67,9 @@ function portfolioFieldFromExceptionMessage(string $message): ?string
 {
     $text = strtolower($message);
 
+    if (str_contains($text, 'installment_')) {
+        return 'installment_count';
+    }
     // Checked first: this message also mentions "currency" but belongs to the bank field.
     if (str_contains($text, 'bank_currency_mismatch')) {
         return 'bank_slug';
@@ -113,6 +124,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'buy_date' => $rawBuyDate,
             'notes' => trim((string) ($_POST['notes'] ?? '')),
             'group_id' => trim((string) ($_POST['group_id'] ?? '')),
+            'installment_count' => trim((string) ($_POST['installment_count'] ?? '')),
+            'installment_card' => trim((string) ($_POST['installment_card'] ?? '')),
+            'installment_statement_day' => trim((string) ($_POST['installment_statement_day'] ?? '')),
+            'installment_due_days' => trim((string) ($_POST['installment_due_days'] ?? '')),
         ];
 
         if ($formValues['buy_date'] === '') {
@@ -143,6 +158,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'buy_date' => $formValues['buy_date'],
                 'notes' => $formValues['notes'],
                 'group_id' => $formValues['group_id'],
+                'installment_count' => $formValues['installment_count'],
+                'installment_card' => $formValues['installment_card'],
+                'installment_statement_day' => $formValues['installment_statement_day'],
+                'installment_due_days' => $formValues['installment_due_days'],
             ]);
             $message = t('portfolio.message.added');
             $messageType = 'success';
@@ -154,6 +173,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'buy_date' => $defaultBuyDate,
                 'notes' => '',
                 'group_id' => '',
+                'installment_count' => '',
+                'installment_card' => Portfolio::INSTALLMENT_DEFAULT_CARD,
+                'installment_statement_day' => (string) Portfolio::INSTALLMENT_DEFAULT_STATEMENT_DAY,
+                'installment_due_days' => (string) Portfolio::INSTALLMENT_DEFAULT_DUE_DAYS,
             ];
         } catch (Throwable $e) {
             $isClientError = $e instanceof InvalidArgumentException;
@@ -201,6 +224,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'notes' => trim((string) ($_POST['notes'] ?? '')),
                 'bank_slug' => trim((string) ($_POST['bank_slug'] ?? '')),
                 'group_id' => trim((string) ($_POST['group_id'] ?? '')),
+                'installment_count' => trim((string) ($_POST['installment_count'] ?? '')),
+                'installment_card' => trim((string) ($_POST['installment_card'] ?? '')),
+                'installment_statement_day' => trim((string) ($_POST['installment_statement_day'] ?? '')),
+                'installment_due_days' => trim((string) ($_POST['installment_due_days'] ?? '')),
             ];
             if ($updateData['buy_date'] === '') {
                 $updateData['buy_date'] = $defaultBuyDate;
@@ -830,7 +857,67 @@ $annualizedReturn = ($oldestDate && $analyticsCost > 0)
                     ]) ?></small>
                 <?php endif; ?>
             </div>
+            <?php if (($summary['installment_active_count'] ?? 0) > 0): ?>
+                <div class="card card-installment">
+                    <h3><?= t('portfolio.summary.installment_remaining') ?></h3>
+                    <p class="card-value"><?= formatTRY((float) $summary['installment_remaining']) ?></p>
+                    <small class="card-subnote"><?= t('portfolio.summary.installment_note', [
+                        'count' => (string) (int) $summary['installment_active_count'],
+                        'net' => formatTRY((float) ($summary['total_value_buy'] ?? $summary['total_value']) - (float) $summary['installment_remaining']),
+                    ]) ?></small>
+                </div>
+            <?php endif; ?>
         </section>
+
+        <?php $activeInstallmentItems = array_values(array_filter($summary['items'], fn($it) => ($it['installments']['active'] ?? false) === true)); ?>
+        <?php if ($activeInstallmentItems !== []): ?>
+            <section class="bank-section installment-section" id="installments">
+                <h2>💳 <?= t('portfolio.installment.title') ?></h2>
+                <div class="table-responsive">
+                    <table class="rates-table installment-table">
+                        <thead>
+                            <tr>
+                                <th scope="col"><?= t('portfolio.installment.col_item') ?></th>
+                                <th scope="col"><?= t('portfolio.installment.col_card') ?></th>
+                                <th scope="col" class="text-right"><?= t('portfolio.installment.col_total') ?></th>
+                                <th scope="col"><?= t('portfolio.installment.col_schedule') ?></th>
+                                <th scope="col" class="text-right"><?= t('portfolio.installment.col_remaining') ?></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($activeInstallmentItems as $it): ?>
+                                <?php $inst = $it['installments']; ?>
+                                <tr>
+                                    <td>
+                                        <strong><?= htmlspecialchars((string) $it['currency_code']) ?></strong>
+                                        <?= formatRate((float) $it['amount']) ?> <?= htmlspecialchars((string) ($it['currency_symbol'] ?? '')) ?>
+                                        <small class="cell-subline"><?= formatDate((string) $it['buy_date']) ?></small>
+                                    </td>
+                                    <td><?= htmlspecialchars((string) ($it['installment_card'] ?? '')) ?></td>
+                                    <td class="text-right mono"><?= formatTRY((float) $inst['total']) ?></td>
+                                    <td>
+                                        <?php foreach ($inst['installments'] as $row): ?>
+                                            <small class="cell-subline <?= $row['paid'] ? 'installment-paid' : '' ?>">
+                                                <?= $row['paid'] ? '✓' : '○' ?> <?= (int) $row['no'] ?>/<?= (int) $inst['count'] ?> ·
+                                                <?= formatDate((string) $row['due_date']) ?> · <?= formatTRY((float) $row['amount']) ?>
+                                            </small>
+                                        <?php endforeach; ?>
+                                    </td>
+                                    <td class="text-right mono"><?= formatTRY((float) $inst['remaining']) ?></td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                        <tfoot>
+                            <tr>
+                                <th scope="row" colspan="4"><?= t('portfolio.summary.installment_remaining') ?></th>
+                                <td class="text-right mono"><strong><?= formatTRY((float) $summary['installment_remaining']) ?></strong></td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+                <small class="card-subnote"><?= t('portfolio.installment.footnote') ?></small>
+            </section>
+        <?php endif; ?>
 
         <!-- Combined Groups & Tags Management Panel -->
         <section class="manage-panel" id="manage-panel">
@@ -1648,6 +1735,49 @@ $annualizedReturn = ($oldestDate && $analyticsCost > 0)
                     </div>
                 </div>
 
+                <?php $installmentError = $fieldErrors['installment_count'] ?? ''; ?>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="installment_count"><?= t('portfolio.form.installment_count') ?></label>
+                        <select name="installment_count" id="installment_count" <?= $installmentError !== '' ? 'aria-invalid="true" aria-describedby="installment_count-error"' : '' ?>>
+                            <option value=""><?= t('portfolio.form.installment_cash') ?></option>
+                            <?php
+                            // Keep the lot's own count selectable even when it is not a preset
+                            // (7, 18, …), so an unrelated edit never resubmits it as "peşin".
+                            $installmentOptions = [2, 3, 4, 5, 6, 9, 12];
+                            if (ctype_digit($formValues['installment_count']) && (int) $formValues['installment_count'] >= 2) {
+                                $installmentOptions[] = (int) $formValues['installment_count'];
+                            }
+                            $installmentOptions = array_unique($installmentOptions);
+                            sort($installmentOptions);
+                            ?>
+                            <?php foreach ($installmentOptions as $n): ?>
+                                <option value="<?= $n ?>" <?= $formValues['installment_count'] === (string) $n ? 'selected' : '' ?>>
+                                    <?= t('portfolio.form.installment_option', ['count' => (string) $n]) ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                        <?php if ($installmentError !== ''): ?>
+                            <small id="installment_count-error" class="field-error"><?= htmlspecialchars($installmentError) ?></small>
+                        <?php endif; ?>
+                    </div>
+                    <div class="form-group">
+                        <label for="installment_card"><?= t('portfolio.form.installment_card') ?></label>
+                        <input type="text" name="installment_card" id="installment_card" maxlength="50"
+                            value="<?= htmlspecialchars($formValues['installment_card']) ?>">
+                    </div>
+                    <div class="form-group">
+                        <label for="installment_statement_day"><?= t('portfolio.form.installment_statement_day') ?></label>
+                        <input type="number" name="installment_statement_day" id="installment_statement_day" min="1" max="31"
+                            value="<?= htmlspecialchars($formValues['installment_statement_day']) ?>">
+                    </div>
+                    <div class="form-group">
+                        <label for="installment_due_days"><?= t('portfolio.form.installment_due_days') ?></label>
+                        <input type="number" name="installment_due_days" id="installment_due_days" min="1" max="31"
+                            value="<?= htmlspecialchars($formValues['installment_due_days']) ?>">
+                    </div>
+                </div>
+
                 <div class="form-group">
                     <?php $notesError = $fieldErrors['notes'] ?? ''; ?>
                     <label for="notes"><?= t('portfolio.form.notes') ?></label>
@@ -2054,7 +2184,19 @@ $annualizedReturn = ($oldestDate && $analyticsCost > 0)
                                             <?php endif; ?>
                                         </div>
                                     </td>
-                                    <td class="text-right mono"><?= formatRate((float) $item['amount']) ?></td>
+                                    <td class="text-right mono">
+                                        <?= formatRate((float) $item['amount']) ?>
+                                        <?php $inst = $item['installments'] ?? null; ?>
+                                        <?php if ($inst !== null): ?>
+                                            <small class="cell-subline installment-subline">💳 <?= htmlspecialchars((string) ($item['installment_card'] ?? '')) ?> <?= (int) $inst['paid_count'] ?>/<?= (int) $inst['count'] ?></small>
+                                            <?php if ($inst['active']): ?>
+                                                <small class="cell-subline"><?= t('portfolio.installment.remaining_short') ?>: <?= formatTRY((float) $inst['remaining']) ?></small>
+                                                <small class="cell-subline"><?= t('portfolio.installment.next_due_short') ?>: <?= formatDate((string) $inst['next_due_date']) ?></small>
+                                            <?php else: ?>
+                                                <small class="cell-subline"><?= t('portfolio.installment.completed') ?></small>
+                                            <?php endif; ?>
+                                        <?php endif; ?>
+                                    </td>
                                     <td class="text-right mono"><?= formatRate((float) $item['buy_rate']) ?></td>
                                     <td class="text-right mono">
                                         <?= $item['current_rate'] ? formatRate((float) $item['current_rate']) : t('common.not_available') ?>

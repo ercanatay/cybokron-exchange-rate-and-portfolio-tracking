@@ -6,6 +6,13 @@
 
 class Portfolio
 {
+    // Taksit varsayılanları: Enpara kredi kartı, ekstre ayın 30'unda kesilir, son ödeme
+    // kesimden 10 gün sonra (sözleşme gün sayısı vermiyor; bankaların yaygın uygulaması).
+    public const INSTALLMENT_DEFAULT_CARD = 'Enpara';
+    public const INSTALLMENT_DEFAULT_STATEMENT_DAY = 30;
+    public const INSTALLMENT_DEFAULT_DUE_DAYS = 10;
+    private const INSTALLMENT_MAX_COUNT = 36;
+
     /**
      * Get all portfolio entries with current rates and P/L.
      * When Auth is active and user is not admin, filters by user_id.
@@ -30,6 +37,10 @@ class Portfolio
                 p.buy_rate,
                 p.buy_date,
                 p.notes,
+                p.installment_count,
+                p.installment_card,
+                p.installment_statement_day,
+                p.installment_due_days,
                 p.group_id,
                 c.code AS currency_code,
                 c.name_tr AS currency_name_tr,
@@ -105,6 +116,16 @@ class Portfolio
             $tuikSeries,
             InflationProvider::getMultiplier()
         );
+        $items = self::withInstallments($items);
+        $installmentRemaining = 0.0;
+        $installmentActiveCount = 0;
+        foreach ($items as $item) {
+            if (($item['installments']['active'] ?? false) === true) {
+                $installmentRemaining += $item['installments']['remaining'];
+                $installmentActiveCount++;
+            }
+        }
+
         $inflationTarget = 0.0;
         $tuikTarget = $tuikSeries !== [] ? 0.0 : null;
         foreach ($items as $item) {
@@ -142,7 +163,86 @@ class Portfolio
             'inflation_gap_tuik' => $tuikGap !== null ? round($tuikGap, 2) : null,
             'inflation_gap_percent_tuik' => $tuikGapPercent !== null ? round($tuikGapPercent, 2) : null,
             'inflation_tuik_last' => $tuikSeries !== [] ? array_key_last($tuikSeries) : null,
+            'installment_remaining' => round($installmentRemaining, 2),
+            'installment_active_count' => $installmentActiveCount,
             'item_count' => count($items),
+        ];
+    }
+
+    /**
+     * Attach the card installment schedule (InstallmentSchedule) to each lot bought
+     * in installments; peşin lots get installments = null. The total is the lot's
+     * cost, since the purchases are "peşin fiyatına taksit".
+     *
+     * @param array<int, array<string, mixed>> $items
+     * @return array<int, array<string, mixed>>
+     */
+    private static function withInstallments(array $items): array
+    {
+        foreach ($items as &$item) {
+            $count = (int) ($item['installment_count'] ?? 0);
+            $item['installments'] = $count >= 2
+                ? InstallmentSchedule::build(
+                    (string) $item['buy_date'],
+                    (float) $item['cost_try'],
+                    $count,
+                    (int) ($item['installment_statement_day'] ?? self::INSTALLMENT_DEFAULT_STATEMENT_DAY),
+                    (int) ($item['installment_due_days'] ?? self::INSTALLMENT_DEFAULT_DUE_DAYS)
+                )
+                : null;
+        }
+        unset($item);
+
+        return $items;
+    }
+
+    /**
+     * Validate installment fields. A count of '', 0 or 1 means peşin and clears
+     * every installment column; otherwise card, statement day and due days fall
+     * back to the Enpara defaults.
+     *
+     * @return array{installment_count: ?int, installment_card: ?string, installment_statement_day: ?int, installment_due_days: ?int}
+     */
+    private static function normalizeInstallment(array $data): array
+    {
+        $rawCount = trim((string) ($data['installment_count'] ?? ''));
+        if ($rawCount === '' || $rawCount === '0' || $rawCount === '1') {
+            return [
+                'installment_count' => null,
+                'installment_card' => null,
+                'installment_statement_day' => null,
+                'installment_due_days' => null,
+            ];
+        }
+
+        $int = static function (string $field, $value, int $min, int $max): int {
+            $text = trim((string) $value);
+            if (!preg_match('/^\d{1,3}$/', $text) || (int) $text < $min || (int) $text > $max) {
+                throw new InvalidArgumentException("{$field} must be between {$min} and {$max}");
+            }
+            return (int) $text;
+        };
+
+        $card = trim((string) ($data['installment_card'] ?? ''));
+        if (mb_strlen($card, 'UTF-8') > 50) {
+            throw new InvalidArgumentException('installment_card exceeds maximum length of 50 characters');
+        }
+
+        return [
+            'installment_count' => $int('installment_count', $rawCount, 2, self::INSTALLMENT_MAX_COUNT),
+            'installment_card' => $card !== '' ? $card : self::INSTALLMENT_DEFAULT_CARD,
+            'installment_statement_day' => $int(
+                'installment_statement_day',
+                ($data['installment_statement_day'] ?? '') !== '' ? $data['installment_statement_day'] : self::INSTALLMENT_DEFAULT_STATEMENT_DAY,
+                1,
+                31
+            ),
+            'installment_due_days' => $int(
+                'installment_due_days',
+                ($data['installment_due_days'] ?? '') !== '' ? $data['installment_due_days'] : self::INSTALLMENT_DEFAULT_DUE_DAYS,
+                1,
+                31
+            ),
         ];
     }
 
@@ -272,6 +372,7 @@ class Portfolio
             throw new InvalidArgumentException('notes exceeds maximum length of 500 characters');
         }
         $notes = $notes !== '' ? $notes : null;
+        $installment = self::normalizeInstallment($data);
 
         $currency = Database::queryOne(
             'SELECT id FROM currencies WHERE code = ? AND is_active = 1',
@@ -335,7 +436,7 @@ class Portfolio
             'buy_rate' => $buyRate,
             'buy_date' => $buyDate,
             'notes' => $notes,
-        ]);
+        ] + $installment);
     }
 
     /**
@@ -399,6 +500,10 @@ class Portfolio
                 throw new InvalidArgumentException('notes exceeds maximum length of 500 characters');
             }
             $update['notes'] = $notes !== '' ? $notes : null;
+        }
+
+        if (array_key_exists('installment_count', $data)) {
+            $update += self::normalizeInstallment($data);
         }
 
         if (isset($data['bank_slug'])) {

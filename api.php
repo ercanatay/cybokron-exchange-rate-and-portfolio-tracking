@@ -193,6 +193,15 @@ try {
                 'bank_slug' => $input['bank_slug'] ?? null,
             ], fn($v) => $v !== null);
 
+            // Installment fields travel together: sending installment_count (empty / 0 / 1
+            // = peşin) replaces the whole plan; card, statement day and due days omitted
+            // here fall back to the defaults.
+            if (array_key_exists('installment_count', $input)) {
+                foreach (['installment_count', 'installment_card', 'installment_statement_day', 'installment_due_days'] as $field) {
+                    $updateData[$field] = is_scalar($input[$field] ?? null) ? (string) $input[$field] : '';
+                }
+            }
+
             if (empty($updateData)) {
                 jsonResponse(['status' => 'error', 'message' => t('api.error.no_fields_to_update')], 400);
             }
