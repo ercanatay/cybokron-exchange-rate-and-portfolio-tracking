@@ -1741,7 +1741,17 @@ $annualizedReturn = ($oldestDate && $analyticsCost > 0)
                         <label for="installment_count"><?= t('portfolio.form.installment_count') ?></label>
                         <select name="installment_count" id="installment_count" <?= $installmentError !== '' ? 'aria-invalid="true" aria-describedby="installment_count-error"' : '' ?>>
                             <option value=""><?= t('portfolio.form.installment_cash') ?></option>
-                            <?php foreach ([2, 3, 4, 5, 6, 9, 12] as $n): ?>
+                            <?php
+                            // Keep the lot's own count selectable even when it is not a preset
+                            // (7, 18, …), so an unrelated edit never resubmits it as "peşin".
+                            $installmentOptions = [2, 3, 4, 5, 6, 9, 12];
+                            if (ctype_digit($formValues['installment_count']) && (int) $formValues['installment_count'] >= 2) {
+                                $installmentOptions[] = (int) $formValues['installment_count'];
+                            }
+                            $installmentOptions = array_unique($installmentOptions);
+                            sort($installmentOptions);
+                            ?>
+                            <?php foreach ($installmentOptions as $n): ?>
                                 <option value="<?= $n ?>" <?= $formValues['installment_count'] === (string) $n ? 'selected' : '' ?>>
                                     <?= t('portfolio.form.installment_option', ['count' => (string) $n]) ?>
                                 </option>
